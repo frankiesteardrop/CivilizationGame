@@ -1,39 +1,35 @@
 package view;
 
-import model.GameMap;
-import model.Hex;
-import model.ResourceType;
-import model.Unit;
-
+import model.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
+/**
+ * پنل گرافیکی اصلی بازی جهت نمایش نقشه هگز، انیمیشن حرکت و منوهای تعاملی.
+ */
 public class GamePanel extends JPanel {
-    private GameMap gameMap;
+    private final GameMap gameMap;
     private double zoomFactor = 1.0;
-    private int offsetX = 400; // مرکز صفحه نمایش
+    private int offsetX = 400;
     private int offsetY = 300;
     private Point lastMousePosition;
     private final int HEX_SIZE = 40;
 
-    // متغیرهای مربوط به انتخاب و انیمیشن یونیت‌ها
     private Unit selectedUnit = null;
     private Unit animatingUnit = null;
     private double animProgress = 0.0;
     private int animStartX, animStartY, animTargetX, animTargetY;
     private int animTargetQ, animTargetR, animCost;
-    private Timer animationTimer;
+    private final Timer animationTimer;
 
     public GamePanel(GameMap gameMap) {
         this.gameMap = gameMap;
-        setBackground(Color.BLACK); // پس زمینه تاریک بیرون نقشه
+        setBackground(Color.BLACK);
         setFocusable(true);
 
-        // راه اندازی تایمر انیمیشن حرکت (حدود 60 فریم بر ثانیه)
         animationTimer = new Timer(16, e -> updateAnimation());
 
-        // پیاده سازی جابجایی دوربین، انتخاب یونیت و حرکت
         MouseAdapter mouseAdapter = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -42,11 +38,14 @@ public class GamePanel extends JPanel {
 
                 if (clickedHex != null) {
                     if (SwingUtilities.isLeftMouseButton(e)) {
-                        // کلیک چپ: انتخاب یونیت
                         selectUnitAt(clickedHex);
                     } else if (SwingUtilities.isRightMouseButton(e)) {
-                        // کلیک راست: حرکت یونیت انتخاب شده
-                        if (selectedUnit != null && animatingUnit == null) {
+                        // باز کردن منوی عملیات اختصاصی در صورت کلیک راست روی خود یونیت منتخب
+                        if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
+                            showUnitContextMenu(e, clickedHex);
+                        }
+                        // حرکت دادن یونیت در صورت کلیک راست روی خانه‌های مجاور
+                        else if (selectedUnit != null && animatingUnit == null) {
                             handleMovementCommand(clickedHex);
                         }
                     }
@@ -56,12 +55,9 @@ public class GamePanel extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                // جابجایی نقشه فقط با کلیک چپ (در صورت درگ کردن)
                 if (SwingUtilities.isLeftMouseButton(e)) {
-                    int dx = e.getX() - lastMousePosition.x;
-                    int dy = e.getY() - lastMousePosition.y;
-                    offsetX += dx;
-                    offsetY += dy;
+                    offsetX += e.getX() - lastMousePosition.x;
+                    offsetY += e.getY() - lastMousePosition.y;
                     lastMousePosition = e.getPoint();
                     repaint();
                 }
@@ -70,20 +66,102 @@ public class GamePanel extends JPanel {
         addMouseListener(mouseAdapter);
         addMouseMotionListener(mouseAdapter);
 
-        // پیاده سازی زوم گسسته با چرخ موس
         addMouseWheelListener(e -> {
-            if (e.getWheelRotation() < 0) {
-                zoomFactor += 0.2; // زوم به داخل
-            } else {
-                zoomFactor -= 0.2; // زوم به بیرون
-            }
-            if (zoomFactor < 0.4) zoomFactor = 0.4;
-            if (zoomFactor > 3.0) zoomFactor = 3.0;
+            if (e.getWheelRotation() < 0) zoomFactor += 0.2;
+            else zoomFactor -= 0.2;
+            zoomFactor = Math.max(0.4, Math.min(3.0, zoomFactor));
             repaint();
         });
     }
 
-    // --- منطق انتخاب و حرکت یونیت‌ها ---
+    // --- سیستم منوی تعاملی راست کلیک یونیت‌ها (Context Menu) ---
+    private void showUnitContextMenu(MouseEvent e, Hex hex) {
+        JPopupMenu popup = new JPopupMenu();
+
+        if (selectedUnit instanceof Builder) {
+            Builder builder = (Builder) selectedUnit;
+            if (hex.getBuilding() != null) {
+                JMenuItem errorItem = new JMenuItem("Hex already occupied");
+                errorItem.setEnabled(false);
+                popup.add(errorItem);
+            } else {
+                for (BuildingType type : BuildingType.values()) {
+                    JMenuItem buildItem = new JMenuItem("Build " + type.name() + " (-" + type.getApCost() + " AP)");
+
+                    boolean validTerrain = checkTerrainForBuilding(type, hex);
+                    Inventory inv = gameMap.getTownHall().getInventory();
+                    boolean hasResources = inv.hasEnough(ResourceType.WOOD, type.getWoodCost()) &&
+                            inv.hasEnough(ResourceType.STONE, type.getStoneCost()) &&
+                            inv.hasEnough(ResourceType.IRON, type.getIronCost());
+                    boolean hasAP = builder.getCurrentAP() >= type.getApCost();
+
+                    // غیرفعال کردن گزینه در صورت عدم احراز شرایط داک پروژه
+                    if (!validTerrain || !hasResources || !hasAP || builder.getCharges() <= 0) {
+                        buildItem.setEnabled(false);
+                    }
+
+                    buildItem.addActionListener(ev -> {
+                        inv.consumeResource(ResourceType.WOOD, type.getWoodCost());
+                        inv.consumeResource(ResourceType.STONE, type.getStoneCost());
+                        inv.consumeResource(ResourceType.IRON, type.getIronCost());
+                        builder.consumeAP(type.getApCost());
+                        builder.useCharge();
+
+                        hex.setBuilding(new Building(type));
+                        repaint();
+                    });
+                    popup.add(buildItem);
+                }
+            }
+        } else if (selectedUnit instanceof Worker) {
+            Worker worker = (Worker) selectedUnit;
+            Building building = hex.getBuilding();
+
+            if (building != null) {
+                if (!worker.isStationed()) {
+                    JMenuItem stationItem = new JMenuItem("Station in " + building.getType().name());
+                    if (building.getStationedWorkers() >= building.getType().getMaxWorkers() || worker.getCurrentAP() == 0) {
+                        stationItem.setEnabled(false);
+                    }
+                    stationItem.addActionListener(ev -> {
+                        building.addWorker();
+                        worker.setStationed(true);
+                        worker.consumeAP(worker.getCurrentAP()); // قفل کردن کارگر در این نوبت
+                        repaint();
+                    });
+                    popup.add(stationItem);
+                } else {
+                    JMenuItem leaveItem = new JMenuItem("Leave Facility");
+                    leaveItem.addActionListener(ev -> {
+                        building.removeWorker();
+                        worker.setStationed(false);
+                        repaint();
+                    });
+                    popup.add(leaveItem);
+                }
+            } else {
+                JMenuItem errorItem = new JMenuItem("No facility to station");
+                errorItem.setEnabled(false);
+                popup.add(errorItem);
+            }
+        }
+
+        if (popup.getComponentCount() > 0) {
+            popup.show(this, e.getX(), e.getY());
+        }
+    }
+
+    private boolean checkTerrainForBuilding(BuildingType type, Hex hex) {
+        switch (type) {
+            case LUMBER_MILL: return hex.getTerrainType() == TerrainType.FOREST;
+            case STONE_MINE: return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.STONE;
+            case IRON_MINE: return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.IRON;
+            case FARM: return hex.getTerrainType() == TerrainType.MEADOW && hex.getResourceType() == ResourceType.FOOD;
+            case STABLE: return hex.getTerrainType() == TerrainType.PLAINS && hex.getResourceType() == ResourceType.FOOD;
+            case SETTLEMENT: return hex.getResourceType() == ResourceType.NONE;
+            default: return false;
+        }
+    }
 
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
@@ -96,7 +174,11 @@ public class GamePanel extends JPanel {
     }
 
     private void handleMovementCommand(Hex targetHex) {
-        // ۱. بررسی همسایه بودن هکس مقصد در سیستم مختصات محوری
+        if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) {
+            JOptionPane.showMessageDialog(this, "Worker is stationed. Leave facility first!");
+            return;
+        }
+
         int dq = targetHex.getQ() - selectedUnit.getQ();
         int dr = targetHex.getR() - selectedUnit.getR();
         boolean isNeighbor = (Math.abs(dq) <= 1 && Math.abs(dr) <= 1 && Math.abs(dq + dr) <= 1) && !(dq == 0 && dr == 0);
@@ -106,15 +188,12 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // ۲. دریافت هزینه حرکت از نوع زمین مقصد
         int cost = targetHex.getTerrainType().getMovementCost();
-
         if (selectedUnit.getCurrentAP() < cost) {
             JOptionPane.showMessageDialog(this, "Not enough Action Points (AP)! Need " + cost);
             return;
         }
 
-        // ۳. شروع انیمیشن
         Point startPt = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
         Point targetPt = getHexPixelCoords(targetHex.getQ(), targetHex.getR());
 
@@ -132,24 +211,18 @@ public class GamePanel extends JPanel {
     }
 
     private void updateAnimation() {
-        animProgress += 0.08; // سرعت انیمیشن
+        animProgress += 0.08;
         if (animProgress >= 1.0) {
             animProgress = 1.0;
             animationTimer.stop();
             if (animatingUnit != null) {
-                // اعمال قطعی حرکت و کسر AP پس از اتمام انیمیشن
                 animatingUnit.moveTo(animTargetQ, animTargetR, animCost);
-
-                // فاز مه‌جنگ: آپدیت کردن وضعیت دید نقشه بلافاصله پس از نشستن یونیت در خانه مقصد
                 gameMap.updateFogOfWar();
-
                 animatingUnit = null;
             }
         }
         repaint();
     }
-
-    // --- توابع کمکی محاسبات مختصات ---
 
     private Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
@@ -173,20 +246,16 @@ public class GamePanel extends JPanel {
         return closest;
     }
 
-    // --- رسم گرافیک ---
-
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // رسم تمام هکس‌ها
         for (Hex hex : gameMap.getHexes()) {
             drawHex(g2d, hex);
         }
 
-        // رسم یونیت‌ها روی نقشه
         for (Unit u : gameMap.getUnits()) {
             if (u.isAlive()) {
                 drawUnit(g2d, u);
@@ -207,7 +276,6 @@ public class GamePanel extends JPanel {
             polygon.addPoint(px, py);
         }
 
-        // پیاده سازی مه‌جنگ: اگر خانه کشف نشده باشد، خاکستری تیره شده و توابع رسم آن قطع می‌شوند
         if (!hex.isExplored()) {
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillPolygon(polygon);
@@ -216,7 +284,6 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // رنگ آمیزی زمینها بر اساس نوع آنها (در صورت خارج بودن از مه جنگ)
         switch (hex.getTerrainType()) {
             case FOREST: g2d.setColor(new Color(34, 139, 34)); break;
             case PLAINS: g2d.setColor(new Color(154, 205, 50)); break;
@@ -224,14 +291,13 @@ public class GamePanel extends JPanel {
             case MEADOW: g2d.setColor(new Color(144, 238, 144)); break;
         }
         g2d.fillPolygon(polygon);
-
-        // رسم خطوط دور هکس
         g2d.setColor(Color.BLACK);
         g2d.drawPolygon(polygon);
 
-        // نمایش بصری منابع روی هکس
+        int fontSize = (int) (14 * zoomFactor);
+
+        // رسم بصری منابع طبیعی روی نقشه
         if (hex.getResourceType() != ResourceType.NONE && hex.getResourceAmount() > 0) {
-            int fontSize = (int) (14 * zoomFactor);
             if (fontSize > 5) {
                 g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
                 String resStr = "";
@@ -241,21 +307,33 @@ public class GamePanel extends JPanel {
                     case IRON: resStr = "I"; g2d.setColor(Color.ORANGE); break;
                     case FOOD: resStr = "F"; g2d.setColor(Color.YELLOW); break;
                 }
-                g2d.drawString(resStr, pt.x - fontSize/2, pt.y + fontSize/2);
+                g2d.drawString(resStr, pt.x - fontSize/2, pt.y - 5);
+            }
+        }
+
+        // رسم گرافیکی سازه ساخته شده و وضعیت تعداد کارگران درون آن
+        if (hex.getBuilding() != null) {
+            g2d.setColor(Color.PINK);
+            int bSize = (int) (16 * zoomFactor);
+            g2d.fillRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
+
+            if (fontSize > 5) {
+                g2d.setFont(new Font("Arial", Font.PLAIN, fontSize - 2));
+                g2d.drawString(hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getType().getMaxWorkers(), pt.x - bSize/2, pt.y + bSize + 15);
             }
         }
     }
 
     private void drawUnit(Graphics2D g2d, Unit u) {
-        // مه‌جنگ پیشرفته: اگر یونیتی روی یک هکس ناشناخته قرار داشت، اصلاً رندر و رسم نمی‌شود
         Hex unitHex = gameMap.getHexAt(u.getQ(), u.getR());
-        if (unitHex != null && !unitHex.isExplored()) {
-            return;
-        }
+        if (unitHex != null && !unitHex.isExplored()) return;
+
+        // کارگر مستقر شده داخل ساختمان رسم نمی‌شود تا محیط بصری خلوت بماند
+        if (u instanceof Worker && ((Worker) u).isStationed()) return;
 
         int px, py;
-
-        // محاسبه مختصات در حین پخش انیمیشن
         if (u == animatingUnit) {
             px = (int) (animStartX + (animTargetX - animStartX) * animProgress);
             py = (int) (animStartY + (animTargetY - animStartY) * animProgress);
@@ -268,18 +346,15 @@ public class GamePanel extends JPanel {
         int radius = (int) (15 * zoomFactor);
         if (radius < 4) radius = 4;
 
-        // مشخص کردن رنگ و حرف نماینده هر یونیت
         String typeLetter = "U";
         if (u instanceof model.Explorer) { g2d.setColor(new Color(65, 105, 225)); typeLetter = "E"; }
         else if (u instanceof model.Builder) { g2d.setColor(new Color(255, 215, 0)); typeLetter = "B"; }
         else if (u instanceof model.Worker) { g2d.setColor(new Color(255, 140, 0)); typeLetter = "W"; }
 
-        // رسم دایره اصلی یونیت
         g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
         g2d.setColor(Color.BLACK);
         g2d.drawOval(px - radius, py - radius, radius * 2, radius * 2);
 
-        // چاپ مقدار AP داخل یونیت
         int fontSize = (int) (11 * zoomFactor);
         if (fontSize > 5) {
             g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
@@ -287,12 +362,11 @@ public class GamePanel extends JPanel {
             g2d.drawString(typeLetter + u.getCurrentAP(), px - radius/2, py + radius/2);
         }
 
-        // افکت انتخاب شدن (هایلایت فیروزه‌ای دور یونیت)
         if (u == selectedUnit) {
             g2d.setColor(Color.CYAN);
             g2d.setStroke(new BasicStroke(2f));
             g2d.drawOval(px - radius - 3, py - radius - 3, radius * 2 + 6, radius * 2 + 6);
-            g2d.setStroke(new BasicStroke(1f)); // بازگرداندن ضخامت خط به حالت عادی
+            g2d.setStroke(new BasicStroke(1f));
         }
     }
 }
