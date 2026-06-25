@@ -12,13 +12,16 @@ public class GameMap {
     private final List<Unit> units;
     private final int radius;
     private final Random random;
-    private TownHall townHall; // فیلد جدید اضافه شده برای مدیریت مرکز شهر
+    private TownHall townHall;
+
+    // متغیرهای سیستم نوبت‌دهی (Turn System)
+    private int currentTurn = 1;
 
     public GameMap(int radius) {
         this.radius = radius;
         this.hexes = new ArrayList<>();
         this.units = new ArrayList<>();
-        this.townHall = new TownHall(0, 0); // مقداردهی اولیه TownHall در مرکز نقشه
+        this.townHall = new TownHall(0, 0);
         this.random = new Random();
 
         generateMap();
@@ -31,7 +34,6 @@ public class GameMap {
             int r1 = Math.max(-radius, -q - radius);
             int r2 = Math.min(radius, -q + radius);
             for (int r = r1; r <= r2; r++) {
-                // هکس مرکزی مخصوص تان هال است و منبع طبیعی ندارد
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS, ResourceType.NONE, 0);
                     centerHex.setExplored(true);
@@ -84,14 +86,12 @@ public class GameMap {
     }
 
     public void updateFogOfWar() {
-        // ۱. آشکارسازی اطراف تان‌هال در مختصات (0,0) با شعاع دید ۱
         for (Hex hex : hexes) {
             if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
                 hex.setExplored(true);
             }
         }
 
-        // ۲. آشکارسازی خانه‌ها بر اساس شعاع دید اختصاصی یونیت‌های زنده
         for (Unit unit : units) {
             if (unit.isAlive()) {
                 int visionRadius = (unit instanceof Explorer) ? 2 : 1;
@@ -126,8 +126,33 @@ public class GameMap {
         return null;
     }
 
-    // متد دسترسی تان‌هال برای سیستم‌های مدیریت اقتصاد
     public TownHall getTownHall() {
         return townHall;
+    }
+
+    // --- متدهای گام ششم (سیستم نوبت و ظرفیت یونیت) ---
+    public int getCurrentTurn() { return currentTurn; }
+
+    public void nextTurn() {
+        EconomyManager.processEndTurn(this);
+        currentTurn++;
+    }
+
+    public int getUnitCap() {
+        int cap = 10; // سقف مجاز اولیه
+        for (Hex h : hexes) {
+            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.SETTLEMENT && !h.getBuilding().isDestroyed()) {
+                cap += 5; // هر شهرک ۵ واحد به ظرفیت اضافه می‌کند
+            }
+        }
+        return cap;
+    }
+
+    public int getAliveUnitsCount() {
+        int count = 0;
+        for (Unit u : units) {
+            if (u.isAlive()) count++;
+        }
+        return count;
     }
 }

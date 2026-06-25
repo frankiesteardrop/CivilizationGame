@@ -10,10 +10,11 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel mainContainer;
     private GamePanel gamePanel;
+    private GameMap gameMap; // نگهداری رفرنس نقشه جهت استفاده امن در HUD
 
     public MainFrame(GameMap gameMap) {
+        this.gameMap = gameMap;
         setTitle("Civilization - Advanced Programming Project");
-        // غیرفعال کردن بسته شدن مستقیم تا پاپ آپ خروج کار کنه
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setSize(1024, 768);
         setLocationRelativeTo(null);
@@ -21,17 +22,16 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        // ساخت پنل ها
+        // ساخت پنل منو و پنل بازی
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
         gamePanel = new GamePanel(gameMap);
 
-        // اضافه کردن پنل ها به کانتینر اصلی
+        // افزودن منوی اصلی به کانتینر
         mainContainer.add(mainMenuPanel, "MENU");
-        mainContainer.add(gamePanel, "GAME");
 
         add(mainContainer);
 
-        // مدیریت بستن پنجره با دکمه ضربدر بالای صفحه
+        // مدیریت بستن ایمن پنجره
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -40,9 +40,17 @@ public class MainFrame extends JFrame {
         });
     }
 
-    // متدی که دکمه Start تو منو صداش میزنه تا مپ بازی باز بشه
+    // تغییرات گام ۶: اتصال پنل HUD به صفحه بازی هنگام شروع
     public void startGame() {
-        cardLayout.show(mainContainer, "GAME");
+        JPanel gameWrapper = new JPanel(new BorderLayout());
+        HUDPanel hudPanel = new HUDPanel(this.gameMap, gamePanel);
+
+        gameWrapper.add(hudPanel, BorderLayout.NORTH);
+        gameWrapper.add(gamePanel, BorderLayout.CENTER);
+
+        mainContainer.add(gameWrapper, "GAME_UI");
+        cardLayout.show(mainContainer, "GAME_UI");
+
         gamePanel.requestFocus();
     }
 

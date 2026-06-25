@@ -5,10 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/model/Building.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/BuildingType.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/EconomyManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/GamePanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GamePanel.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/EconomyManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/EconomyManager.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

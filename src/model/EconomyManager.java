@@ -75,4 +75,32 @@ public class EconomyManager {
             }
         }
     }
+
+    // متد جدید برای پیش‌بینی و نمایش نرخ تولید در HUD
+    public static int calculateNetProduction(GameMap map, ResourceType type) {
+        int net = 0;
+
+        // محاسبه تولید Safeguard
+        if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
+
+        // محاسبه تولید و هزینه ساختمان‌ها
+        for (Hex h : map.getHexes()) {
+            if (h.getBuilding() != null && !h.getBuilding().isDestroyed()) {
+                if (h.getBuilding().getType().getProducedResource() == type) {
+                    net += h.getBuilding().calculateProduction();
+                }
+                if (h.getBuilding().getType().getUpkeepResource() == type) {
+                    net -= h.getBuilding().getType().getUpkeepCost();
+                }
+            }
+        }
+
+        // کسر غذای مصرفی یونیت‌ها در نرخ خالص
+        if (type == ResourceType.FOOD) {
+            for (Unit u : map.getUnits()) {
+                if (u.isAlive()) net -= u.getFoodConsumption();
+            }
+        }
+        return net;
+    }
 }
