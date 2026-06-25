@@ -40,11 +40,15 @@ public class GamePanel extends JPanel {
                     if (SwingUtilities.isLeftMouseButton(e)) {
                         selectUnitAt(clickedHex);
                     } else if (SwingUtilities.isRightMouseButton(e)) {
-                        // باز کردن منوی عملیات اختصاصی در صورت کلیک راست روی خود یونیت منتخب
-                        if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
+                        // باز کردن منوی ارتقای Town Hall
+                        if (clickedHex.getQ() == 0 && clickedHex.getR() == 0 && selectedUnit == null) {
+                            showTownHallMenu(e);
+                        }
+                        // باز کردن منوی عملیات اختصاصی یونیت‌ها
+                        else if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
                             showUnitContextMenu(e, clickedHex);
                         }
-                        // حرکت دادن یونیت در صورت کلیک راست روی خانه‌های مجاور
+                        // حرکت دادن یونیت
                         else if (selectedUnit != null && animatingUnit == null) {
                             handleMovementCommand(clickedHex);
                         }
@@ -74,7 +78,69 @@ public class GamePanel extends JPanel {
         });
     }
 
-    // --- سیستم منوی تعاملی راست کلیک یونیت‌ها (Context Menu) ---
+    // --- منوی ارتقا تکنولوژی‌ها (Town Hall) ---
+    private void showTownHallMenu(MouseEvent e) {
+        JPopupMenu popup = new JPopupMenu();
+        TownHall th = gameMap.getTownHall();
+        Inventory inv = th.getInventory();
+
+        // 1. ارتقا انبار
+        String whLabel = th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)";
+        JMenuItem whItem = new JMenuItem(whLabel);
+        if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) {
+            whItem.setEnabled(false);
+        }
+        whItem.addActionListener(ev -> {
+            inv.consumeResource(ResourceType.WOOD, 100);
+            inv.consumeResource(ResourceType.STONE, 50);
+            th.upgradeWarehouse();
+            repaint();
+        });
+        popup.add(whItem);
+
+        // 2. تکنولوژی معدن سنگ
+        JMenuItem smItem = new JMenuItem(th.isStoneMineUnlocked() ? "Tech: Stone Mine (Unlocked)" : "Unlock Stone Mine (50 W)");
+        if (th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 50)) smItem.setEnabled(false);
+        smItem.addActionListener(ev -> {
+            inv.consumeResource(ResourceType.WOOD, 50);
+            th.setStoneMineUnlocked(true);
+        });
+        popup.add(smItem);
+
+        // 3. تکنولوژی معدن آهن (پیش‌نیاز: معدن سنگ)
+        JMenuItem imItem = new JMenuItem(th.isIronMineUnlocked() ? "Tech: Iron Mine (Unlocked)" : "Unlock Iron Mine (100 W, 50 S)");
+        if (th.isIronMineUnlocked() || !th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) imItem.setEnabled(false);
+        imItem.addActionListener(ev -> {
+            inv.consumeResource(ResourceType.WOOD, 100);
+            inv.consumeResource(ResourceType.STONE, 50);
+            th.setIronMineUnlocked(true);
+        });
+        popup.add(imItem);
+
+        // 4. تکنولوژی ابزارآلات حرفه‌ای (پیش‌نیاز: معدن آهن)
+        JMenuItem ptItem = new JMenuItem(th.isProfessionalToolsUnlocked() ? "Tech: Prof. Tools (Unlocked)" : "Unlock Prof. Tools (100 W, 100 S, 50 I)");
+        if (th.isProfessionalToolsUnlocked() || !th.isIronMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 100) || !inv.hasEnough(ResourceType.IRON, 50)) ptItem.setEnabled(false);
+        ptItem.addActionListener(ev -> {
+            inv.consumeResource(ResourceType.WOOD, 100);
+            inv.consumeResource(ResourceType.STONE, 100);
+            inv.consumeResource(ResourceType.IRON, 50);
+            th.setProfessionalToolsUnlocked(true);
+        });
+        popup.add(ptItem);
+
+        // 5. تکنولوژی شهرک
+        JMenuItem setItem = new JMenuItem(th.isSettlementUnlocked() ? "Tech: Settlement (Unlocked)" : "Unlock Settlement (200 W, 100 S)");
+        if (th.isSettlementUnlocked() || !inv.hasEnough(ResourceType.WOOD, 200) || !inv.hasEnough(ResourceType.STONE, 100)) setItem.setEnabled(false);
+        setItem.addActionListener(ev -> {
+            inv.consumeResource(ResourceType.WOOD, 200);
+            inv.consumeResource(ResourceType.STONE, 100);
+            th.setSettlementUnlocked(true);
+        });
+        popup.add(setItem);
+
+        popup.show(this, e.getX(), e.getY());
+    }
+
     private void showUnitContextMenu(MouseEvent e, Hex hex) {
         JPopupMenu popup = new JPopupMenu();
 
@@ -95,7 +161,6 @@ public class GamePanel extends JPanel {
                             inv.hasEnough(ResourceType.IRON, type.getIronCost());
                     boolean hasAP = builder.getCurrentAP() >= type.getApCost();
 
-                    // غیرفعال کردن گزینه در صورت عدم احراز شرایط داک پروژه
                     if (!validTerrain || !hasResources || !hasAP || builder.getCharges() <= 0) {
                         buildItem.setEnabled(false);
                     }
@@ -126,7 +191,7 @@ public class GamePanel extends JPanel {
                     stationItem.addActionListener(ev -> {
                         building.addWorker();
                         worker.setStationed(true);
-                        worker.consumeAP(worker.getCurrentAP()); // قفل کردن کارگر در این نوبت
+                        worker.consumeAP(worker.getCurrentAP());
                         repaint();
                     });
                     popup.add(stationItem);
@@ -151,14 +216,16 @@ public class GamePanel extends JPanel {
         }
     }
 
+    // متد فیلتر هوشمند ساخت و ساز بر اساس قفل تکنولوژی
     private boolean checkTerrainForBuilding(BuildingType type, Hex hex) {
+        TownHall th = gameMap.getTownHall();
         switch (type) {
             case LUMBER_MILL: return hex.getTerrainType() == TerrainType.FOREST;
-            case STONE_MINE: return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.STONE;
-            case IRON_MINE: return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.IRON;
             case FARM: return hex.getTerrainType() == TerrainType.MEADOW && hex.getResourceType() == ResourceType.FOOD;
             case STABLE: return hex.getTerrainType() == TerrainType.PLAINS && hex.getResourceType() == ResourceType.FOOD;
-            case SETTLEMENT: return hex.getResourceType() == ResourceType.NONE;
+            case STONE_MINE: return th.isStoneMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.STONE;
+            case IRON_MINE: return th.isIronMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.IRON;
+            case SETTLEMENT: return th.isSettlementUnlocked() && hex.getResourceType() == ResourceType.NONE;
             default: return false;
         }
     }
@@ -252,9 +319,16 @@ public class GamePanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        Point thPt = getHexPixelCoords(0, 0);
+
         for (Hex hex : gameMap.getHexes()) {
             drawHex(g2d, hex);
         }
+
+        // رسم نماد تاون‌هال در مختصات (0,0)
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font("Arial", Font.BOLD, (int)(16 * zoomFactor)));
+        g2d.drawString("TH", thPt.x - (int)(10 * zoomFactor), thPt.y + (int)(5 * zoomFactor));
 
         for (Unit u : gameMap.getUnits()) {
             if (u.isAlive()) {
@@ -296,7 +370,6 @@ public class GamePanel extends JPanel {
 
         int fontSize = (int) (14 * zoomFactor);
 
-        // رسم بصری منابع طبیعی روی نقشه
         if (hex.getResourceType() != ResourceType.NONE && hex.getResourceAmount() > 0) {
             if (fontSize > 5) {
                 g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
@@ -311,7 +384,6 @@ public class GamePanel extends JPanel {
             }
         }
 
-        // رسم گرافیکی سازه ساخته شده و وضعیت تعداد کارگران درون آن
         if (hex.getBuilding() != null) {
             g2d.setColor(Color.PINK);
             int bSize = (int) (16 * zoomFactor);
@@ -330,7 +402,6 @@ public class GamePanel extends JPanel {
         Hex unitHex = gameMap.getHexAt(u.getQ(), u.getR());
         if (unitHex != null && !unitHex.isExplored()) return;
 
-        // کارگر مستقر شده داخل ساختمان رسم نمی‌شود تا محیط بصری خلوت بماند
         if (u instanceof Worker && ((Worker) u).isStationed()) return;
 
         int px, py;

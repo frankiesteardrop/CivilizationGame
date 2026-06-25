@@ -7,6 +7,9 @@ import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
+        // پخش آهنگ پس‌زمینه به صورت دائمی
+        AudioManager.playMusic("music.wav");
+
         // تولید نقشه منطقی با شعاع 5 واحد
         GameMap gameMap = new GameMap(5);
 

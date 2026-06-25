@@ -5,7 +5,7 @@ public class EconomyManager {
     public static void processEndTurn(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
-        boolean starvationMode = false;
+        boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
         // ۱. شارژ مجدد AP تمام یونیت‌های زنده
         for (Unit u : map.getUnits()) {
@@ -19,6 +19,11 @@ public class EconomyManager {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
                 int production = b.calculateProduction();
+
+                // اعمال ارتقای ابزارآلات حرفه‌ای (ضریب 1.5 برای استخراج معادن)
+                if (hasProfTools && (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
+                    production = (int) (production * 1.5);
+                }
 
                 // کسر منبع از هکس و اضافه کردن به انبار
                 if (production > 0 && hex.getResourceType() != ResourceType.NONE) {
@@ -56,13 +61,12 @@ public class EconomyManager {
 
         if (!inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded)) {
             // ورود به فاز بحران
-            starvationMode = true;
             inventory.forceDecreaseResource(ResourceType.FOOD, totalFoodNeeded); // صفر شدن انبار
 
             // جریمه AP به دلیل ضعف ناشی از گرسنگی
             for (Unit u : map.getUnits()) {
                 if (u.isAlive()) {
-                    u.consumeAP(1); // از دست دادن مقداری AP در شرایط بحران
+                    u.consumeAP(1);
                 }
             }
         }
@@ -76,9 +80,11 @@ public class EconomyManager {
         }
     }
 
-    // متد جدید برای پیش‌بینی و نمایش نرخ تولید در HUD
+    // متد پیش‌بینی و نمایش نرخ تولید در HUD
     public static int calculateNetProduction(GameMap map, ResourceType type) {
         int net = 0;
+        TownHall townHall = map.getTownHall();
+        boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
         // محاسبه تولید Safeguard
         if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
@@ -87,7 +93,11 @@ public class EconomyManager {
         for (Hex h : map.getHexes()) {
             if (h.getBuilding() != null && !h.getBuilding().isDestroyed()) {
                 if (h.getBuilding().getType().getProducedResource() == type) {
-                    net += h.getBuilding().calculateProduction();
+                    int prod = h.getBuilding().calculateProduction();
+                    if (hasProfTools && (h.getBuilding().getType() == BuildingType.STONE_MINE || h.getBuilding().getType() == BuildingType.IRON_MINE)) {
+                        prod = (int) (prod * 1.5);
+                    }
+                    net += prod;
                 }
                 if (h.getBuilding().getType().getUpkeepResource() == type) {
                     net -= h.getBuilding().getType().getUpkeepCost();

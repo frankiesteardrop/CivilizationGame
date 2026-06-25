@@ -1,15 +1,16 @@
 package view;
 
+import controller.AudioManager;
 import javax.swing.*;
 import java.awt.*;
 
 public class MainMenuPanel extends JPanel {
-    private MainFrame mainFrame;
+    private final MainFrame mainFrame;
 
     public MainMenuPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new GridBagLayout());
-        setBackground(new Color(30, 30, 30)); // رنگ پس زمینه تاریک و شیک برای منو
+        setBackground(new Color(30, 30, 30)); // رنگ پس‌زمینه تاریک و شیک برای منو
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(15, 15, 15, 15);
@@ -56,16 +57,19 @@ public class MainMenuPanel extends JPanel {
         volumeSlider.setPaintTicks(true);
         volumeSlider.setPaintLabels(true);
 
+        // اتصال زنده اسلایدر به کلاس مدیریت صدا
+        volumeSlider.addChangeListener(e -> AudioManager.setVolume(volumeSlider.getValue()));
+
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.add(new JLabel("Music Volume:", SwingConstants.CENTER), BorderLayout.NORTH);
         panel.add(volumeSlider, BorderLayout.CENTER);
 
-        // نمایش پاپ آپ تنظیمات
+        // نمایش پاپ‌آپ تنظیمات
         JOptionPane.showMessageDialog(this, panel, "Settings", JOptionPane.PLAIN_MESSAGE);
     }
 
     private void exitGame() {
-        // نمایش پاپ آپ تاییدیه خروج
+        // نمایش پاپ‌آپ تاییدیه خروج
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Are you sure you want to exit the game?",
                 "Exit Confirmation",
