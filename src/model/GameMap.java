@@ -17,6 +17,7 @@ public class GameMap {
         this.random = new Random();
         generateMap();
         spawnInitialUnits(); // فراخوانی متد استقرار نیروها در شروع بازی
+        updateFogOfWar(); // به‌روزرسانی اولیه مه‌جنگ در بدو شروع بازی
     }
 
     private void generateMap() {
@@ -82,6 +83,39 @@ public class GameMap {
         units.add(new Worker(1, -1));
     }
 
+    // --- متد جدید و هوشمند به‌روزرسانی سیستم مه‌جنگ (Fog of War) ---
+    public void updateFogOfWar() {
+        // ۱. آشکارسازی اطراف تان‌هال در مختصات (0,0) با شعاع دید ۱
+        for (Hex hex : hexes) {
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
+                hex.setExplored(true);
+            }
+        }
+
+        // ۲. آشکارسازی خانه‌ها بر اساس شعاع دید اختصاصی یونیت‌های زنده
+        for (Unit unit : units) {
+            if (unit.isAlive()) {
+                int visionRadius = 1; // شعاع دید استاندارد کارگر و بیلدر
+
+                // طبق داک پروژه، اکسپلورر دید وسیع‌تری دارد (شعاع دید ۲)
+                if (unit instanceof Explorer) {
+                    visionRadius = 2;
+                }
+
+                for (Hex hex : hexes) {
+                    if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
+                        hex.setExplored(true);
+                    }
+                }
+            }
+        }
+    }
+
+    // فرمول ریاضی دقیق برای محاسبه فاصله دو هکس در مختصات محوری (Axial)
+    public int getHexDistance(int q1, int r1, int q2, int r2) {
+        return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
+    }
+
     private TerrainType getRandomTerrain() {
         TerrainType[] terrains = TerrainType.values();
         return terrains[random.nextInt(terrains.length)];
@@ -97,7 +131,8 @@ public class GameMap {
 
     public Hex getHexAt(int q, int r) {
         for (Hex hex : hexes) {
-            if (hex.getQ() == q && h.getR() == r) {
+            // خطا حل شد: متغیر h به hex اصلاح شد تا خطای کامپایل برطرف شود
+            if (hex.getQ() == q && hex.getR() == r) {
                 return hex;
             }
         }

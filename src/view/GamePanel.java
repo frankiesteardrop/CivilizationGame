@@ -139,6 +139,10 @@ public class GamePanel extends JPanel {
             if (animatingUnit != null) {
                 // اعمال قطعی حرکت و کسر AP پس از اتمام انیمیشن
                 animatingUnit.moveTo(animTargetQ, animTargetR, animCost);
+
+                // فاز مه‌جنگ: آپدیت کردن وضعیت دید نقشه بلافاصله پس از نشستن یونیت در خانه مقصد
+                gameMap.updateFogOfWar();
+
                 animatingUnit = null;
             }
         }
@@ -203,8 +207,8 @@ public class GamePanel extends JPanel {
             polygon.addPoint(px, py);
         }
 
-        // پیاده سازی بصری مه جنگ
-        if (!hex.isExplored() && (hex.getQ() != 0 || hex.getR() != 0)) {
+        // پیاده سازی مه‌جنگ: اگر خانه کشف نشده باشد، خاکستری تیره شده و توابع رسم آن قطع می‌شوند
+        if (!hex.isExplored()) {
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillPolygon(polygon);
             g2d.setColor(Color.BLACK);
@@ -212,7 +216,7 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // رنگ آمیزی زمینها بر اساس نوع آنها
+        // رنگ آمیزی زمینها بر اساس نوع آنها (در صورت خارج بودن از مه جنگ)
         switch (hex.getTerrainType()) {
             case FOREST: g2d.setColor(new Color(34, 139, 34)); break;
             case PLAINS: g2d.setColor(new Color(154, 205, 50)); break;
@@ -243,6 +247,12 @@ public class GamePanel extends JPanel {
     }
 
     private void drawUnit(Graphics2D g2d, Unit u) {
+        // مه‌جنگ پیشرفته: اگر یونیتی روی یک هکس ناشناخته قرار داشت، اصلاً رندر و رسم نمی‌شود
+        Hex unitHex = gameMap.getHexAt(u.getQ(), u.getR());
+        if (unitHex != null && !unitHex.isExplored()) {
+            return;
+        }
+
         int px, py;
 
         // محاسبه مختصات در حین پخش انیمیشن
