@@ -5,11 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/Hex.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/ResourceType.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/TerrainType.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/BorderExpander.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/BorderExpander.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Builder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Builder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Explorer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Explorer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Unit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Unit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Worker.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Worker.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/GamePanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GamePanel.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,23 +29,24 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="3FRETkNy4zFQY6NbWTjvmSJBWDF" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true",
-    "onboarding.tips.debug.path": "C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
