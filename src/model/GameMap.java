@@ -4,17 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * کلاس مدیریت ساختار داده‌ای نقشه و یونیت‌های بازی.
- */
 public class GameMap {
     private final List<Hex> hexes;
     private final List<Unit> units;
     private final int radius;
     private final Random random;
     private TownHall townHall;
-
-    // متغیرهای سیستم نوبت‌دهی (Turn System)
     private int currentTurn = 1;
 
     public GameMap(int radius) {
@@ -37,6 +32,7 @@ public class GameMap {
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS, ResourceType.NONE, 0);
                     centerHex.setExplored(true);
+                    centerHex.setInsideBorder(true); // مرکز نقشه داخل مرز است
                     hexes.add(centerHex);
                     continue;
                 }
@@ -72,7 +68,14 @@ public class GameMap {
                         }
                         break;
                 }
-                hexes.add(new Hex(q, r, terrain, resource, capacity));
+
+                Hex newHex = new Hex(q, r, terrain, resource, capacity);
+                // طبق قوانین، در شروع بازی خانه‌های اطراف Town Hall (شعاع ۱) کشف شده و داخل مرز هستند
+                if (getHexDistance(0, 0, q, r) <= 1) {
+                    newHex.setExplored(true);
+                    newHex.setInsideBorder(true);
+                }
+                hexes.add(newHex);
             }
         }
     }
@@ -85,6 +88,9 @@ public class GameMap {
         units.add(new Worker(1, -1));
     }
 
+    /**
+     * سیستم مه‌جنگ کاملاً پویا - بدون هاردکد، با استفاده از getVisionRadius چندریختی یونیت‌ها
+     */
     public void updateFogOfWar() {
         for (Hex hex : hexes) {
             if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
@@ -94,13 +100,36 @@ public class GameMap {
 
         for (Unit unit : units) {
             if (unit.isAlive()) {
-                int visionRadius = (unit instanceof Explorer) ? 2 : 1;
+                int visionRadius = unit.getVisionRadius(); // استفاده از مقدار داینامیک و واقعی کلاس یونیت
 
                 for (Hex hex : hexes) {
                     if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
                         hex.setExplored(true);
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * متد الحاق یک هکس و ۶ همسایه مجاور آن به مرزهای بازیکن (مخصوص BorderExpander)
+     */
+    public void expandBorderAt(int centerQ, int centerR) {
+        Hex centerHex = getHexAt(centerQ, centerR);
+        if (centerHex != null) {
+            centerHex.setInsideBorder(true);
+        }
+
+        // ۶ جهت همسایه در سیستم مختصات شش‌ضلعی محوری (Axial Coordinates)
+        int[][] directions = {
+                {1, 0}, {1, -1}, {0, -1},
+                {-1, 0}, {-1, 1}, {0, 1}
+        };
+
+        for (int[] d : directions) {
+            Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
+            if (neighbor != null) {
+                neighbor.setInsideBorder(true);
             }
         }
     }
@@ -126,11 +155,7 @@ public class GameMap {
         return null;
     }
 
-    public TownHall getTownHall() {
-        return townHall;
-    }
-
-    // --- متدهای گام ششم (سیستم نوبت و ظرفیت یونیت) ---
+    public TownHall getTownHall() { return townHall; }
     public int getCurrentTurn() { return currentTurn; }
 
     public void nextTurn() {
@@ -139,10 +164,10 @@ public class GameMap {
     }
 
     public int getUnitCap() {
-        int cap = 10; // سقف مجاز اولیه
+        int cap = 10;
         for (Hex h : hexes) {
             if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.SETTLEMENT && !h.getBuilding().isDestroyed()) {
-                cap += 5; // هر شهرک ۵ واحد به ظرفیت اضافه می‌کند
+                cap += 5;
             }
         }
         return cap;

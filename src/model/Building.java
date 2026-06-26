@@ -1,41 +1,63 @@
 package model;
 
-public class Building {
-    private BuildingType type;
-    private int stationedWorkers;
-    private int failedUpkeepTurns;
+/**
+ * کلاس انتزاعی پایه برای تمامی ساختمان‌های بازی.
+ * پیاده‌سازی اصول کپسوله‌سازی و مدیریت حالت سازه.
+ */
+public abstract class Building {
+    protected int baseWorkerCapacity;
+    protected int stationedWorkers;
+    protected boolean isDestroyed;
+    protected int consecutiveUnpaidTurns;
 
-    public Building(BuildingType type) {
-        this.type = type;
+    public Building(int baseWorkerCapacity) {
+        this.baseWorkerCapacity = baseWorkerCapacity;
         this.stationedWorkers = 0;
-        this.failedUpkeepTurns = 0;
+        this.isDestroyed = false;
+        this.consecutiveUnpaidTurns = 0;
     }
 
-    public BuildingType getType() { return type; }
+    public abstract BuildingType getType();
+
+    public ResourceType getUpkeepResource() {
+        return getType().getUpkeepResource();
+    }
+
+    public int getUpkeepAmount() {
+        return getType().getUpkeepCost();
+    }
+
     public int getStationedWorkers() { return stationedWorkers; }
-    public int getFailedUpkeepTurns() { return failedUpkeepTurns; }
+    public int getMaxWorkers() { return baseWorkerCapacity; }
+    public boolean isDestroyed() { return isDestroyed; }
 
     public void addWorker() {
-        if (stationedWorkers < type.getMaxWorkers()) {
-            stationedWorkers++;
-        }
+        if (stationedWorkers < baseWorkerCapacity) stationedWorkers++;
     }
 
     public void removeWorker() {
-        if (stationedWorkers > 0) {
-            stationedWorkers--;
+        if (stationedWorkers > 0) stationedWorkers--;
+    }
+
+    /**
+     * محاسبه نرخ تولید بر اساس تعداد کارگران مستقر و نرخ پایه ساختمان
+     */
+    public int calculateProduction() {
+        if (isDestroyed) return 0;
+        return stationedWorkers * getType().getBaseProduction();
+    }
+
+    /**
+     * ثبت ترن بدون پرداخت هزینه نگهداری و بررسی تخریب پس از ۳ نوبت متوالی
+     */
+    public void registerFailedUpkeep() {
+        consecutiveUnpaidTurns++;
+        if (consecutiveUnpaidTurns >= 3) {
+            isDestroyed = true;
         }
     }
 
-    public void registerFailedUpkeep() { failedUpkeepTurns++; }
-    public void resetFailedUpkeep() { failedUpkeepTurns = 0; }
-
-    public boolean isDestroyed() {
-        return failedUpkeepTurns >= 3; // طبق داک: خرابی پس از ۳ ترن ناتوانی در نگهداری
-    }
-
-    // محاسبه تولید کل این ساختمان در یک ترن
-    public int calculateProduction() {
-        return stationedWorkers * type.getBaseProduction();
+    public void resetFailedUpkeep() {
+        consecutiveUnpaidTurns = 0;
     }
 }
