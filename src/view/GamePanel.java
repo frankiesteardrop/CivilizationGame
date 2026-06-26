@@ -8,7 +8,12 @@ import java.awt.event.*;
 
 public class GamePanel extends JPanel {
     private final MainController mainController;
-    private double zoomFactor = 1.0;
+
+    // سیستم زوم گسسته طبق چک‌لیست
+    private final double[] ZOOM_LEVELS = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
+    private int zoomIndex = 2; // پیش‌فرض روی 1.0
+    private double zoomFactor = ZOOM_LEVELS[zoomIndex];
+
     private int offsetX = 400;
     private int offsetY = 300;
     private Point lastMousePosition;
@@ -23,7 +28,7 @@ public class GamePanel extends JPanel {
 
     public GamePanel(MainController mainController) {
         this.mainController = mainController;
-        setBackground(Color.BLACK);
+        setBackground(new Color(20, 25, 30)); // رنگ پس‌زمینه مدرن‌تر
         setFocusable(true);
 
         animationTimer = new Timer(16, e -> updateAnimation());
@@ -63,10 +68,14 @@ public class GamePanel extends JPanel {
         addMouseListener(mouseAdapter);
         addMouseMotionListener(mouseAdapter);
 
+        // اعمال منطق زوم گسسته (Discrete)
         addMouseWheelListener(e -> {
-            if (e.getWheelRotation() < 0) zoomFactor += 0.2;
-            else zoomFactor -= 0.2;
-            zoomFactor = Math.max(0.4, Math.min(3.0, zoomFactor));
+            if (e.getWheelRotation() < 0 && zoomIndex < ZOOM_LEVELS.length - 1) {
+                zoomIndex++;
+            } else if (e.getWheelRotation() > 0 && zoomIndex > 0) {
+                zoomIndex--;
+            }
+            zoomFactor = ZOOM_LEVELS[zoomIndex];
             repaint();
         });
     }
@@ -139,6 +148,15 @@ public class GamePanel extends JPanel {
                     popup.add(leaveItem);
                 }
             }
+        } else if (selectedUnit instanceof BorderExpander) {
+            BorderExpander expander = (BorderExpander) selectedUnit;
+            JMenuItem expandItem = new JMenuItem("Expand Border (-" + expander.getMaxAP() + " AP & Consume)");
+            // شرط: مرزگشا فقط در هکس کشف شده کار میکند
+            if (!hex.isExplored() || expander.getCurrentAP() < expander.getMaxAP()) {
+                expandItem.setEnabled(false);
+            }
+            expandItem.addActionListener(ev -> { expander.expandBorder(mainController.getGameMap()); selectedUnit = null; repaint(); });
+            popup.add(expandItem);
         }
         if (popup.getComponentCount() > 0) popup.show(this, e.getX(), e.getY());
     }
@@ -168,7 +186,7 @@ public class GamePanel extends JPanel {
     }
 
     private void updateAnimation() {
-        animProgress += 0.08;
+        animProgress += 0.06; // سرعت نرم‌تر
         if (animProgress >= 1.0) {
             animProgress = 1.0;
             animationTimer.stop();
@@ -187,6 +205,15 @@ public class GamePanel extends JPanel {
         return new Point((int) (x * zoomFactor) + offsetX, (int) (y * zoomFactor) + offsetY);
     }
 
+    private Polygon createHexPolygon(Point pt, int size) {
+        Polygon polygon = new Polygon();
+        for (int i = 0; i < 6; i++) {
+            double angle_rad = Math.PI / 180 * (60 * i - 30);
+            polygon.addPoint(pt.x + (int) (size * Math.cos(angle_rad)), pt.y + (int) (size * Math.sin(angle_rad)));
+        }
+        return polygon;
+    }
+
     private Hex getHexAtPixel(Point p) {
         Hex closest = null;
         double minDst = Double.MAX_VALUE;
@@ -203,65 +230,135 @@ public class GamePanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
+
+        // فعال‌سازی آنتی‌الیاسینگ برای رندرینگ گرافیک با کیفیت بالا
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        for (Hex hex : mainController.getGameMap().getHexes()) drawHex(g2d, hex);
+        // 1. رسم لایه‌ی زیرین (هکس‌ها و زمین)
+        for (Hex hex : mainController.getGameMap().getHexes()) {
+            drawHexTerrain(g2d, hex);
+        }
 
+        // 2. رسم لایه مرزها (Territory Borders)
+        for (Hex hex : mainController.getGameMap().getHexes()) {
+            if (hex.isInsideBorder() && hex.isExplored()) {
+                drawHexBorder(g2d, hex);
+            }
+        }
+
+        // 3. رسم لایه اطلاعات هکس‌ها (منابع، ساختمان‌ها)
+        for (Hex hex : mainController.getGameMap().getHexes()) {
+            if (hex.isExplored()) {
+                drawHexDetails(g2d, hex);
+            }
+        }
+
+        // 4. رسم Town Hall
         Point thPt = getHexPixelCoords(0, 0);
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, (int)(16 * zoomFactor)));
-        g2d.drawString("TH", thPt.x - (int)(10 * zoomFactor), thPt.y + (int)(5 * zoomFactor));
+        g2d.setColor(new Color(255, 215, 0)); // رنگ طلایی
+        g2d.setFont(new Font("SansSerif", Font.BOLD, (int)(18 * zoomFactor)));
+        g2d.drawString("TH", thPt.x - (int)(12 * zoomFactor), thPt.y + (int)(6 * zoomFactor));
 
-        for (Unit u : mainController.getGameMap().getUnits()) if (u.isAlive()) drawUnit(g2d, u);
+        // 5. رسم یونیت‌ها
+        for (Unit u : mainController.getGameMap().getUnits()) {
+            if (u.isAlive()) drawUnit(g2d, u);
+        }
     }
 
-    private void drawHex(Graphics2D g2d, Hex hex) {
+    private void drawHexTerrain(Graphics2D g2d, Hex hex) {
         Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
         int currentSize = (int) (HEX_SIZE * zoomFactor);
-
-        Polygon polygon = new Polygon();
-        for (int i = 0; i < 6; i++) {
-            double angle_rad = Math.PI / 180 * (60 * i - 30);
-            polygon.addPoint(pt.x + (int) (currentSize * Math.cos(angle_rad)), pt.y + (int) (currentSize * Math.sin(angle_rad)));
-        }
+        Polygon polygon = createHexPolygon(pt, currentSize);
 
         if (!hex.isExplored()) {
-            g2d.setColor(Color.DARK_GRAY); g2d.fillPolygon(polygon);
-            g2d.setColor(Color.BLACK); g2d.drawPolygon(polygon); return;
+            // افکت مه جنگ پیشرفته
+            g2d.setColor(new Color(15, 20, 25)); // تیره و مرموز
+            g2d.fillPolygon(polygon);
+            g2d.setStroke(new BasicStroke(1f));
+            g2d.setColor(new Color(40, 45, 50));
+            g2d.drawPolygon(polygon);
+            return;
         }
 
+        // پالت رنگی حرفه‌ای و مدرن برای انواع زمین
         switch (hex.getTerrainType()) {
-            case FOREST: g2d.setColor(new Color(34, 139, 34)); break;
-            case PLAINS: g2d.setColor(new Color(154, 205, 50)); break;
-            case MOUNTAIN: g2d.setColor(new Color(139, 137, 137)); break;
-            case MEADOW: g2d.setColor(new Color(144, 238, 144)); break;
+            case FOREST: g2d.setColor(new Color(46, 125, 50)); break;
+            case PLAINS: g2d.setColor(new Color(156, 204, 101)); break;
+            case MOUNTAIN: g2d.setColor(new Color(117, 117, 117)); break;
+            case MEADOW: g2d.setColor(new Color(129, 199, 132)); break;
         }
         g2d.fillPolygon(polygon);
-        g2d.setColor(Color.BLACK);
-        g2d.drawPolygon(polygon);
 
+        // خطوط داخلی ظریف
+        g2d.setStroke(new BasicStroke(1f));
+        g2d.setColor(new Color(0, 0, 0, 100));
+        g2d.drawPolygon(polygon);
+    }
+
+    private void drawHexBorder(Graphics2D g2d, Hex hex) {
+        Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
+        int currentSize = (int) (HEX_SIZE * zoomFactor);
+        Polygon polygon = createHexPolygon(pt, currentSize);
+
+        // خط مرزی ضخیم و طلایی رنگ
+        g2d.setStroke(new BasicStroke((float)(3.0 * zoomFactor)));
+        g2d.setColor(new Color(255, 215, 0, 200));
+        g2d.drawPolygon(polygon);
+        g2d.setStroke(new BasicStroke(1f)); // بازگرداندن ضخامت
+    }
+
+    private void drawHexDetails(Graphics2D g2d, Hex hex) {
+        Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
         int fontSize = (int) (14 * zoomFactor);
-        if (hex.getResourceType() != ResourceType.NONE && hex.getResourceAmount() > 0 && fontSize > 5) {
-            g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
+
+        // نمایش منابع با کادر و رنگبندی اختصاصی
+        if (hex.getResourceType() != ResourceType.NONE && !hex.isResourceDepleted() && fontSize > 6) {
+            g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
             String resStr = "";
+            Color iconColor = Color.WHITE;
+
             switch (hex.getResourceType()) {
-                case WOOD: resStr = "W"; g2d.setColor(new Color(101, 67, 33)); break;
-                case STONE: resStr = "S"; g2d.setColor(Color.WHITE); break;
-                case IRON: resStr = "I"; g2d.setColor(Color.ORANGE); break;
-                case FOOD: resStr = "F"; g2d.setColor(Color.YELLOW); break;
+                case WOOD: resStr = "W"; iconColor = new Color(139, 69, 19); break; // قهوه‌ای
+                case STONE: resStr = "S"; iconColor = new Color(200, 200, 200); break; // طوسی روشن
+                case IRON: resStr = "I"; iconColor = new Color(255, 140, 0); break; // نارنجی
+                case FOOD: resStr = "F"; iconColor = new Color(255, 215, 0); break; // طلایی
             }
-            g2d.drawString(resStr, pt.x - fontSize/2, pt.y - 5);
+
+            // کادر دایره‌ای کوچک برای آیکون منبع
+            int rSize = (int)(16 * zoomFactor);
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillOval(pt.x - rSize/2, pt.y - (int)(15 * zoomFactor) - rSize/2, rSize, rSize);
+
+            g2d.setColor(iconColor);
+            g2d.drawString(resStr, pt.x - fontSize/3, pt.y - (int)(15 * zoomFactor) + fontSize/3);
         }
 
+        // رندرینگ ساختمان با گرافیک به‌روزشده
         if (hex.getBuilding() != null) {
-            g2d.setColor(Color.PINK);
-            int bSize = (int) (16 * zoomFactor);
-            g2d.fillRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
-            g2d.setColor(Color.BLACK);
-            g2d.drawRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
-            if (fontSize > 5) {
-                g2d.setFont(new Font("Arial", Font.PLAIN, fontSize - 2));
-                g2d.drawString(hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getMaxWorkers(), pt.x - bSize/2, pt.y + bSize + 15);
+            int bSize = (int) (18 * zoomFactor);
+
+            // رنگ‌آمیزی بر اساس نوع ساختمان
+            Color bColor = new Color(100, 149, 237); // پیش‌فرض
+            if (hex.getBuilding().getType() == BuildingType.SETTLEMENT) bColor = new Color(255, 105, 180);
+
+            g2d.setColor(new Color(0, 0, 0, 180)); // سایه ساختمان
+            g2d.fillRect(pt.x - bSize/2 + 2, pt.y + 2, bSize, bSize);
+
+            g2d.setColor(bColor);
+            g2d.fillRect(pt.x - bSize/2, pt.y, bSize, bSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawRect(pt.x - bSize/2, pt.y, bSize, bSize);
+
+            if (fontSize > 6) {
+                g2d.setFont(new Font("SansSerif", Font.PLAIN, fontSize - 3));
+                g2d.setColor(Color.WHITE);
+                // کادر تاریک برای خوانایی متن کارگران
+                String workerText = hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getMaxWorkers();
+                g2d.setColor(new Color(0, 0, 0, 180));
+                g2d.fillRect(pt.x - bSize/2 - 2, pt.y + bSize + 2, bSize + 10, fontSize);
+                g2d.setColor(Color.WHITE);
+                g2d.drawString(workerText, pt.x - bSize/2, pt.y + bSize + fontSize - 1);
             }
         }
     }
@@ -271,31 +368,54 @@ public class GamePanel extends JPanel {
         Hex unitHex = mainController.getGameMap().getHexAt(u.getQ(), u.getR());
         if (unitHex != null && !unitHex.isExplored()) return;
 
-        int px = (u == animatingUnit) ? (int) (animStartX + (animTargetX - animStartX) * animProgress) : getHexPixelCoords(u.getQ(), u.getR()).x;
-        int py = (u == animatingUnit) ? (int) (animStartY + (animTargetY - animStartY) * animProgress) : getHexPixelCoords(u.getQ(), u.getR()).y;
-
-        int radius = Math.max(4, (int) (15 * zoomFactor));
-        String typeLetter = "U";
-        if (u instanceof Explorer) { g2d.setColor(new Color(65, 105, 225)); typeLetter = "E"; }
-        else if (u instanceof Builder) { g2d.setColor(new Color(255, 215, 0)); typeLetter = "B"; }
-        else if (u instanceof Worker) { g2d.setColor(new Color(255, 140, 0)); typeLetter = "W"; }
-        else if (u instanceof BorderExpander) { g2d.setColor(new Color(138, 43, 226)); typeLetter = "X"; }
-
-        g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
-        g2d.setColor(Color.BLACK);
-        g2d.drawOval(px - radius, py - radius, radius * 2, radius * 2);
-
-        int fontSize = (int) (11 * zoomFactor);
-        if (fontSize > 5) {
-            g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
-            g2d.setColor(Color.BLACK);
-            g2d.drawString(typeLetter + u.getCurrentAP(), px - radius/2, py + radius/2);
+        int px, py;
+        if (u == animatingUnit) {
+            // انیمیشن Cubic Ease-Out برای حرکت روانالکتر
+            double easeOut = 1.0 - Math.pow(1.0 - animProgress, 3);
+            px = (int) (animStartX + (animTargetX - animStartX) * easeOut);
+            py = (int) (animStartY + (animTargetY - animStartY) * easeOut);
+        } else {
+            Point pt = getHexPixelCoords(u.getQ(), u.getR());
+            px = pt.x;
+            py = pt.y;
         }
 
+        int radius = Math.max(6, (int) (15 * zoomFactor));
+        String typeLetter = "U";
+        Color unitColor = Color.GRAY;
+
+        if (u instanceof Explorer) { unitColor = new Color(65, 105, 225); typeLetter = "E"; }
+        else if (u instanceof Builder) { unitColor = new Color(255, 215, 0); typeLetter = "B"; }
+        else if (u instanceof Worker) { unitColor = new Color(255, 140, 0); typeLetter = "W"; }
+        else if (u instanceof BorderExpander) { unitColor = new Color(138, 43, 226); typeLetter = "X"; }
+
+        // سایه یونیت
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillOval(px - radius + 2, py - radius + 2, radius * 2, radius * 2);
+
+        // بدنه اصلی یونیت
+        g2d.setColor(unitColor);
+        g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
+        g2d.setColor(Color.WHITE);
+        g2d.drawOval(px - radius, py - radius, radius * 2, radius * 2);
+
+        int fontSize = (int) (12 * zoomFactor);
+        if (fontSize > 6) {
+            g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
+            g2d.setColor(Color.WHITE);
+            // رسم حروف با مرکزیت دقیق‌تر
+            FontMetrics fm = g2d.getFontMetrics();
+            String text = typeLetter + u.getCurrentAP();
+            int txtX = px - fm.stringWidth(text) / 2;
+            int txtY = py + fm.getAscent() / 2 - 2;
+            g2d.drawString(text, txtX, txtY);
+        }
+
+        // افکت انتخاب شدن (Glowing Aura)
         if (u == selectedUnit) {
-            g2d.setColor(Color.CYAN);
-            g2d.setStroke(new BasicStroke(2f));
-            g2d.drawOval(px - radius - 3, py - radius - 3, radius * 2 + 6, radius * 2 + 6);
+            g2d.setColor(new Color(0, 255, 255, 150));
+            g2d.setStroke(new BasicStroke((float)(2.5 * zoomFactor)));
+            g2d.drawOval(px - radius - 4, py - radius - 4, radius * 2 + 8, radius * 2 + 8);
             g2d.setStroke(new BasicStroke(1f));
         }
     }
