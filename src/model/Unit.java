@@ -13,20 +13,18 @@ public abstract class Unit {
         this.q = q;
         this.r = r;
         this.maxAP = maxAP;
-        this.currentAP = maxAP; // در ابتدا یونیت فول AP است
+        this.currentAP = maxAP;
         this.foodConsumption = foodConsumption;
         this.visionRadius = visionRadius;
         this.isAlive = true;
     }
 
-    // بازگردانی AP در شروع هر نوبت جدید
     public void resetAP() {
         if (isAlive) {
             currentAP = maxAP;
         }
     }
 
-    // متد مصرف AP برای حرکت یا انجام کار
     public boolean consumeAP(int amount) {
         if (currentAP >= amount) {
             currentAP -= amount;
@@ -35,15 +33,16 @@ public abstract class Unit {
         return false;
     }
 
-    // متد حرکت یونیت در نقشه
     public void moveTo(int targetQ, int targetR, int cost) {
         if (consumeAP(cost)) {
+            int oldQ = this.q;
+            int oldR = this.r;
             this.q = targetQ;
             this.r = targetR;
+            GameEventDispatcher.fireUnitMoved(this, oldQ, oldR, targetQ, targetR);
         }
     }
 
-    // Getters
     public int getQ() { return q; }
     public int getR() { return r; }
     public int getCurrentAP() { return currentAP; }
@@ -52,5 +51,10 @@ public abstract class Unit {
     public int getVisionRadius() { return visionRadius; }
     public boolean isAlive() { return isAlive; }
 
-    public void kill() { this.isAlive = false; }
+    public void kill() {
+        if (this.isAlive) {
+            this.isAlive = false;
+            GameEventDispatcher.fireUnitKilled(this);
+        }
+    }
 }

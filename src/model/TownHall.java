@@ -1,33 +1,33 @@
 package model;
 
+import java.util.LinkedList;
+import java.util.Queue;
+
 public class TownHall {
-    private int q; // مختصات هکسی که تان‌هال توش قرار داره
-    private int r;
-    private Inventory inventory;
+    private final int q;
+    private final int r;
+    private final Inventory inventory;
 
-    // وضعیت آپگریدهای انبار (0: اولیه، 1: ارتقا اول، 2: ارتقا دوم)
     private int warehouseUpgradeLevel;
-
-    // وضعیت آنلاک شدن تکنولوژی‌های بازی
     private boolean stoneMineUnlocked;
     private boolean ironMineUnlocked;
     private boolean professionalToolsUnlocked;
     private boolean settlementUnlocked;
 
+    // صف ساختاریافته تولیدات تان‌هال (Production Queue)
+    private final Queue<ProductionTask> productionQueue;
+
     public TownHall(int q, int r) {
         this.q = q;
         this.r = r;
-
-        // تعیین ظرفیت اولیه انبار (مثلاً 200 واحد برای هر منبع طبق داک)
         this.inventory = new Inventory(200);
+        this.productionQueue = new LinkedList<>();
 
-        // تنظیم مقادیر اولیه منابع شروع بازی به صورت منطقی
         this.inventory.addResource(ResourceType.FOOD, 60);
         this.inventory.addResource(ResourceType.WOOD, 50);
         this.inventory.addResource(ResourceType.STONE, 30);
         this.inventory.addResource(ResourceType.IRON, 0);
 
-        // در ابتدا تمام تکنولوژی‌ها قفل هستن
         this.warehouseUpgradeLevel = 0;
         this.stoneMineUnlocked = false;
         this.ironMineUnlocked = false;
@@ -35,38 +35,77 @@ public class TownHall {
         this.settlementUnlocked = false;
     }
 
-    // مکانیزم Safeguard: تولید خودکار چوب +1 و غذا +1 در هر ترن
     public void applySafeguard() {
         this.inventory.addResource(ResourceType.WOOD, 1);
         this.inventory.addResource(ResourceType.FOOD, 1);
+
+        // جلو بردن صف تولید تان‌هال در پایان هر نوبت
+        advanceProductionQueue();
     }
 
-    // متد ارتقای انبار (حداکثر دو بار انجام می‌شه)
     public void upgradeWarehouse() {
         if (warehouseUpgradeLevel == 0) {
             warehouseUpgradeLevel = 1;
-            inventory.setMaxCapacity(500); // ارتقا به ظرفیت 500
+            inventory.setMaxCapacity(500);
         } else if (warehouseUpgradeLevel == 1) {
             warehouseUpgradeLevel = 2;
-            inventory.setMaxCapacity(1000); // ارتقا به ظرفیت 1000
+            inventory.setMaxCapacity(1000);
         }
     }
 
-    // متدهای دسترسی (Getters & Setters)
+    /**
+     * افزودن یک آیتم یا یونیت به صف تولید تان‌هال
+     */
+    public void queueProduction(String itemName, int turnCost, Runnable onComplete) {
+        productionQueue.add(new ProductionTask(itemName, turnCost, onComplete));
+    }
+
+    private void advanceProductionQueue() {
+        if (productionQueue.isEmpty()) return;
+
+        ProductionTask currentTask = productionQueue.peek();
+        currentTask.decrementTurn();
+
+        if (currentTask.isCompleted()) {
+            productionQueue.poll();
+            currentTask.complete();
+            GameEventDispatcher.fireProductionCompleted(currentTask.getName());
+        }
+    }
+
     public int getQ() { return q; }
     public int getR() { return r; }
     public Inventory getInventory() { return inventory; }
     public int getWarehouseUpgradeLevel() { return warehouseUpgradeLevel; }
+    public Queue<ProductionTask> getProductionQueue() { return productionQueue; }
 
     public boolean isStoneMineUnlocked() { return stoneMineUnlocked; }
     public void setStoneMineUnlocked(boolean unlocked) { this.stoneMineUnlocked = unlocked; }
-
     public boolean isIronMineUnlocked() { return ironMineUnlocked; }
     public void setIronMineUnlocked(boolean unlocked) { this.ironMineUnlocked = unlocked; }
-
     public boolean isProfessionalToolsUnlocked() { return professionalToolsUnlocked; }
     public void setProfessionalToolsUnlocked(boolean unlocked) { this.professionalToolsUnlocked = unlocked; }
-
     public boolean isSettlementUnlocked() { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean unlocked) { this.settlementUnlocked = unlocked; }
+
+    /**
+     * کلاس داخلی ساختاریافته برای نگهداری تسک‌های صف تولید
+     */
+    public static class ProductionTask {
+        private final String name;
+        private int turnsRemaining;
+        private final Runnable onComplete;
+
+        public ProductionTask(String name, int turnsRemaining, Runnable onComplete) {
+            this.name = name;
+            this.turnsRemaining = turnsRemaining;
+            this.onComplete = onComplete;
+        }
+
+        public String getName() { return name; }
+        public int getTurnsRemaining() { return turnsRemaining; }
+        public void decrementTurn() { turnsRemaining--; }
+        public boolean isCompleted() { return turnsRemaining <= 0; }
+        public void complete() { if (onComplete != null) onComplete.run(); }
+    }
 }

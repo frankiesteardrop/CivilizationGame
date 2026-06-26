@@ -4,14 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Inventory {
-    private Map<ResourceType, Integer> resources;
+    private final Map<ResourceType, Integer> resources;
     private int maxCapacity;
 
     public Inventory(int initialCapacity) {
         this.maxCapacity = initialCapacity;
         this.resources = new HashMap<>();
 
-        // مقداردهی اولیه تمام منابع با صفر
         for (ResourceType type : ResourceType.values()) {
             if (type != ResourceType.NONE) {
                 resources.put(type, 0);
@@ -19,20 +18,14 @@ public class Inventory {
         }
     }
 
-    // گرفتن موجودی یک منبع خاص
     public int getResourceAmount(ResourceType type) {
         return resources.getOrDefault(type, 0);
     }
 
-    public int getMaxCapacity() {
-        return maxCapacity;
-    }
+    public int getMaxCapacity() { return maxCapacity; }
 
-    public void setMaxCapacity(int maxCapacity) {
-        this.maxCapacity = maxCapacity;
-    }
+    public void setMaxCapacity(int maxCapacity) { this.maxCapacity = maxCapacity; }
 
-    // متد اضافه کردن منبع با در نظر گرفتن سقف انبار
     public void addResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return;
 
@@ -44,28 +37,28 @@ public class Inventory {
         } else {
             resources.put(type, updated);
         }
+        GameEventDispatcher.fireResourceChanged(type, resources.get(type));
     }
 
-    // متد مصرف کردن منابع (اگه موجودی کافی باشه کم می‌کنه و true میده)
     public boolean consumeResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return true;
 
         int current = resources.getOrDefault(type, 0);
         if (current >= amount) {
             resources.put(type, current - amount);
+            GameEventDispatcher.fireResourceChanged(type, resources.get(type));
             return true;
         }
-        return false; // منبع کافی نیست
+        return false;
     }
 
-    // کم کردن اجباری منبع (برای مواقع بحران و قحطی که موجودی نباید منفی بشه و به صفر کلمپ می‌شه)
     public void forceDecreaseResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return;
         int current = resources.getOrDefault(type, 0);
         resources.put(type, Math.max(0, current - amount));
+        GameEventDispatcher.fireResourceChanged(type, resources.get(type));
     }
 
-    // فقط چک کردن اینکه آیا به اندازه کافی از یک منبع داریم یا نه
     public boolean hasEnough(ResourceType type, int amount) {
         if (type == ResourceType.NONE) return true;
         return resources.getOrDefault(type, 0) >= amount;

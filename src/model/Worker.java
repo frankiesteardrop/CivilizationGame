@@ -2,16 +2,40 @@ package model;
 
 public class Worker extends Unit {
     private boolean isStationed;
+    private Building stationedBuilding;
 
     public Worker(int q, int r) {
-        // اختصاص مقادیر: AP = 2، مصرف غذا = 1، شعاع دید = 1
         super(q, r, 2, 1, 1);
-        this.isStationed = false; // در ابتدا کارگر بیکار است
+        this.isStationed = false;
+        this.stationedBuilding = null;
     }
 
     public boolean isStationed() { return isStationed; }
 
-    public void setStationed(boolean stationed) {
-        this.isStationed = stationed;
+    /**
+     * استقرار اصولی کارگر داخل ساختمان با مصرف AP و بررسی سقف مجاز ساختمان
+     */
+    public boolean stationIn(Building building) {
+        if (isStationed || currentAP < 1 || building.isDestroyed()) return false;
+
+        if (building.getStationedWorkers() < building.getMaxWorkers()) {
+            building.addWorker();
+            this.isStationed = true;
+            this.stationedBuilding = building;
+            consumeAP(1); // استقرار ۱ واحد AP مصرف می‌کند
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * اخراج یا خروج کارگر از ساختمان بدون بازگرداندن AP
+     */
+    public void eject() {
+        if (isStationed && stationedBuilding != null) {
+            stationedBuilding.removeWorker();
+            this.isStationed = false;
+            this.stationedBuilding = null;
+        }
     }
 }
