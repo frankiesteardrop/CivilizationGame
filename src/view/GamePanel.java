@@ -1,15 +1,13 @@
 package view;
 
+import controller.GameController;
 import model.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
-/**
- * پنل گرافیکی اصلی بازی جهت نمایش نقشه هگز، انیمیشن حرکت و منوهای تعاملی.
- */
 public class GamePanel extends JPanel {
-    private final GameMap gameMap;
+    private final GameController gameController;
     private double zoomFactor = 1.0;
     private int offsetX = 400;
     private int offsetY = 300;
@@ -23,8 +21,8 @@ public class GamePanel extends JPanel {
     private int animTargetQ, animTargetR, animCost;
     private final Timer animationTimer;
 
-    public GamePanel(GameMap gameMap) {
-        this.gameMap = gameMap;
+    public GamePanel(GameController gameController) {
+        this.gameController = gameController;
         setBackground(Color.BLACK);
         setFocusable(true);
 
@@ -40,16 +38,11 @@ public class GamePanel extends JPanel {
                     if (SwingUtilities.isLeftMouseButton(e)) {
                         selectUnitAt(clickedHex);
                     } else if (SwingUtilities.isRightMouseButton(e)) {
-                        // باز کردن منوی ارتقای Town Hall
                         if (clickedHex.getQ() == 0 && clickedHex.getR() == 0 && selectedUnit == null) {
                             showTownHallMenu(e);
-                        }
-                        // باز کردن منوی عملیات اختصاصی یونیت‌ها
-                        else if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
+                        } else if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
                             showUnitContextMenu(e, clickedHex);
-                        }
-                        // حرکت دادن یونیت
-                        else if (selectedUnit != null && animatingUnit == null) {
+                        } else if (selectedUnit != null && animatingUnit == null) {
                             handleMovementCommand(clickedHex);
                         }
                     }
@@ -78,64 +71,34 @@ public class GamePanel extends JPanel {
         });
     }
 
-    // --- منوی ارتقا تکنولوژی‌ها (Town Hall) ---
     private void showTownHallMenu(MouseEvent e) {
         JPopupMenu popup = new JPopupMenu();
-        TownHall th = gameMap.getTownHall();
+        TownHall th = gameController.getGameMap().getTownHall();
         Inventory inv = th.getInventory();
 
-        // 1. ارتقا انبار
-        String whLabel = th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)";
-        JMenuItem whItem = new JMenuItem(whLabel);
-        if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) {
-            whItem.setEnabled(false);
-        }
-        whItem.addActionListener(ev -> {
-            inv.consumeResource(ResourceType.WOOD, 100);
-            inv.consumeResource(ResourceType.STONE, 50);
-            th.upgradeWarehouse();
-            repaint();
-        });
+        JMenuItem whItem = new JMenuItem(th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)");
+        if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) whItem.setEnabled(false);
+        whItem.addActionListener(ev -> { gameController.handleWarehouseUpgrade(); repaint(); });
         popup.add(whItem);
 
-        // 2. تکنولوژی معدن سنگ
         JMenuItem smItem = new JMenuItem(th.isStoneMineUnlocked() ? "Tech: Stone Mine (Unlocked)" : "Unlock Stone Mine (50 W)");
         if (th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 50)) smItem.setEnabled(false);
-        smItem.addActionListener(ev -> {
-            inv.consumeResource(ResourceType.WOOD, 50);
-            th.setStoneMineUnlocked(true);
-        });
+        smItem.addActionListener(ev -> { gameController.unlockTech("STONE_MINE"); repaint(); });
         popup.add(smItem);
 
-        // 3. تکنولوژی معدن آهن (پیش‌نیاز: معدن سنگ)
         JMenuItem imItem = new JMenuItem(th.isIronMineUnlocked() ? "Tech: Iron Mine (Unlocked)" : "Unlock Iron Mine (100 W, 50 S)");
         if (th.isIronMineUnlocked() || !th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) imItem.setEnabled(false);
-        imItem.addActionListener(ev -> {
-            inv.consumeResource(ResourceType.WOOD, 100);
-            inv.consumeResource(ResourceType.STONE, 50);
-            th.setIronMineUnlocked(true);
-        });
+        imItem.addActionListener(ev -> { gameController.unlockTech("IRON_MINE"); repaint(); });
         popup.add(imItem);
 
-        // 4. تکنولوژی ابزارآلات حرفه‌ای (پیش‌نیاز: معدن آهن)
         JMenuItem ptItem = new JMenuItem(th.isProfessionalToolsUnlocked() ? "Tech: Prof. Tools (Unlocked)" : "Unlock Prof. Tools (100 W, 100 S, 50 I)");
         if (th.isProfessionalToolsUnlocked() || !th.isIronMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 100) || !inv.hasEnough(ResourceType.IRON, 50)) ptItem.setEnabled(false);
-        ptItem.addActionListener(ev -> {
-            inv.consumeResource(ResourceType.WOOD, 100);
-            inv.consumeResource(ResourceType.STONE, 100);
-            inv.consumeResource(ResourceType.IRON, 50);
-            th.setProfessionalToolsUnlocked(true);
-        });
+        ptItem.addActionListener(ev -> { gameController.unlockTech("PROF_TOOLS"); repaint(); });
         popup.add(ptItem);
 
-        // 5. تکنولوژی شهرک
         JMenuItem setItem = new JMenuItem(th.isSettlementUnlocked() ? "Tech: Settlement (Unlocked)" : "Unlock Settlement (200 W, 100 S)");
         if (th.isSettlementUnlocked() || !inv.hasEnough(ResourceType.WOOD, 200) || !inv.hasEnough(ResourceType.STONE, 100)) setItem.setEnabled(false);
-        setItem.addActionListener(ev -> {
-            inv.consumeResource(ResourceType.WOOD, 200);
-            inv.consumeResource(ResourceType.STONE, 100);
-            th.setSettlementUnlocked(true);
-        });
+        setItem.addActionListener(ev -> { gameController.unlockTech("SETTLEMENT"); repaint(); });
         popup.add(setItem);
 
         popup.show(this, e.getX(), e.getY());
@@ -153,28 +116,12 @@ public class GamePanel extends JPanel {
             } else {
                 for (BuildingType type : BuildingType.values()) {
                     JMenuItem buildItem = new JMenuItem("Build " + type.name() + " (-" + type.getApCost() + " AP)");
+                    boolean validTerrain = gameController.checkTerrainForBuilding(type, hex);
+                    Inventory inv = gameController.getGameMap().getTownHall().getInventory();
+                    boolean hasRes = inv.hasEnough(ResourceType.WOOD, type.getWoodCost()) && inv.hasEnough(ResourceType.STONE, type.getStoneCost()) && inv.hasEnough(ResourceType.IRON, type.getIronCost());
 
-                    boolean validTerrain = checkTerrainForBuilding(type, hex);
-                    Inventory inv = gameMap.getTownHall().getInventory();
-                    boolean hasResources = inv.hasEnough(ResourceType.WOOD, type.getWoodCost()) &&
-                            inv.hasEnough(ResourceType.STONE, type.getStoneCost()) &&
-                            inv.hasEnough(ResourceType.IRON, type.getIronCost());
-                    boolean hasAP = builder.getCurrentAP() >= type.getApCost();
-
-                    if (!validTerrain || !hasResources || !hasAP || builder.getCharges() <= 0) {
-                        buildItem.setEnabled(false);
-                    }
-
-                    buildItem.addActionListener(ev -> {
-                        inv.consumeResource(ResourceType.WOOD, type.getWoodCost());
-                        inv.consumeResource(ResourceType.STONE, type.getStoneCost());
-                        inv.consumeResource(ResourceType.IRON, type.getIronCost());
-                        builder.consumeAP(type.getApCost());
-                        builder.useCharge();
-
-                        hex.setBuilding(new Building(type));
-                        repaint();
-                    });
+                    if (!validTerrain || !hasRes || builder.getCurrentAP() < type.getApCost() || builder.getCharges() <= 0) buildItem.setEnabled(false);
+                    buildItem.addActionListener(ev -> { gameController.buildStructure(builder, type, hex); repaint(); });
                     popup.add(buildItem);
                 }
             }
@@ -185,96 +132,41 @@ public class GamePanel extends JPanel {
             if (building != null) {
                 if (!worker.isStationed()) {
                     JMenuItem stationItem = new JMenuItem("Station in " + building.getType().name());
-                    if (building.getStationedWorkers() >= building.getType().getMaxWorkers() || worker.getCurrentAP() == 0) {
-                        stationItem.setEnabled(false);
-                    }
-                    stationItem.addActionListener(ev -> {
-                        building.addWorker();
-                        worker.setStationed(true);
-                        worker.consumeAP(worker.getCurrentAP());
-                        repaint();
-                    });
+                    if (building.getStationedWorkers() >= building.getMaxWorkers() || worker.getCurrentAP() == 0) stationItem.setEnabled(false);
+                    stationItem.addActionListener(ev -> { worker.stationIn(building); repaint(); });
                     popup.add(stationItem);
                 } else {
                     JMenuItem leaveItem = new JMenuItem("Leave Facility");
-                    leaveItem.addActionListener(ev -> {
-                        building.removeWorker();
-                        worker.setStationed(false);
-                        repaint();
-                    });
+                    leaveItem.addActionListener(ev -> { worker.eject(); repaint(); });
                     popup.add(leaveItem);
                 }
-            } else {
-                JMenuItem errorItem = new JMenuItem("No facility to station");
-                errorItem.setEnabled(false);
-                popup.add(errorItem);
             }
         }
-
-        if (popup.getComponentCount() > 0) {
-            popup.show(this, e.getX(), e.getY());
-        }
-    }
-
-    // متد فیلتر هوشمند ساخت و ساز بر اساس قفل تکنولوژی
-    private boolean checkTerrainForBuilding(BuildingType type, Hex hex) {
-        TownHall th = gameMap.getTownHall();
-        switch (type) {
-            case LUMBER_MILL: return hex.getTerrainType() == TerrainType.FOREST;
-            case FARM: return hex.getTerrainType() == TerrainType.MEADOW && hex.getResourceType() == ResourceType.FOOD;
-            case STABLE: return hex.getTerrainType() == TerrainType.PLAINS && hex.getResourceType() == ResourceType.FOOD;
-            case STONE_MINE: return th.isStoneMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.STONE;
-            case IRON_MINE: return th.isIronMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.getResourceType() == ResourceType.IRON;
-            case SETTLEMENT: return th.isSettlementUnlocked() && hex.getResourceType() == ResourceType.NONE;
-            default: return false;
-        }
+        if (popup.getComponentCount() > 0) popup.show(this, e.getX(), e.getY());
     }
 
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
-        for (Unit u : gameMap.getUnits()) {
+        for (Unit u : gameController.getGameMap().getUnits()) {
             if (u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()) {
-                selectedUnit = u;
-                break;
+                selectedUnit = u; break;
             }
         }
     }
 
     private void handleMovementCommand(Hex targetHex) {
-        if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) {
-            JOptionPane.showMessageDialog(this, "Worker is stationed. Leave facility first!");
-            return;
+        if (gameController.canMove(selectedUnit, targetHex, this)) {
+            animatingUnit = selectedUnit;
+            animStartX = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).x;
+            animStartY = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).y;
+            animTargetX = getHexPixelCoords(targetHex.getQ(), targetHex.getR()).x;
+            animTargetY = getHexPixelCoords(targetHex.getQ(), targetHex.getR()).y;
+            animTargetQ = targetHex.getQ();
+            animTargetR = targetHex.getR();
+            animCost = targetHex.getTerrainType().getMovementCost();
+            animProgress = 0.0;
+            animationTimer.start();
         }
-
-        int dq = targetHex.getQ() - selectedUnit.getQ();
-        int dr = targetHex.getR() - selectedUnit.getR();
-        boolean isNeighbor = (Math.abs(dq) <= 1 && Math.abs(dr) <= 1 && Math.abs(dq + dr) <= 1) && !(dq == 0 && dr == 0);
-
-        if (!isNeighbor) {
-            JOptionPane.showMessageDialog(this, "Movement is only allowed to adjacent hexes!");
-            return;
-        }
-
-        int cost = targetHex.getTerrainType().getMovementCost();
-        if (selectedUnit.getCurrentAP() < cost) {
-            JOptionPane.showMessageDialog(this, "Not enough Action Points (AP)! Need " + cost);
-            return;
-        }
-
-        Point startPt = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
-        Point targetPt = getHexPixelCoords(targetHex.getQ(), targetHex.getR());
-
-        animatingUnit = selectedUnit;
-        animStartX = startPt.x;
-        animStartY = startPt.y;
-        animTargetX = targetPt.x;
-        animTargetY = targetPt.y;
-        animTargetQ = targetHex.getQ();
-        animTargetR = targetHex.getR();
-        animCost = cost;
-        animProgress = 0.0;
-
-        animationTimer.start();
     }
 
     private void updateAnimation() {
@@ -284,7 +176,7 @@ public class GamePanel extends JPanel {
             animationTimer.stop();
             if (animatingUnit != null) {
                 animatingUnit.moveTo(animTargetQ, animTargetR, animCost);
-                gameMap.updateFogOfWar();
+                gameController.getGameMap().updateFogOfWar();
                 animatingUnit = null;
             }
         }
@@ -294,20 +186,16 @@ public class GamePanel extends JPanel {
     private Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
         double y = HEX_SIZE * 3.0 / 2.0 * r;
-        int pixelX = (int) (x * zoomFactor) + offsetX;
-        int pixelY = (int) (y * zoomFactor) + offsetY;
-        return new Point(pixelX, pixelY);
+        return new Point((int) (x * zoomFactor) + offsetX, (int) (y * zoomFactor) + offsetY);
     }
 
     private Hex getHexAtPixel(Point p) {
         Hex closest = null;
         double minDst = Double.MAX_VALUE;
-        for (Hex hex : gameMap.getHexes()) {
-            Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
-            double dst = p.distance(pt);
+        for (Hex hex : gameController.getGameMap().getHexes()) {
+            double dst = p.distance(getHexPixelCoords(hex.getQ(), hex.getR()));
             if (dst < HEX_SIZE * zoomFactor && dst < minDst) {
-                minDst = dst;
-                closest = hex;
+                minDst = dst; closest = hex;
             }
         }
         return closest;
@@ -319,22 +207,14 @@ public class GamePanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        for (Hex hex : gameController.getGameMap().getHexes()) drawHex(g2d, hex);
+
         Point thPt = getHexPixelCoords(0, 0);
-
-        for (Hex hex : gameMap.getHexes()) {
-            drawHex(g2d, hex);
-        }
-
-        // رسم نماد تاون‌هال در مختصات (0,0)
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, (int)(16 * zoomFactor)));
         g2d.drawString("TH", thPt.x - (int)(10 * zoomFactor), thPt.y + (int)(5 * zoomFactor));
 
-        for (Unit u : gameMap.getUnits()) {
-            if (u.isAlive()) {
-                drawUnit(g2d, u);
-            }
-        }
+        for (Unit u : gameController.getGameMap().getUnits()) if (u.isAlive()) drawUnit(g2d, u);
     }
 
     private void drawHex(Graphics2D g2d, Hex hex) {
@@ -343,19 +223,13 @@ public class GamePanel extends JPanel {
 
         Polygon polygon = new Polygon();
         for (int i = 0; i < 6; i++) {
-            double angle_deg = 60 * i - 30;
-            double angle_rad = Math.PI / 180 * angle_deg;
-            int px = pt.x + (int) (currentSize * Math.cos(angle_rad));
-            int py = pt.y + (int) (currentSize * Math.sin(angle_rad));
-            polygon.addPoint(px, py);
+            double angle_rad = Math.PI / 180 * (60 * i - 30);
+            polygon.addPoint(pt.x + (int) (currentSize * Math.cos(angle_rad)), pt.y + (int) (currentSize * Math.sin(angle_rad)));
         }
 
         if (!hex.isExplored()) {
-            g2d.setColor(Color.DARK_GRAY);
-            g2d.fillPolygon(polygon);
-            g2d.setColor(Color.BLACK);
-            g2d.drawPolygon(polygon);
-            return;
+            g2d.setColor(Color.DARK_GRAY); g2d.fillPolygon(polygon);
+            g2d.setColor(Color.BLACK); g2d.drawPolygon(polygon); return;
         }
 
         switch (hex.getTerrainType()) {
@@ -369,19 +243,16 @@ public class GamePanel extends JPanel {
         g2d.drawPolygon(polygon);
 
         int fontSize = (int) (14 * zoomFactor);
-
-        if (hex.getResourceType() != ResourceType.NONE && hex.getResourceAmount() > 0) {
-            if (fontSize > 5) {
-                g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
-                String resStr = "";
-                switch (hex.getResourceType()) {
-                    case WOOD: resStr = "W"; g2d.setColor(new Color(101, 67, 33)); break;
-                    case STONE: resStr = "S"; g2d.setColor(Color.WHITE); break;
-                    case IRON: resStr = "I"; g2d.setColor(Color.ORANGE); break;
-                    case FOOD: resStr = "F"; g2d.setColor(Color.YELLOW); break;
-                }
-                g2d.drawString(resStr, pt.x - fontSize/2, pt.y - 5);
+        if (hex.getResourceType() != ResourceType.NONE && hex.getResourceAmount() > 0 && fontSize > 5) {
+            g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
+            String resStr = "";
+            switch (hex.getResourceType()) {
+                case WOOD: resStr = "W"; g2d.setColor(new Color(101, 67, 33)); break;
+                case STONE: resStr = "S"; g2d.setColor(Color.WHITE); break;
+                case IRON: resStr = "I"; g2d.setColor(Color.ORANGE); break;
+                case FOOD: resStr = "F"; g2d.setColor(Color.YELLOW); break;
             }
+            g2d.drawString(resStr, pt.x - fontSize/2, pt.y - 5);
         }
 
         if (hex.getBuilding() != null) {
@@ -390,37 +261,27 @@ public class GamePanel extends JPanel {
             g2d.fillRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
             g2d.setColor(Color.BLACK);
             g2d.drawRect(pt.x - bSize/2, pt.y + 5, bSize, bSize);
-
             if (fontSize > 5) {
                 g2d.setFont(new Font("Arial", Font.PLAIN, fontSize - 2));
-                g2d.drawString(hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getType().getMaxWorkers(), pt.x - bSize/2, pt.y + bSize + 15);
+                g2d.drawString(hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getMaxWorkers(), pt.x - bSize/2, pt.y + bSize + 15);
             }
         }
     }
 
     private void drawUnit(Graphics2D g2d, Unit u) {
-        Hex unitHex = gameMap.getHexAt(u.getQ(), u.getR());
+        if (u instanceof Worker && ((Worker) u).isStationed()) return;
+        Hex unitHex = gameController.getGameMap().getHexAt(u.getQ(), u.getR());
         if (unitHex != null && !unitHex.isExplored()) return;
 
-        if (u instanceof Worker && ((Worker) u).isStationed()) return;
+        int px = (u == animatingUnit) ? (int) (animStartX + (animTargetX - animStartX) * animProgress) : getHexPixelCoords(u.getQ(), u.getR()).x;
+        int py = (u == animatingUnit) ? (int) (animStartY + (animTargetY - animStartY) * animProgress) : getHexPixelCoords(u.getQ(), u.getR()).y;
 
-        int px, py;
-        if (u == animatingUnit) {
-            px = (int) (animStartX + (animTargetX - animStartX) * animProgress);
-            py = (int) (animStartY + (animTargetY - animStartY) * animProgress);
-        } else {
-            Point pt = getHexPixelCoords(u.getQ(), u.getR());
-            px = pt.x;
-            py = pt.y;
-        }
-
-        int radius = (int) (15 * zoomFactor);
-        if (radius < 4) radius = 4;
-
+        int radius = Math.max(4, (int) (15 * zoomFactor));
         String typeLetter = "U";
-        if (u instanceof model.Explorer) { g2d.setColor(new Color(65, 105, 225)); typeLetter = "E"; }
-        else if (u instanceof model.Builder) { g2d.setColor(new Color(255, 215, 0)); typeLetter = "B"; }
-        else if (u instanceof model.Worker) { g2d.setColor(new Color(255, 140, 0)); typeLetter = "W"; }
+        if (u instanceof Explorer) { g2d.setColor(new Color(65, 105, 225)); typeLetter = "E"; }
+        else if (u instanceof Builder) { g2d.setColor(new Color(255, 215, 0)); typeLetter = "B"; }
+        else if (u instanceof Worker) { g2d.setColor(new Color(255, 140, 0)); typeLetter = "W"; }
+        else if (u instanceof BorderExpander) { g2d.setColor(new Color(138, 43, 226)); typeLetter = "X"; }
 
         g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
         g2d.setColor(Color.BLACK);

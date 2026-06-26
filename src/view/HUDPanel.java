@@ -1,17 +1,17 @@
 package view;
 
+import controller.GameController;
 import model.*;
-
 import javax.swing.*;
 import java.awt.*;
 
-public class HUDPanel extends JPanel {
-    private final GameMap gameMap;
+public class HUDPanel extends JPanel implements GameEventListener {
+    private final GameController gameController;
     private final GamePanel gamePanel;
     private final JLabel infoLabel;
 
-    public HUDPanel(GameMap gameMap, GamePanel gamePanel) {
-        this.gameMap = gameMap;
+    public HUDPanel(GameController gameController, GamePanel gamePanel) {
+        this.gameController = gameController;
         this.gamePanel = gamePanel;
 
         setLayout(new BorderLayout());
@@ -31,56 +31,55 @@ public class HUDPanel extends JPanel {
         endTurnBtn.addActionListener(e -> handleEndTurn());
         add(endTurnBtn, BorderLayout.EAST);
 
-        // تایمر برای آپدیت زنده اطلاعات
-        Timer uiTimer = new Timer(100, e -> updateHUD());
-        uiTimer.start();
+        // ثبت این پنل به عنوان شنونده رویدادهای مدل
+        GameEventDispatcher.addListener(this);
+        updateHUD(); // آپدیت اولیه
     }
 
+    // متدهای اینترفیس Observer که فقط زمان تغییر واقعی فراخوانی می‌شوند
+    @Override public void onResourceChanged(ResourceType type, int newAmount) { SwingUtilities.invokeLater(this::updateHUD); }
+    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { SwingUtilities.invokeLater(this::updateHUD); }
+    @Override public void onUnitKilled(Unit unit) { SwingUtilities.invokeLater(this::updateHUD); }
+    @Override public void onProductionCompleted(String itemName) { SwingUtilities.invokeLater(this::updateHUD); }
+
     private void updateHUD() {
-        Inventory inv = gameMap.getTownHall().getInventory();
+        GameMap map = gameController.getGameMap();
+        Inventory inv = map.getTownHall().getInventory();
         int max = inv.getMaxCapacity();
 
-        String foodHtml = formatResource("Food", inv.getResourceAmount(ResourceType.FOOD), max, EconomyManager.calculateNetProduction(gameMap, ResourceType.FOOD));
-        String woodHtml = formatResource("Wood", inv.getResourceAmount(ResourceType.WOOD), max, EconomyManager.calculateNetProduction(gameMap, ResourceType.WOOD));
-        String stoneHtml = formatResource("Stone", inv.getResourceAmount(ResourceType.STONE), max, EconomyManager.calculateNetProduction(gameMap, ResourceType.STONE));
-        String ironHtml = formatResource("Iron", inv.getResourceAmount(ResourceType.IRON), max, EconomyManager.calculateNetProduction(gameMap, ResourceType.IRON));
+        String foodHtml = formatResource("Food", inv.getResourceAmount(ResourceType.FOOD), max, EconomyManager.calculateNetProduction(map, ResourceType.FOOD));
+        String woodHtml = formatResource("Wood", inv.getResourceAmount(ResourceType.WOOD), max, EconomyManager.calculateNetProduction(map, ResourceType.WOOD));
+        String stoneHtml = formatResource("Stone", inv.getResourceAmount(ResourceType.STONE), max, EconomyManager.calculateNetProduction(map, ResourceType.STONE));
+        String ironHtml = formatResource("Iron", inv.getResourceAmount(ResourceType.IRON), max, EconomyManager.calculateNetProduction(map, ResourceType.IRON));
 
-        String unitHtml = " | Units: " + gameMap.getAliveUnitsCount() + "/" + gameMap.getUnitCap();
-        String turnHtml = " | <b>Turn: " + gameMap.getCurrentTurn() + "</b>";
+        String unitHtml = " | Units: " + map.getAliveUnitsCount() + "/" + map.getUnitCap();
+        String turnHtml = " | <b>Turn: " + map.getCurrentTurn() + "</b>";
 
         infoLabel.setText("<html>" + foodHtml + woodHtml + stoneHtml + ironHtml + unitHtml + turnHtml + "</html>");
     }
 
     private String formatResource(String name, int amount, int max, int net) {
-        String netColor = net < 0 ? "red" : "#00FF00"; // قرمز برای منفی، سبز برای مثبت
+        String netColor = net < 0 ? "red" : "#00FF00";
         String sign = net > 0 ? "+" : "";
         return String.format("%s: %d/%d (<font color='%s'>%s%d</font>) &nbsp;&nbsp;", name, amount, max, netColor, sign, net);
     }
 
     private void handleEndTurn() {
-        // چک کردن یونیت‌های بی‌کار طبق داک پروژه
         boolean hasIdle = false;
-        for (Unit u : gameMap.getUnits()) {
+        for (Unit u : gameController.getGameMap().getUnits()) {
             if (u.isAlive() && u.getCurrentAP() > 0) {
-                // کارگری که مستقر است استثناست (چون وظیفه‌اش در حال انجام است)
                 if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-                hasIdle = true;
-                break;
+                hasIdle = true; break;
             }
         }
 
         if (hasIdle) {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "You have idle units with remaining AP. Are you sure you want to end the turn?",
-                    "Idle Units Warning",
-                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) {
-                return; // لغو پایان نوبت
-            }
+            int confirm = JOptionPane.showConfirmDialog(this, "You have idle units. End turn?", "Warning", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) return;
         }
 
-        // پردازش اقتصاد و رفتن به نوبت بعد
-        gameMap.nextTurn();
+        gameController.endTurn();
+        updateHUD(); // آپدیت دستی برای تغییر شماره نوبت
         gamePanel.repaint();
     }
 }
