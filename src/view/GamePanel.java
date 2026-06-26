@@ -1,13 +1,13 @@
 package view;
 
-import controller.GameController;
+import controller.MainController;
 import model.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 
 public class GamePanel extends JPanel {
-    private final GameController gameController;
+    private final MainController mainController;
     private double zoomFactor = 1.0;
     private int offsetX = 400;
     private int offsetY = 300;
@@ -21,8 +21,8 @@ public class GamePanel extends JPanel {
     private int animTargetQ, animTargetR, animCost;
     private final Timer animationTimer;
 
-    public GamePanel(GameController gameController) {
-        this.gameController = gameController;
+    public GamePanel(MainController mainController) {
+        this.mainController = mainController;
         setBackground(Color.BLACK);
         setFocusable(true);
 
@@ -73,32 +73,32 @@ public class GamePanel extends JPanel {
 
     private void showTownHallMenu(MouseEvent e) {
         JPopupMenu popup = new JPopupMenu();
-        TownHall th = gameController.getGameMap().getTownHall();
+        TownHall th = mainController.getGameMap().getTownHall();
         Inventory inv = th.getInventory();
 
         JMenuItem whItem = new JMenuItem(th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)");
         if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) whItem.setEnabled(false);
-        whItem.addActionListener(ev -> { gameController.handleWarehouseUpgrade(); repaint(); });
+        whItem.addActionListener(ev -> { mainController.getUpgradeController().handleWarehouseUpgrade(); repaint(); });
         popup.add(whItem);
 
         JMenuItem smItem = new JMenuItem(th.isStoneMineUnlocked() ? "Tech: Stone Mine (Unlocked)" : "Unlock Stone Mine (50 W)");
         if (th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 50)) smItem.setEnabled(false);
-        smItem.addActionListener(ev -> { gameController.unlockTech("STONE_MINE"); repaint(); });
+        smItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("STONE_MINE"); repaint(); });
         popup.add(smItem);
 
         JMenuItem imItem = new JMenuItem(th.isIronMineUnlocked() ? "Tech: Iron Mine (Unlocked)" : "Unlock Iron Mine (100 W, 50 S)");
         if (th.isIronMineUnlocked() || !th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) imItem.setEnabled(false);
-        imItem.addActionListener(ev -> { gameController.unlockTech("IRON_MINE"); repaint(); });
+        imItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("IRON_MINE"); repaint(); });
         popup.add(imItem);
 
         JMenuItem ptItem = new JMenuItem(th.isProfessionalToolsUnlocked() ? "Tech: Prof. Tools (Unlocked)" : "Unlock Prof. Tools (100 W, 100 S, 50 I)");
         if (th.isProfessionalToolsUnlocked() || !th.isIronMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 100) || !inv.hasEnough(ResourceType.IRON, 50)) ptItem.setEnabled(false);
-        ptItem.addActionListener(ev -> { gameController.unlockTech("PROF_TOOLS"); repaint(); });
+        ptItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("PROF_TOOLS"); repaint(); });
         popup.add(ptItem);
 
         JMenuItem setItem = new JMenuItem(th.isSettlementUnlocked() ? "Tech: Settlement (Unlocked)" : "Unlock Settlement (200 W, 100 S)");
         if (th.isSettlementUnlocked() || !inv.hasEnough(ResourceType.WOOD, 200) || !inv.hasEnough(ResourceType.STONE, 100)) setItem.setEnabled(false);
-        setItem.addActionListener(ev -> { gameController.unlockTech("SETTLEMENT"); repaint(); });
+        setItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("SETTLEMENT"); repaint(); });
         popup.add(setItem);
 
         popup.show(this, e.getX(), e.getY());
@@ -116,12 +116,10 @@ public class GamePanel extends JPanel {
             } else {
                 for (BuildingType type : BuildingType.values()) {
                     JMenuItem buildItem = new JMenuItem("Build " + type.name() + " (-" + type.getApCost() + " AP)");
-                    boolean validTerrain = gameController.checkTerrainForBuilding(type, hex);
-                    Inventory inv = gameController.getGameMap().getTownHall().getInventory();
-                    boolean hasRes = inv.hasEnough(ResourceType.WOOD, type.getWoodCost()) && inv.hasEnough(ResourceType.STONE, type.getStoneCost()) && inv.hasEnough(ResourceType.IRON, type.getIronCost());
-
-                    if (!validTerrain || !hasRes || builder.getCurrentAP() < type.getApCost() || builder.getCharges() <= 0) buildItem.setEnabled(false);
-                    buildItem.addActionListener(ev -> { gameController.buildStructure(builder, type, hex); repaint(); });
+                    if (!mainController.getBuildController().canBuild(type, hex, builder)) {
+                        buildItem.setEnabled(false);
+                    }
+                    buildItem.addActionListener(ev -> { mainController.getBuildController().buildStructure(builder, type, hex); repaint(); });
                     popup.add(buildItem);
                 }
             }
@@ -133,11 +131,11 @@ public class GamePanel extends JPanel {
                 if (!worker.isStationed()) {
                     JMenuItem stationItem = new JMenuItem("Station in " + building.getType().name());
                     if (building.getStationedWorkers() >= building.getMaxWorkers() || worker.getCurrentAP() == 0) stationItem.setEnabled(false);
-                    stationItem.addActionListener(ev -> { worker.stationIn(building); repaint(); });
+                    stationItem.addActionListener(ev -> { mainController.getUnitController().handleStation(worker, hex); repaint(); });
                     popup.add(stationItem);
                 } else {
                     JMenuItem leaveItem = new JMenuItem("Leave Facility");
-                    leaveItem.addActionListener(ev -> { worker.eject(); repaint(); });
+                    leaveItem.addActionListener(ev -> { mainController.getUnitController().handleEject(worker); repaint(); });
                     popup.add(leaveItem);
                 }
             }
@@ -147,7 +145,7 @@ public class GamePanel extends JPanel {
 
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
-        for (Unit u : gameController.getGameMap().getUnits()) {
+        for (Unit u : mainController.getGameMap().getUnits()) {
             if (u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()) {
                 selectedUnit = u; break;
             }
@@ -155,7 +153,7 @@ public class GamePanel extends JPanel {
     }
 
     private void handleMovementCommand(Hex targetHex) {
-        if (gameController.canMove(selectedUnit, targetHex, this)) {
+        if (mainController.getUnitController().canMove(selectedUnit, targetHex, this)) {
             animatingUnit = selectedUnit;
             animStartX = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).x;
             animStartY = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).y;
@@ -176,7 +174,7 @@ public class GamePanel extends JPanel {
             animationTimer.stop();
             if (animatingUnit != null) {
                 animatingUnit.moveTo(animTargetQ, animTargetR, animCost);
-                gameController.getGameMap().updateFogOfWar();
+                mainController.getGameMap().updateFogOfWar();
                 animatingUnit = null;
             }
         }
@@ -192,7 +190,7 @@ public class GamePanel extends JPanel {
     private Hex getHexAtPixel(Point p) {
         Hex closest = null;
         double minDst = Double.MAX_VALUE;
-        for (Hex hex : gameController.getGameMap().getHexes()) {
+        for (Hex hex : mainController.getGameMap().getHexes()) {
             double dst = p.distance(getHexPixelCoords(hex.getQ(), hex.getR()));
             if (dst < HEX_SIZE * zoomFactor && dst < minDst) {
                 minDst = dst; closest = hex;
@@ -207,14 +205,14 @@ public class GamePanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        for (Hex hex : gameController.getGameMap().getHexes()) drawHex(g2d, hex);
+        for (Hex hex : mainController.getGameMap().getHexes()) drawHex(g2d, hex);
 
         Point thPt = getHexPixelCoords(0, 0);
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, (int)(16 * zoomFactor)));
         g2d.drawString("TH", thPt.x - (int)(10 * zoomFactor), thPt.y + (int)(5 * zoomFactor));
 
-        for (Unit u : gameController.getGameMap().getUnits()) if (u.isAlive()) drawUnit(g2d, u);
+        for (Unit u : mainController.getGameMap().getUnits()) if (u.isAlive()) drawUnit(g2d, u);
     }
 
     private void drawHex(Graphics2D g2d, Hex hex) {
@@ -270,7 +268,7 @@ public class GamePanel extends JPanel {
 
     private void drawUnit(Graphics2D g2d, Unit u) {
         if (u instanceof Worker && ((Worker) u).isStationed()) return;
-        Hex unitHex = gameController.getGameMap().getHexAt(u.getQ(), u.getR());
+        Hex unitHex = mainController.getGameMap().getHexAt(u.getQ(), u.getR());
         if (unitHex != null && !unitHex.isExplored()) return;
 
         int px = (u == animatingUnit) ? (int) (animStartX + (animTargetX - animStartX) * animProgress) : getHexPixelCoords(u.getQ(), u.getR()).x;

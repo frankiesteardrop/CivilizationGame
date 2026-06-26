@@ -1,17 +1,17 @@
 package view;
 
-import controller.GameController;
+import controller.MainController;
 import model.*;
 import javax.swing.*;
 import java.awt.*;
 
 public class HUDPanel extends JPanel implements GameEventListener {
-    private final GameController gameController;
+    private final MainController mainController;
     private final GamePanel gamePanel;
     private final JLabel infoLabel;
 
-    public HUDPanel(GameController gameController, GamePanel gamePanel) {
-        this.gameController = gameController;
+    public HUDPanel(MainController mainController, GamePanel gamePanel) {
+        this.mainController = mainController;
         this.gamePanel = gamePanel;
 
         setLayout(new BorderLayout());
@@ -31,19 +31,17 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn.addActionListener(e -> handleEndTurn());
         add(endTurnBtn, BorderLayout.EAST);
 
-        // ثبت این پنل به عنوان شنونده رویدادهای مدل
         GameEventDispatcher.addListener(this);
-        updateHUD(); // آپدیت اولیه
+        updateHUD();
     }
 
-    // متدهای اینترفیس Observer که فقط زمان تغییر واقعی فراخوانی می‌شوند
     @Override public void onResourceChanged(ResourceType type, int newAmount) { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitKilled(Unit unit) { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onProductionCompleted(String itemName) { SwingUtilities.invokeLater(this::updateHUD); }
 
     private void updateHUD() {
-        GameMap map = gameController.getGameMap();
+        GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
         int max = inv.getMaxCapacity();
 
@@ -65,21 +63,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void handleEndTurn() {
-        boolean hasIdle = false;
-        for (Unit u : gameController.getGameMap().getUnits()) {
-            if (u.isAlive() && u.getCurrentAP() > 0) {
-                if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-                hasIdle = true; break;
-            }
+        // واگذاری لاجیک هندل کردن پایان نوبت به کنترلر تخصصی خودش
+        if (mainController.getTurnController().tryEndTurn(this)) {
+            updateHUD();
+            gamePanel.repaint();
         }
-
-        if (hasIdle) {
-            int confirm = JOptionPane.showConfirmDialog(this, "You have idle units. End turn?", "Warning", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) return;
-        }
-
-        gameController.endTurn();
-        updateHUD(); // آپدیت دستی برای تغییر شماره نوبت
-        gamePanel.repaint();
     }
 }

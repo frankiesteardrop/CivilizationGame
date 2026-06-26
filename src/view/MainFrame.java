@@ -1,7 +1,7 @@
 package view;
 
 import controller.AudioManager;
-import controller.GameController;
+import controller.MainController;
 import model.GameMap;
 import javax.swing.*;
 import java.awt.*;
@@ -12,11 +12,10 @@ public class MainFrame extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainContainer;
     private final GamePanel gamePanel;
-    private final GameController gameController;
+    private final MainController mainController; // استفاده از MainController به جای GameController
 
     public MainFrame(GameMap gameMap) {
-        // تزریق وابستگی (Dependency Injection) برای ساخت کنترلر
-        this.gameController = new GameController(gameMap);
+        this.mainController = new MainController(gameMap);
 
         setTitle("Civilization VI - Sharif");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -30,7 +29,7 @@ public class MainFrame extends JFrame {
         AudioManager.playMusic("resources/music.wav");
 
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
-        gamePanel = new GamePanel(gameController); // پاس دادن کنترلر به جای مدل مستقیم
+        gamePanel = new GamePanel(mainController);
 
         mainContainer.add(mainMenuPanel, "MENU");
         add(mainContainer);
@@ -43,7 +42,7 @@ public class MainFrame extends JFrame {
 
     public void startGame() {
         JPanel gameWrapper = new JPanel(new BorderLayout());
-        HUDPanel hudPanel = new HUDPanel(gameController, gamePanel);
+        HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
 
         gameWrapper.add(hudPanel, BorderLayout.NORTH);
         gameWrapper.add(gamePanel, BorderLayout.CENTER);
