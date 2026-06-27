@@ -16,7 +16,10 @@ public class UnitController {
 
         int dq = targetHex.getQ() - unit.getQ();
         int dr = targetHex.getR() - unit.getR();
-        boolean isNeighbor = (Math.abs(dq) <= 1 && Math.abs(dr) <= 1 && Math.abs(dq + dr) <= 1) && !(dq == 0 && dr == 0);
+
+        // جراحی ریاضی گام نهم: استفاده از فرمول استاندارد جهانی برای تشخیص همسایگی در هکس‌های محوری
+        // اگر دو هکس دقیقاً همسایه باشند، مجموع قدر مطلق تفاضل‌ها باید دقیقاً برابر 2 باشد.
+        boolean isNeighbor = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr) == 2);
 
         if (!isNeighbor) {
             JOptionPane.showMessageDialog(parentView, "Movement is only allowed to adjacent hexes!");
