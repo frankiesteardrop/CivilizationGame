@@ -82,7 +82,9 @@ public class GamePanel extends JPanel {
         JPopupMenu popup = new JPopupMenu();
         TownHall th = mainController.getGameMap().getTownHall();
         Inventory inv = th.getInventory();
+        boolean atUnitCap = mainController.getGameMap().getAliveUnitsCount() >= mainController.getGameMap().getUnitCap();
 
+        // --- بخش آپگریدها ---
         JMenuItem whItem = new JMenuItem(th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)");
         if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) whItem.setEnabled(false);
         whItem.addActionListener(ev -> { mainController.getUpgradeController().handleWarehouseUpgrade(); repaint(); });
@@ -107,6 +109,29 @@ public class GamePanel extends JPanel {
         if (th.isSettlementUnlocked() || !inv.hasEnough(ResourceType.WOOD, 200) || !inv.hasEnough(ResourceType.STONE, 100)) setItem.setEnabled(false);
         setItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("SETTLEMENT"); repaint(); });
         popup.add(setItem);
+
+        popup.addSeparator(); // خط جداکننده زیبا
+
+        // --- بخش تولید یونیت‌ها ---
+        JMenuItem tWorker = new JMenuItem("Train Worker (20 F) - 1 Turn");
+        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 20)) tWorker.setEnabled(false);
+        tWorker.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("WORKER"); repaint(); });
+        popup.add(tWorker);
+
+        JMenuItem tBuilder = new JMenuItem("Train Builder (30 F, 10 W) - 2 Turns");
+        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 30) || !inv.hasEnough(ResourceType.WOOD, 10)) tBuilder.setEnabled(false);
+        tBuilder.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("BUILDER"); repaint(); });
+        popup.add(tBuilder);
+
+        JMenuItem tExplorer = new JMenuItem("Train Explorer (50 F) - 3 Turns");
+        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 50)) tExplorer.setEnabled(false);
+        tExplorer.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("EXPLORER"); repaint(); });
+        popup.add(tExplorer);
+
+        JMenuItem tExpander = new JMenuItem("Train Border Expander (40 F, 20 W) - 3 Turns");
+        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 40) || !inv.hasEnough(ResourceType.WOOD, 20)) tExpander.setEnabled(false);
+        tExpander.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("BORDER_EXPANDER"); repaint(); });
+        popup.add(tExpander);
 
         popup.show(this, e.getX(), e.getY());
     }

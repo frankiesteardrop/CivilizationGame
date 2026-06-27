@@ -35,4 +35,39 @@ public class UpgradeController {
                 break;
         }
     }
+
+    /**
+     * سیستم جدید: آموزش و تولید یونیت‌ها از تان‌هال با اضافه شدن به صف تولید
+     */
+    public void trainUnit(String unitType) {
+        TownHall th = gameMap.getTownHall();
+        Inventory inv = th.getInventory();
+
+        // بررسی گارد سقف یونیت‌ها (Unit Cap)
+        if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return;
+
+        // مقادیر بالانس شده و منطقی طبق قوانین بازی برای کسر از انبار
+        switch (unitType) {
+            case "WORKER":
+                if (inv.consumeResource(ResourceType.FOOD, 20)) {
+                    th.queueProduction("Worker", 1, () -> gameMap.getUnits().add(new Worker(0, 0)));
+                }
+                break;
+            case "BUILDER":
+                if (inv.consumeResource(ResourceType.FOOD, 30) && inv.consumeResource(ResourceType.WOOD, 10)) {
+                    th.queueProduction("Builder", 2, () -> gameMap.getUnits().add(new Builder(0, 0)));
+                }
+                break;
+            case "EXPLORER":
+                if (inv.consumeResource(ResourceType.FOOD, 50)) {
+                    th.queueProduction("Explorer", 3, () -> gameMap.getUnits().add(new Explorer(0, 0)));
+                }
+                break;
+            case "BORDER_EXPANDER":
+                if (inv.consumeResource(ResourceType.FOOD, 40) && inv.consumeResource(ResourceType.WOOD, 20)) {
+                    th.queueProduction("Border Expander", 3, () -> gameMap.getUnits().add(new BorderExpander(0, 0)));
+                }
+                break;
+        }
+    }
 }
