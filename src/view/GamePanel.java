@@ -9,9 +9,8 @@ import java.awt.event.*;
 public class GamePanel extends JPanel {
     private final MainController mainController;
 
-    // سیستم زوم گسسته طبق چک‌لیست
     private final double[] ZOOM_LEVELS = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
-    private int zoomIndex = 2; // پیش‌فرض روی 1.0
+    private int zoomIndex = 2;
     private double zoomFactor = ZOOM_LEVELS[zoomIndex];
 
     private int offsetX = 400;
@@ -28,7 +27,7 @@ public class GamePanel extends JPanel {
 
     public GamePanel(MainController mainController) {
         this.mainController = mainController;
-        setBackground(new Color(20, 25, 30)); // رنگ پس‌زمینه مدرن‌تر
+        setBackground(new Color(20, 25, 30));
         setFocusable(true);
 
         animationTimer = new Timer(16, e -> updateAnimation());
@@ -68,7 +67,6 @@ public class GamePanel extends JPanel {
         addMouseListener(mouseAdapter);
         addMouseMotionListener(mouseAdapter);
 
-        // اعمال منطق زوم گسسته (Discrete)
         addMouseWheelListener(e -> {
             if (e.getWheelRotation() < 0 && zoomIndex < ZOOM_LEVELS.length - 1) {
                 zoomIndex++;
@@ -151,7 +149,6 @@ public class GamePanel extends JPanel {
         } else if (selectedUnit instanceof BorderExpander) {
             BorderExpander expander = (BorderExpander) selectedUnit;
             JMenuItem expandItem = new JMenuItem("Expand Border (-" + expander.getMaxAP() + " AP & Consume)");
-            // شرط: مرزگشا فقط در هکس کشف شده کار میکند
             if (!hex.isExplored() || expander.getCurrentAP() < expander.getMaxAP()) {
                 expandItem.setEnabled(false);
             }
@@ -164,6 +161,9 @@ public class GamePanel extends JPanel {
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
         for (Unit u : mainController.getGameMap().getUnits()) {
+            // کارگران مستقر شده قابل انتخاب نیستند مگر اینکه در منوی ساختمان خروج زده شود
+            if (u instanceof Worker && ((Worker) u).isStationed()) continue;
+
             if (u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()) {
                 selectedUnit = u; break;
             }
@@ -186,7 +186,7 @@ public class GamePanel extends JPanel {
     }
 
     private void updateAnimation() {
-        animProgress += 0.06; // سرعت نرم‌تر
+        animProgress += 0.06;
         if (animProgress >= 1.0) {
             animProgress = 1.0;
             animationTimer.stop();
@@ -231,36 +231,28 @@ public class GamePanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
 
-        // فعال‌سازی آنتی‌الیاسینگ برای رندرینگ گرافیک با کیفیت بالا
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // 1. رسم لایه‌ی زیرین (هکس‌ها و زمین)
-        for (Hex hex : mainController.getGameMap().getHexes()) {
-            drawHexTerrain(g2d, hex);
-        }
+        for (Hex hex : mainController.getGameMap().getHexes()) drawHexTerrain(g2d, hex);
 
-        // 2. رسم لایه مرزها (Territory Borders)
         for (Hex hex : mainController.getGameMap().getHexes()) {
             if (hex.isInsideBorder() && hex.isExplored()) {
                 drawHexBorder(g2d, hex);
             }
         }
 
-        // 3. رسم لایه اطلاعات هکس‌ها (منابع، ساختمان‌ها)
         for (Hex hex : mainController.getGameMap().getHexes()) {
             if (hex.isExplored()) {
                 drawHexDetails(g2d, hex);
             }
         }
 
-        // 4. رسم Town Hall
         Point thPt = getHexPixelCoords(0, 0);
-        g2d.setColor(new Color(255, 215, 0)); // رنگ طلایی
+        g2d.setColor(new Color(255, 215, 0));
         g2d.setFont(new Font("SansSerif", Font.BOLD, (int)(18 * zoomFactor)));
         g2d.drawString("TH", thPt.x - (int)(12 * zoomFactor), thPt.y + (int)(6 * zoomFactor));
 
-        // 5. رسم یونیت‌ها
         for (Unit u : mainController.getGameMap().getUnits()) {
             if (u.isAlive()) drawUnit(g2d, u);
         }
@@ -272,8 +264,7 @@ public class GamePanel extends JPanel {
         Polygon polygon = createHexPolygon(pt, currentSize);
 
         if (!hex.isExplored()) {
-            // افکت مه جنگ پیشرفته
-            g2d.setColor(new Color(15, 20, 25)); // تیره و مرموز
+            g2d.setColor(new Color(15, 20, 25));
             g2d.fillPolygon(polygon);
             g2d.setStroke(new BasicStroke(1f));
             g2d.setColor(new Color(40, 45, 50));
@@ -281,16 +272,23 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // پالت رنگی حرفه‌ای و مدرن برای انواع زمین
+        Color baseColor = Color.BLACK;
         switch (hex.getTerrainType()) {
-            case FOREST: g2d.setColor(new Color(46, 125, 50)); break;
-            case PLAINS: g2d.setColor(new Color(156, 204, 101)); break;
-            case MOUNTAIN: g2d.setColor(new Color(117, 117, 117)); break;
-            case MEADOW: g2d.setColor(new Color(129, 199, 132)); break;
+            case FOREST: baseColor = new Color(46, 125, 50); break;
+            case PLAINS: baseColor = new Color(156, 204, 101); break;
+            case MOUNTAIN: baseColor = new Color(117, 117, 117); break;
+            case MEADOW: baseColor = new Color(129, 199, 132); break;
+        }
+
+        // تمایز بصری هکس‌های دارای منبع (GradientPaint)
+        if (hex.getResourceType() != ResourceType.NONE && !hex.isResourceDepleted()) {
+            GradientPaint gp = new GradientPaint(pt.x, pt.y - currentSize, baseColor.brighter(), pt.x, pt.y + currentSize, baseColor.darker());
+            g2d.setPaint(gp);
+        } else {
+            g2d.setColor(baseColor);
         }
         g2d.fillPolygon(polygon);
 
-        // خطوط داخلی ظریف
         g2d.setStroke(new BasicStroke(1f));
         g2d.setColor(new Color(0, 0, 0, 100));
         g2d.drawPolygon(polygon);
@@ -301,76 +299,115 @@ public class GamePanel extends JPanel {
         int currentSize = (int) (HEX_SIZE * zoomFactor);
         Polygon polygon = createHexPolygon(pt, currentSize);
 
-        // خط مرزی ضخیم و طلایی رنگ
         g2d.setStroke(new BasicStroke((float)(3.0 * zoomFactor)));
         g2d.setColor(new Color(255, 215, 0, 200));
         g2d.drawPolygon(polygon);
-        g2d.setStroke(new BasicStroke(1f)); // بازگرداندن ضخامت
+        g2d.setStroke(new BasicStroke(1f));
     }
 
     private void drawHexDetails(Graphics2D g2d, Hex hex) {
         Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
         int fontSize = (int) (14 * zoomFactor);
+        int rSize = (int)(16 * zoomFactor);
 
-        // نمایش منابع با کادر و رنگبندی اختصاصی
-        if (hex.getResourceType() != ResourceType.NONE && !hex.isResourceDepleted() && fontSize > 6) {
-            g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
-            String resStr = "";
-            Color iconColor = Color.WHITE;
+        if (hex.getResourceType() != ResourceType.NONE) {
+            if (hex.isResourceDepleted()) {
+                // گرافیک اتمام منبع (X قرمز)
+                g2d.setColor(new Color(50, 50, 50, 180));
+                g2d.fillOval(pt.x - rSize/2, pt.y - (int)(15 * zoomFactor) - rSize/2, rSize, rSize);
+                g2d.setColor(new Color(220, 20, 60)); // Crimson Red
+                g2d.setStroke(new BasicStroke(2f));
+                g2d.drawLine(pt.x - rSize/4, pt.y - (int)(15 * zoomFactor) - rSize/4, pt.x + rSize/4, pt.y - (int)(15 * zoomFactor) + rSize/4);
+                g2d.drawLine(pt.x + rSize/4, pt.y - (int)(15 * zoomFactor) - rSize/4, pt.x - rSize/4, pt.y - (int)(15 * zoomFactor) + rSize/4);
+                g2d.setStroke(new BasicStroke(1f));
+            } else if (fontSize > 6) {
+                // رندرینگ منبع سالم
+                g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
+                String resStr = "";
+                Color iconColor = Color.WHITE;
 
-            switch (hex.getResourceType()) {
-                case WOOD: resStr = "W"; iconColor = new Color(139, 69, 19); break; // قهوه‌ای
-                case STONE: resStr = "S"; iconColor = new Color(200, 200, 200); break; // طوسی روشن
-                case IRON: resStr = "I"; iconColor = new Color(255, 140, 0); break; // نارنجی
-                case FOOD: resStr = "F"; iconColor = new Color(255, 215, 0); break; // طلایی
+                switch (hex.getResourceType()) {
+                    case WOOD: resStr = "W"; iconColor = new Color(139, 69, 19); break;
+                    case STONE: resStr = "S"; iconColor = new Color(200, 200, 200); break;
+                    case IRON: resStr = "I"; iconColor = new Color(255, 140, 0); break;
+                    case FOOD: resStr = "F"; iconColor = new Color(255, 215, 0); break;
+                }
+
+                g2d.setColor(new Color(0, 0, 0, 150));
+                g2d.fillOval(pt.x - rSize/2, pt.y - (int)(15 * zoomFactor) - rSize/2, rSize, rSize);
+                g2d.setColor(iconColor);
+                g2d.drawString(resStr, pt.x - fontSize/3, pt.y - (int)(15 * zoomFactor) + fontSize/3);
             }
-
-            // کادر دایره‌ای کوچک برای آیکون منبع
-            int rSize = (int)(16 * zoomFactor);
-            g2d.setColor(new Color(0, 0, 0, 150));
-            g2d.fillOval(pt.x - rSize/2, pt.y - (int)(15 * zoomFactor) - rSize/2, rSize, rSize);
-
-            g2d.setColor(iconColor);
-            g2d.drawString(resStr, pt.x - fontSize/3, pt.y - (int)(15 * zoomFactor) + fontSize/3);
         }
 
-        // رندرینگ ساختمان با گرافیک به‌روزشده
         if (hex.getBuilding() != null) {
-            int bSize = (int) (18 * zoomFactor);
+            drawBuildingIcon(g2d, hex.getBuilding(), pt, (int)(18 * zoomFactor));
+        }
+    }
 
-            // رنگ‌آمیزی بر اساس نوع ساختمان
-            Color bColor = new Color(100, 149, 237); // پیش‌فرض
-            if (hex.getBuilding().getType() == BuildingType.SETTLEMENT) bColor = new Color(255, 105, 180);
+    private void drawBuildingIcon(Graphics2D g2d, Building b, Point pt, int size) {
+        int x = pt.x;
+        int y = pt.y + 2;
 
-            g2d.setColor(new Color(0, 0, 0, 180)); // سایه ساختمان
-            g2d.fillRect(pt.x - bSize/2 + 2, pt.y + 2, bSize, bSize);
+        // سایه ساختمان
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRect(x - size/2 + 2, y + 2, size, size);
 
-            g2d.setColor(bColor);
-            g2d.fillRect(pt.x - bSize/2, pt.y, bSize, bSize);
+        if (b.getType() == BuildingType.SETTLEMENT) {
+            g2d.setColor(new Color(138, 43, 226)); // Purple
+            Polygon house = new Polygon();
+            house.addPoint(x, y - size/2);
+            house.addPoint(x + size/2, y);
+            house.addPoint(x + size/2, y + size/2);
+            house.addPoint(x - size/2, y + size/2);
+            house.addPoint(x - size/2, y);
+            g2d.fillPolygon(house);
             g2d.setColor(Color.WHITE);
-            g2d.drawRect(pt.x - bSize/2, pt.y, bSize, bSize);
+            g2d.drawPolygon(house);
+        } else if (b.getType() == BuildingType.FARM) {
+            g2d.setColor(new Color(255, 215, 0));
+            g2d.fillRect(x - size/2, y - size/4, size, size/2);
+            g2d.setColor(new Color(139, 69, 19));
+            g2d.drawRect(x - size/2, y - size/4, size, size/2);
+            g2d.drawLine(x - size/4, y - size/4, x - size/4, y + size/4);
+            g2d.drawLine(x + size/4, y - size/4, x + size/4, y + size/4);
+        } else if (b.getType() == BuildingType.LUMBER_MILL) {
+            g2d.setColor(new Color(139, 69, 19));
+            g2d.fillRect(x - size/2, y, size, size/2);
+            g2d.setColor(Color.LIGHT_GRAY);
+            g2d.fillOval(x - size/4, y - size/4, size/2, size/2);
+            g2d.setColor(Color.BLACK);
+            g2d.drawOval(x - size/4, y - size/4, size/2, size/2);
+        } else {
+            g2d.setColor(Color.DARK_GRAY);
+            Polygon mine = new Polygon();
+            mine.addPoint(x, y - size/2);
+            mine.addPoint(x + size/2, y + size/2);
+            mine.addPoint(x - size/2, y + size/2);
+            g2d.fillPolygon(mine);
+            g2d.setColor(Color.BLACK);
+            g2d.fillArc(x - size/4, y, size/2, size, 0, 180);
+        }
 
-            if (fontSize > 6) {
-                g2d.setFont(new Font("SansSerif", Font.PLAIN, fontSize - 3));
-                g2d.setColor(Color.WHITE);
-                // کادر تاریک برای خوانایی متن کارگران
-                String workerText = hex.getBuilding().getStationedWorkers() + "/" + hex.getBuilding().getMaxWorkers();
-                g2d.setColor(new Color(0, 0, 0, 180));
-                g2d.fillRect(pt.x - bSize/2 - 2, pt.y + bSize + 2, bSize + 10, fontSize);
-                g2d.setColor(Color.WHITE);
-                g2d.drawString(workerText, pt.x - bSize/2, pt.y + bSize + fontSize - 1);
-            }
+        int fontSize = (int) (14 * zoomFactor);
+        if (fontSize > 6) {
+            g2d.setFont(new Font("SansSerif", Font.PLAIN, fontSize - 3));
+            String workerText = b.getStationedWorkers() + "/" + b.getMaxWorkers();
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(x - size/2 - 2, y + size/2 + 2, size + 10, fontSize);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(workerText, x - size/2, y + size/2 + fontSize - 1);
         }
     }
 
     private void drawUnit(Graphics2D g2d, Unit u) {
-        if (u instanceof Worker && ((Worker) u).isStationed()) return;
+        boolean isStationed = (u instanceof Worker && ((Worker) u).isStationed());
+
         Hex unitHex = mainController.getGameMap().getHexAt(u.getQ(), u.getR());
         if (unitHex != null && !unitHex.isExplored()) return;
 
         int px, py;
         if (u == animatingUnit) {
-            // انیمیشن Cubic Ease-Out برای حرکت روانالکتر
             double easeOut = 1.0 - Math.pow(1.0 - animProgress, 3);
             px = (int) (animStartX + (animTargetX - animStartX) * easeOut);
             py = (int) (animStartY + (animTargetY - animStartY) * easeOut);
@@ -389,21 +426,25 @@ public class GamePanel extends JPanel {
         else if (u instanceof Worker) { unitColor = new Color(255, 140, 0); typeLetter = "W"; }
         else if (u instanceof BorderExpander) { unitColor = new Color(138, 43, 226); typeLetter = "X"; }
 
-        // سایه یونیت
+        // منطق جدید برای نمایش کارگران مستقر به صورت چسبیده به ساختمان
+        if (isStationed) {
+            radius = Math.max(4, (int)(8 * zoomFactor)); // کوچک‌تر رسم می‌شود
+            px += (int)(15 * zoomFactor); // افست به گوشه هکس
+            py -= (int)(5 * zoomFactor);
+        }
+
         g2d.setColor(new Color(0, 0, 0, 150));
         g2d.fillOval(px - radius + 2, py - radius + 2, radius * 2, radius * 2);
 
-        // بدنه اصلی یونیت
         g2d.setColor(unitColor);
         g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
         g2d.setColor(Color.WHITE);
         g2d.drawOval(px - radius, py - radius, radius * 2, radius * 2);
 
         int fontSize = (int) (12 * zoomFactor);
-        if (fontSize > 6) {
+        if (fontSize > 6 && !isStationed) {
             g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
             g2d.setColor(Color.WHITE);
-            // رسم حروف با مرکزیت دقیق‌تر
             FontMetrics fm = g2d.getFontMetrics();
             String text = typeLetter + u.getCurrentAP();
             int txtX = px - fm.stringWidth(text) / 2;
@@ -411,8 +452,7 @@ public class GamePanel extends JPanel {
             g2d.drawString(text, txtX, txtY);
         }
 
-        // افکت انتخاب شدن (Glowing Aura)
-        if (u == selectedUnit) {
+        if (u == selectedUnit && !isStationed) {
             g2d.setColor(new Color(0, 255, 255, 150));
             g2d.setStroke(new BasicStroke((float)(2.5 * zoomFactor)));
             g2d.drawOval(px - radius - 4, py - radius - 4, radius * 2 + 8, radius * 2 + 8);

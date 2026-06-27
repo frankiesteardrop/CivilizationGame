@@ -22,14 +22,17 @@ public class Worker extends Unit {
             building.addWorker();
             this.isStationed = true;
             this.stationedBuilding = building;
-            consumeAP(1); // استقرار ۱ واحد AP مصرف می‌کند
+
+            // رفع باگ شماره ۴: فقط ۱ واحد AP برای استقرار مصرف می‌شود، نه کل آن
+            consumeAP(1);
+
             return true;
         }
         return false;
     }
 
     /**
-     * اخراج یا خروج کارگر از ساختمان بدون بازگرداندن AP
+     * اخراج یا خروج کارگر از ساختمان بدون بازگرداندن AP تا پایان ترن
      */
     public void eject() {
         if (isStationed && stationedBuilding != null) {

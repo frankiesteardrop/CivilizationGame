@@ -1,25 +1,29 @@
 package model;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Hex {
     private final int q;
     private final int r;
     private TerrainType terrainType;
-    private ResourceType resourceType;
-    private int resourceAmount;
-    private final int resourceCapacity;
+
+    // سیستم جدید چندمنبعی (Multi-Resource System)
+    private final Map<ResourceType, Integer> resources;
+    private final Map<ResourceType, Integer> capacities;
+
     private boolean isExplored;
-    private boolean isInsideBorder; // فیلد جدید سیستم قلمرو و مرز بازی
+    private boolean isInsideBorder;
     private Building building;
 
-    public Hex(int q, int r, TerrainType terrainType, ResourceType resourceType, int resourceCapacity) {
+    public Hex(int q, int r, TerrainType terrainType) {
         this.q = q;
         this.r = r;
         this.terrainType = terrainType;
-        this.resourceType = resourceType;
-        this.resourceCapacity = resourceCapacity;
-        this.resourceAmount = resourceCapacity;
+        this.resources = new HashMap<>();
+        this.capacities = new HashMap<>();
         this.isExplored = false;
-        this.isInsideBorder = false; // به صورت پیش‌فرض خارج از مرز است
+        this.isInsideBorder = false;
         this.building = null;
     }
 
@@ -27,32 +31,50 @@ public class Hex {
     public int getR() { return r; }
     public TerrainType getTerrainType() { return terrainType; }
     public void setTerrainType(TerrainType type) { this.terrainType = type; }
-    public ResourceType getResourceType() { return resourceType; }
-    public void setResourceType(ResourceType type) { this.resourceType = type; }
-    public int getResourceAmount() { return resourceAmount; }
-    public int getResourceCapacity() { return resourceCapacity; }
     public boolean isExplored() { return isExplored; }
-    public void setExplored(boolean explored) { isExplored = explored; }
-
-    // متدهای دسترسی جدید برای سیستم قلمرو
+    public void setExplored(boolean explored) { this.isExplored = explored; }
     public boolean isInsideBorder() { return isInsideBorder; }
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }
-
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
 
-    public int extractResource(int amount) {
-        if (resourceAmount >= amount) {
-            resourceAmount -= amount;
-            return amount;
-        } else {
-            int extracted = resourceAmount;
-            resourceAmount = 0;
-            return extracted;
-        }
+    // متدهای جدید مدیریت منابع
+    public void addResource(ResourceType type, int amount) {
+        resources.put(type, amount);
+        capacities.put(type, amount);
+    }
+
+    public boolean hasResource(ResourceType type) {
+        return resources.containsKey(type) && resources.get(type) > 0;
+    }
+
+    public int extractResource(ResourceType type, int amount) {
+        if (!hasResource(type)) return 0;
+        int current = resources.get(type);
+        int extracted = Math.min(current, amount);
+        resources.put(type, current - extracted);
+        return extracted;
     }
 
     public boolean isResourceDepleted() {
-        return resourceAmount <= 0 && resourceType != ResourceType.NONE;
+        if (resources.isEmpty()) return true;
+        for (int amount : resources.values()) {
+            if (amount > 0) return false;
+        }
+        return true;
+    }
+
+    // --- آداپتورهای سازگاری برای GamePanel (لایه گرافیک) ---
+    public ResourceType getResourceType() {
+        if (resources.isEmpty() || isResourceDepleted()) return ResourceType.NONE;
+        // اولویت نمایش در گرافیک با منابع استراتژیک است
+        if (hasResource(ResourceType.IRON)) return ResourceType.IRON;
+        if (hasResource(ResourceType.STONE)) return ResourceType.STONE;
+        return resources.keySet().iterator().next();
+    }
+
+    public int getResourceAmount() {
+        ResourceType primary = getResourceType();
+        return primary == ResourceType.NONE ? 0 : resources.get(primary);
     }
 }

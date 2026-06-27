@@ -30,47 +30,35 @@ public class GameMap {
             int r2 = Math.min(radius, -q + radius);
             for (int r = r1; r <= r2; r++) {
                 if (q == 0 && r == 0) {
-                    Hex centerHex = new Hex(q, r, TerrainType.PLAINS, ResourceType.NONE, 0);
+                    Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
-                    centerHex.setInsideBorder(true); // مرکز نقشه داخل مرز است
+                    centerHex.setInsideBorder(true);
                     hexes.add(centerHex);
                     continue;
                 }
 
                 TerrainType terrain = getRandomTerrain();
-                ResourceType resource = ResourceType.NONE;
-                int capacity = 0;
+                Hex newHex = new Hex(q, r, terrain);
 
+                // تزریق منابع به هکس‌ها بر اساس معماری چندمنبعی
                 switch (terrain) {
                     case FOREST:
-                        resource = ResourceType.WOOD;
-                        capacity = 500;
+                        newHex.addResource(ResourceType.WOOD, 500);
                         break;
                     case MOUNTAIN:
+                        newHex.addResource(ResourceType.STONE, 400); // کوهستان همیشه سنگ دارد
                         if (random.nextDouble() < 0.3) {
-                            resource = ResourceType.IRON;
-                            capacity = 200;
-                        } else {
-                            resource = ResourceType.STONE;
-                            capacity = 400;
+                            newHex.addResource(ResourceType.IRON, 200); // 30% شانس داشتن آهن به طور همزمان
                         }
                         break;
                     case MEADOW:
-                        if (random.nextDouble() < 0.5) {
-                            resource = ResourceType.FOOD;
-                            capacity = 300;
-                        }
+                        if (random.nextDouble() < 0.5) newHex.addResource(ResourceType.FOOD, 300);
                         break;
                     case PLAINS:
-                        if (random.nextDouble() < 0.3) {
-                            resource = ResourceType.FOOD;
-                            capacity = 300;
-                        }
+                        if (random.nextDouble() < 0.3) newHex.addResource(ResourceType.FOOD, 300);
                         break;
                 }
 
-                Hex newHex = new Hex(q, r, terrain, resource, capacity);
-                // طبق قوانین، در شروع بازی خانه‌های اطراف Town Hall (شعاع ۱) کشف شده و داخل مرز هستند
                 if (getHexDistance(0, 0, q, r) <= 1) {
                     newHex.setExplored(true);
                     newHex.setInsideBorder(true);
@@ -88,20 +76,14 @@ public class GameMap {
         units.add(new Worker(1, -1));
     }
 
-    /**
-     * سیستم مه‌جنگ کاملاً پویا - بدون هاردکد، با استفاده از getVisionRadius چندریختی یونیت‌ها
-     */
     public void updateFogOfWar() {
         for (Hex hex : hexes) {
-            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
-                hex.setExplored(true);
-            }
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) hex.setExplored(true);
         }
 
         for (Unit unit : units) {
             if (unit.isAlive()) {
-                int visionRadius = unit.getVisionRadius(); // استفاده از مقدار داینامیک و واقعی کلاس یونیت
-
+                int visionRadius = unit.getVisionRadius();
                 for (Hex hex : hexes) {
                     if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
                         hex.setExplored(true);
@@ -111,26 +93,14 @@ public class GameMap {
         }
     }
 
-    /**
-     * متد الحاق یک هکس و ۶ همسایه مجاور آن به مرزهای بازیکن (مخصوص BorderExpander)
-     */
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null) {
-            centerHex.setInsideBorder(true);
-        }
+        if (centerHex != null) centerHex.setInsideBorder(true);
 
-        // ۶ جهت همسایه در سیستم مختصات شش‌ضلعی محوری (Axial Coordinates)
-        int[][] directions = {
-                {1, 0}, {1, -1}, {0, -1},
-                {-1, 0}, {-1, 1}, {0, 1}
-        };
-
+        int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            if (neighbor != null) {
-                neighbor.setInsideBorder(true);
-            }
+            if (neighbor != null) neighbor.setInsideBorder(true);
         }
     }
 
@@ -148,9 +118,7 @@ public class GameMap {
 
     public Hex getHexAt(int q, int r) {
         for (Hex hex : hexes) {
-            if (hex.getQ() == q && hex.getR() == r) {
-                return hex;
-            }
+            if (hex.getQ() == q && hex.getR() == r) return hex;
         }
         return null;
     }
@@ -159,19 +127,13 @@ public class GameMap {
     public int getCurrentTurn() { return currentTurn; }
 
     public void nextTurn() {
-        // ۱. پردازش اقتصاد و تولید منابع ساختمان‌ها
         EconomyManager.processEndTurn(this);
-
-        // ۲. رفرش کردن AP تمام یونیت‌های زنده در نقشه
         for (Unit unit : units) {
-            if (unit.isAlive()) {
-                unit.resetAP(); // مطمئن شو متد resetAP در کلاس Unit (لایه مدل) وجود دارد.
-            }
+            if (unit.isAlive()) unit.resetAP();
         }
-
-        // ۳. افزایش شماره نوبت
         currentTurn++;
     }
+
     public int getUnitCap() {
         int cap = 10;
         for (Hex h : hexes) {
@@ -184,9 +146,7 @@ public class GameMap {
 
     public int getAliveUnitsCount() {
         int count = 0;
-        for (Unit u : units) {
-            if (u.isAlive()) count++;
-        }
+        for (Unit u : units) { if (u.isAlive()) count++; }
         return count;
     }
 }

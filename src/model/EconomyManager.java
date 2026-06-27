@@ -7,14 +7,13 @@ public class EconomyManager {
         Inventory inventory = townHall.getInventory();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
-        // ۱. شارژ مجدد AP تمام یونیت‌های زنده
         for (Unit u : map.getUnits()) {
             u.resetAP();
         }
 
-        // ۲. تولید منابع توسط ساختمان‌ها و Safeguard تان‌هال
         townHall.applySafeguard();
 
+        // استخراج و تولید کاملاً منطبق با سیستم چندمنبعی
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
@@ -24,24 +23,26 @@ public class EconomyManager {
                     production = (int) (production * 1.5);
                 }
 
-                if (production > 0 && hex.getResourceType() != ResourceType.NONE) {
-                    int extracted = hex.extractResource(production);
-                    inventory.addResource(b.getType().getProducedResource(), extracted);
+                if (production > 0) {
+                    ResourceType targetRes = b.getType().getProducedResource();
+                    if (hex.hasResource(targetRes)) {
+                        int extracted = hex.extractResource(targetRes, production);
+                        inventory.addResource(targetRes, extracted);
+                    }
                 }
             }
         }
 
-        // ۳. کسر هزینه نگهداری ساختمان‌ها (Upkeep) کاملاً پویا و Polymorphic
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
                 if (b.getUpkeepAmount() > 0) {
                     boolean success = inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount());
                     if (!success) {
-                        b.registerFailedUpkeep(); // مدیریت داخلی تعداد دفعات عدم پرداخت در خود مدل ساختمان
+                        b.registerFailedUpkeep();
                         if (b.isDestroyed()) {
                             ejectWorkers(map, hex);
-                            hex.setBuilding(null); // تخریب و حذف نهایی سازه از نقشه
+                            hex.setBuilding(null);
                         }
                     } else {
                         b.resetFailedUpkeep();
@@ -50,7 +51,6 @@ public class EconomyManager {
             }
         }
 
-        // ۴. مصرف غذا توسط یونیت‌ها و بررسی بحران قحطی (Starvation)
         int totalFoodNeeded = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) totalFoodNeeded += u.getFoodConsumption();
@@ -59,9 +59,7 @@ public class EconomyManager {
         if (!inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded)) {
             inventory.forceDecreaseResource(ResourceType.FOOD, totalFoodNeeded);
             for (Unit u : map.getUnits()) {
-                if (u.isAlive()) {
-                    u.consumeAP(1); // اعمال جریمه به علت قحطی
-                }
+                if (u.isAlive()) u.consumeAP(1);
             }
         }
     }
