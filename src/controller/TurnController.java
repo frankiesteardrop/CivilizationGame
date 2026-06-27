@@ -3,6 +3,7 @@ package controller;
 import model.GameMap;
 import model.Unit;
 import model.Worker;
+import model.GameEventDispatcher;
 import javax.swing.JOptionPane;
 import java.awt.Component;
 
@@ -18,7 +19,8 @@ public class TurnController {
         for (Unit u : gameMap.getUnits()) {
             if (u.isAlive() && u.getCurrentAP() > 0) {
                 if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-                hasIdle = true; break;
+                hasIdle = true;
+                break;
             }
         }
 
@@ -32,7 +34,12 @@ public class TurnController {
             }
         }
 
+        // ۱. منطق بازی به روز می‌شود (AP ریست می‌شود، اقتصاد محاسبه می‌شود)
         gameMap.nextTurn();
+
+        // ۲. به جای اینکه HUD دستی خودش را آپدیت کند، رویداد شلیک می‌کنیم
+        GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
+
         return true;
     }
 }

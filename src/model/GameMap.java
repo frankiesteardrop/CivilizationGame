@@ -159,10 +159,19 @@ public class GameMap {
     public int getCurrentTurn() { return currentTurn; }
 
     public void nextTurn() {
+        // ۱. پردازش اقتصاد و تولید منابع ساختمان‌ها
         EconomyManager.processEndTurn(this);
+
+        // ۲. رفرش کردن AP تمام یونیت‌های زنده در نقشه
+        for (Unit unit : units) {
+            if (unit.isAlive()) {
+                unit.resetAP(); // مطمئن شو متد resetAP در کلاس Unit (لایه مدل) وجود دارد.
+            }
+        }
+
+        // ۳. افزایش شماره نوبت
         currentTurn++;
     }
-
     public int getUnitCap() {
         int cap = 10;
         for (Hex h : hexes) {

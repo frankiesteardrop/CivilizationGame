@@ -53,6 +53,15 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onProductionCompleted(String itemName) { SwingUtilities.invokeLater(this::updateHUD); }
 
+    // پیاده‌سازی متد جدید برای واکنش نشان دادن به رویداد پایان نوبت
+    @Override
+    public void onTurnEnded(int newTurn) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            gamePanel.repaint(); // رفرش شدن نقشه بازی با شروع نوبت جدید
+        });
+    }
+
     private void updateHUD() {
         GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
@@ -76,10 +85,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void handleEndTurn() {
-        if (mainController.getTurnController().tryEndTurn(this)) {
-            // آپدیت کردن رابط کاربری و نقشه بعد از تایید پایان نوبت توسط کنترلر
-            updateHUD();
-            gamePanel.repaint();
-        }
+        // آپدیت دستی حذف شد. حالا فقط به کنترلر می‌گوییم نوبت را تمام کن.
+        // اگر کنترلر موفق شود، خودش سیگنال onTurnEnded را شلیک می‌کند و رابط کاربری آپدیت می‌شود.
+        mainController.getTurnController().tryEndTurn(this);
     }
 }
