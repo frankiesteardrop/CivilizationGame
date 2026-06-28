@@ -3,56 +3,68 @@ package model;
 public class Worker extends Unit {
     private boolean isStationed;
     private Building stationedBuilding;
-    private int lockedAP; // متغیر حیاتی برای ذخیره AP هنگام استقرار
 
     public Worker(int q, int r) {
         super(q, r, 2, 1, 1);
         this.isStationed = false;
         this.stationedBuilding = null;
-        this.lockedAP = 0;
     }
 
     public boolean isStationed() { return isStationed; }
+    public Building getStationedBuilding() { return stationedBuilding; }
 
+    /**
+     * منطق resetAP برای Worker:
+     * - اگر مستقر است: AP به maxAP ریست می‌شود ولی چون کارگر مشغول کار در سازه است،
+     *   بلافاصله به صفر تنظیم می‌شود تا نتواند اقدامی انجام دهد.
+     * - اگر مستقر نیست: رفتار عادی مثل تمام یونیت‌ها.
+     */
     @Override
     public void resetAP() {
-        if (isAlive) {
-            if (isStationed) {
-                // اگر کارگر در شروع ترن جدید مستقر است، AP او پر و مستقیماً قفل می‌شود
-                lockedAP = maxAP;
-                currentAP = 0;
-            } else {
-                currentAP = maxAP;
-            }
+        if (!isAlive) return;
+
+        if (isStationed) {
+            // Worker مستقر در طول کار AP قابل استفاده ندارد
+            currentAP = 0;
+        } else {
+            currentAP = maxAP;
         }
     }
 
+    /**
+     * استقرار کارگر در سازه.
+     * طبق داک: هزینه ۱ AP کسر می‌شود (نه کل AP).
+     * اگر AP کافی نباشد یا سازه پر باشد یا تخریب شده باشد، عملیات انجام نمی‌شود.
+     */
     public boolean stationIn(Building building) {
-        if (isStationed || currentAP < 1 || building.isDestroyed()) return false;
+        if (isStationed) return false;
+        if (currentAP < 1) return false;
+        if (building == null || building.isDestroyed()) return false;
+        if (building.getStationedWorkers() >= building.getMaxWorkers()) return false;
 
-        if (building.getStationedWorkers() < building.getMaxWorkers()) {
-            building.addWorker();
-            this.isStationed = true;
-            this.stationedBuilding = building;
+        building.addWorker();
+        this.isStationed = true;
+        this.stationedBuilding = building;
 
-            // قفل کردن کل AP فعلی به جای کم کردن ۱ واحد
-            this.lockedAP = this.currentAP;
-            this.currentAP = 0;
+        // طبق داک: فقط ۱ واحد AP هزینه استقرار دارد
+        consumeAP(1);
 
-            return true;
-        }
-        return false;
+        return true;
     }
 
+    /**
+     * خروج کارگر از سازه.
+     * طبق داک: خروج از ساختمان AP رو بازنمی‌گردونه.
+     * AP همان مقدار کاهش‌یافته باقی می‌ماند.
+     */
     public void eject() {
-        if (isStationed && stationedBuilding != null) {
-            stationedBuilding.removeWorker();
-            this.isStationed = false;
-            this.stationedBuilding = null;
+        if (!isStationed || stationedBuilding == null) return;
 
-            // بازگرداندن دقیقاً همان AP قفل شده به کارگر در همان ترن
-            this.currentAP = this.lockedAP;
-            this.lockedAP = 0;
-        }
+        stationedBuilding.removeWorker();
+        this.isStationed = false;
+        this.stationedBuilding = null;
+
+        // طبق داک: AP بازنمی‌گردد — currentAP همان مقدار فعلی (صفر) باقی می‌ماند
+        // هیچ تغییری در currentAP ایجاد نمی‌شود
     }
 }
