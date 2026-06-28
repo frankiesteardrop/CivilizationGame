@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 public class HUDPanel extends JPanel implements GameEventListener {
     private final MainController mainController;
     private final GamePanel gamePanel;
-    private final JLabel infoLabel;
+    private final JPanel infoContainer; // کانتینر دربرگیرنده کارت‌های اطلاعات
     private final JButton endTurnBtn;
     private boolean confirmIdleMode = false;
 
@@ -19,17 +19,17 @@ public class HUDPanel extends JPanel implements GameEventListener {
         this.gamePanel = gamePanel;
 
         setLayout(new BorderLayout());
-        setBackground(new Color(25, 28, 33)); // تم دارک و شیک
+        setBackground(new Color(25, 28, 33)); // تم دارک اصلی
 
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)), // خط آبی زیرین
-                BorderFactory.createEmptyBorder(10, 20, 10, 20)
+                BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)), // نوار آبی سلطنتی پایین
+                BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
 
-        infoLabel = new JLabel();
-        infoLabel.setForeground(Color.WHITE);
-        infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        add(infoLabel, BorderLayout.CENTER);
+        // کانتینر کارتی با چیدمان افقی و فاصله‌های استاندارد
+        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        infoContainer.setOpaque(false); // شفاف برای نمایش بک‌گراند پنل اصلی
+        add(infoContainer, BorderLayout.CENTER);
 
         endTurnBtn = new JButton("END TURN");
         endTurnBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -39,7 +39,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         endTurnBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // افکت Hover (هاور) زیبا روی دکمه
         endTurnBtn.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) { endTurnBtn.setBackground(endTurnBtn.getBackground().brighter()); }
@@ -55,8 +54,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void updateButtonColor() {
-        if (confirmIdleMode) endTurnBtn.setBackground(new Color(230, 126, 34)); // نارنجی هشدار
-        else endTurnBtn.setBackground(new Color(192, 57, 43)); // قرمز تیره
+        if (confirmIdleMode) endTurnBtn.setBackground(new Color(230, 126, 34));
+        else endTurnBtn.setBackground(new Color(192, 57, 43));
     }
 
     @Override public void onResourceChanged(ResourceType type, int newAmount) { SwingUtilities.invokeLater(this::updateHUD); }
@@ -76,29 +75,43 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void updateHUD() {
+        // پاک کردن کانتینر برای رسم مجدد کارت‌های آپدیت‌شده
+        infoContainer.removeAll();
+
         GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
         int max = inv.getMaxCapacity();
-        int netFood = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
 
-        // استفاده از استایل‌دهی پیشرفته HTML و ایموجی‌ها برای نظم‌دهی چشم‌نواز منابع
-        String foodHtml = formatResource("🍔 Food", inv.getResourceAmount(ResourceType.FOOD), max, netFood);
-        String woodHtml = formatResource("🪵 Wood", inv.getResourceAmount(ResourceType.WOOD), max, EconomyManager.calculateNetProduction(map, ResourceType.WOOD));
-        String stoneHtml = formatResource("🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, EconomyManager.calculateNetProduction(map, ResourceType.STONE));
-        String ironHtml = formatResource("⚙️ Iron", inv.getResourceAmount(ResourceType.IRON), max, EconomyManager.calculateNetProduction(map, ResourceType.IRON));
+        int netFood = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
+        int netWood = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
+        int netStone = EconomyManager.calculateNetProduction(map, ResourceType.STONE);
+        int netIron = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
 
         boolean isStarving = inv.getResourceAmount(ResourceType.FOOD) == 0 && netFood < 0;
 
-        String queueHtml = "&nbsp;&nbsp;<span style='color:#7f8c8d'>|</span>&nbsp;&nbsp;<b>Queue:</b> ";
-        TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
-        if (currentTask != null) {
-            String queueColor = isStarving ? "#e74c3c" : "#f1c40f";
-            String freezeText = isStarving ? " (FROZEN)" : "";
-            queueHtml += "<span style='color:" + queueColor + "'>" + currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)" + freezeText + "</span>";
-        } else {
-            queueHtml += "<span style='color:#95a5a6'>Idle</span>";
-        }
+        // کارت‌های منابع با رنگ‌های اختصاصی
+        infoContainer.add(createResourceCard("🍔 Food", inv.getResourceAmount(ResourceType.FOOD), max, netFood, new Color(46, 204, 113)));
+        infoContainer.add(createResourceCard("🪵 Wood", inv.getResourceAmount(ResourceType.WOOD), max, netWood, new Color(211, 84, 0)));
+        infoContainer.add(createResourceCard("🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, netStone, new Color(149, 165, 166)));
+        infoContainer.add(createResourceCard("⚙️ Iron", inv.getResourceAmount(ResourceType.IRON), max, netIron, new Color(243, 156, 18)));
 
+        // کارت صف تولید (Queue)
+        TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
+        String queueText;
+        Color queueColor = new Color(241, 196, 15);
+        if (currentTask != null) {
+            queueText = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
+            if (isStarving) {
+                queueText += " <span style='color:#e74c3c;'>(FROZEN)</span>";
+                queueColor = new Color(231, 76, 60);
+            }
+        } else {
+            queueText = "<span style='color:#7f8c8d;'>Idle</span>";
+            queueColor = new Color(127, 140, 141);
+        }
+        infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
+
+        // کارت جمعیت و یونیت‌ها
         int e = 0, b = 0, w = 0, x = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) {
@@ -108,21 +121,49 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 else if (u instanceof BorderExpander) x++;
             }
         }
-        String unitBreakdown = String.format("<span style='font-size:11px; color:#bdc3c7;'> (E:%d B:%d W:%d X:%d)</span>", e, b, w, x);
-        String unitHtml = "&nbsp;&nbsp;<span style='color:#7f8c8d'>|</span>&nbsp;&nbsp;<b>Pop:</b> " + map.getAliveUnitsCount() + "/" + map.getUnitCap() + unitBreakdown;
+        String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap() + " <span style='font-size:10px; color:#bdc3c7;'>(E:" + e + " B:" + b + " W:" + w + " X:" + x + ")</span>";
+        infoContainer.add(createCard("👥 Pop", unitText, new Color(52, 152, 219), false));
 
-        String turnHtml = "&nbsp;&nbsp;<span style='color:#7f8c8d'>|</span>&nbsp;&nbsp;<span style='color:#3498db'><b>Turn: " + map.getCurrentTurn() + "</b></span>";
+        // کارت شماره نوبت (Turn)
+        infoContainer.add(createCard("⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
 
-        String starvationWarning = isStarving ? "&nbsp;&nbsp;<span style='background-color:#e74c3c; color:white; padding:3px 6px;'><b>⚠️ STARVATION</b></span>" : "";
+        // اخطار قحطی (کارت چشمک‌زن/قرمز تند)
+        if (isStarving) {
+            infoContainer.add(createCard("⚠️ ALERT", "STARVATION", new Color(231, 76, 60), true));
+        }
 
-        // چیدمان با فاصله یکسان برای جلوگیری از شلوغی
-        infoLabel.setText("<html><body style='margin:0; padding:0;'>" + foodHtml + "&nbsp;&nbsp;" + woodHtml + "&nbsp;&nbsp;" + stoneHtml + "&nbsp;&nbsp;" + ironHtml + queueHtml + unitHtml + turnHtml + starvationWarning + "</body></html>");
+        // رفرش و رندر مجدد کانتینر
+        infoContainer.revalidate();
+        infoContainer.repaint();
     }
 
-    private String formatResource(String name, int amount, int max, int net) {
-        String netColor = net < 0 ? "#e74c3c" : "#2ecc71"; // قرمز و سبز متریال
+    // متد کمکی برای ساخت کارت‌های منابع
+    private JPanel createResourceCard(String title, int amount, int max, int net, Color accentColor) {
+        String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
         String sign = net > 0 ? "+" : "";
-        return String.format("<b>%s:</b> %d<span style='color:#7f8c8d'>/%d</span> (<span style='color:%s'>%s%d</span>)", name, amount, max, netColor, sign, net);
+        String valueText = amount + "<span style='color:#7f8c8d'>/" + max + "</span> "
+                + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
+        return createCard(title, valueText, accentColor, false);
+    }
+
+    // متد کارخانه (Factory) برای تولید پنل‌های شیک و تفکیک‌شده
+    private JPanel createCard(String title, String valueText, Color accentColor, boolean isAlert) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52)); // رنگ پس‌زمینه کارت
+
+        // ایجاد حاشیه (Border) ترکیبی: یک خط رنگی در سمت چپ به عنوان شاخص بصری + پدینگ داخلی
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 4, 0, 0, accentColor),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+
+        String titleStyle = isAlert ? "color:white;" : "color:#bdc3c7;";
+        JLabel label = new JLabel("<html><body style='color:white; font-family:Segoe UI; font-size:13px; margin:0; padding:0;'>"
+                + "<span style='" + titleStyle + " margin-right:5px;'>" + title + ":</span>" + valueText
+                + "</body></html>");
+        card.add(label, BorderLayout.CENTER);
+
+        return card;
     }
 
     private void handleEndTurn() {
