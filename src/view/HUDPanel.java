@@ -329,4 +329,16 @@ public class HUDPanel extends JPanel implements GameEventListener {
             mainController.getTurnController().forceEndTurn();
         }
     }
+
+    /**
+     * پیاده‌سازی رویداد گام ۶: اطلاع از احداث ساختمان جدید
+     * با این متد، گرافیک بلافاصله نقشه را آپدیت می‌کند تا شعاع دید (Fog of War) جدید اعمال شود.
+     */
+    @Override
+    public void onBuildingConstructed(Hex hex) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            gamePanel.repaint(); // رفرش کردن نقشه برای نمایش ساختمان و رفع تاریکی اطرافش
+        });
+    }
 }

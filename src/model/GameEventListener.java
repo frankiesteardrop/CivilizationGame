@@ -7,7 +7,8 @@ public interface GameEventListener {
     void onProductionCompleted(String itemName);
     void onTurnEnded(int newTurn);
     void onStarvationChanged(boolean isStarving);
-
-    // متد جدید برای گام ۵: اطلاع از تغییر وضعیت یونیت (مثل Idle شدن کارگر)
     void onUnitStateChanged(Unit unit);
+
+    // [اضافه شده برای گام ۶]: اطلاع از احداث یک ساختمان جدید
+    void onBuildingConstructed(Hex hex);
 }

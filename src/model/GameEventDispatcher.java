@@ -44,8 +44,12 @@ public class GameEventDispatcher {
         for (GameEventListener l : listeners) l.onStarvationChanged(isStarving);
     }
 
-    // متد جدید برای گام ۵
     public static void fireUnitStateChanged(Unit unit) {
         for (GameEventListener l : listeners) l.onUnitStateChanged(unit);
+    }
+
+    // [اضافه شده برای گام ۶]
+    public static void fireBuildingConstructed(Hex hex) {
+        for (GameEventListener l : listeners) l.onBuildingConstructed(hex);
     }
 }

@@ -52,6 +52,12 @@ public class BuildController {
                 case STABLE: hex.setBuilding(new Stable()); break;
                 case SETTLEMENT: hex.setBuilding(new Settlement()); break;
             }
+
+            // [اصلاح حیاتی گام ۶]: به‌روزرسانی فوری مه‌جنگ پس از ساخت سازه جدید
+            gameMap.updateFogOfWar();
+
+            // [اصلاح حیاتی گام ۶]: ارسال سیگنال به گرافیک برای رندر مجدد نقشه
+            GameEventDispatcher.fireBuildingConstructed(hex);
         }
     }
 }
