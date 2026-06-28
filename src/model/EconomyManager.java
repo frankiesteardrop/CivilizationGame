@@ -66,8 +66,9 @@ public class EconomyManager {
 
     private static void ejectWorkers(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
+            // جراحی موفق: استفاده از رفتار کپسوله‌شده eject به جای setter منسوخ
             if (u instanceof Worker && u.getQ() == buildingHex.getQ() && u.getR() == buildingHex.getR()) {
-                ((Worker) u).setStationed(false);
+                ((Worker) u).eject();
             }
         }
     }
