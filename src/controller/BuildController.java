@@ -10,6 +10,7 @@ public class BuildController {
     }
 
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
+        // گارد امنیتی پایه: هکس باید داخل مرز باشد، خالی باشد، بیلدر شارژ و AP داشته باشد
         if (!hex.isInsideBorder() || hex.getBuilding() != null || builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) {
             return false;
         }
@@ -19,16 +20,35 @@ public class BuildController {
 
         boolean validTerrain = false;
         switch (type) {
-            case LUMBER_MILL: validTerrain = hex.getTerrainType() == TerrainType.FOREST; break;
-            case FARM: validTerrain = hex.getTerrainType() == TerrainType.MEADOW && hex.hasResource(ResourceType.FOOD); break;
-            case STABLE: validTerrain = hex.getTerrainType() == TerrainType.PLAINS && hex.hasResource(ResourceType.FOOD); break;
-            case STONE_MINE: validTerrain = th.isStoneMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE); break;
-            case IRON_MINE: validTerrain = th.isIronMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON); break;
-            case SETTLEMENT: validTerrain = th.isSettlementUnlocked() && hex.isResourceDepleted(); break;
+            case LUMBER_MILL:
+                validTerrain = hex.getTerrainType() == TerrainType.FOREST;
+                break;
+            case FARM:
+                validTerrain = hex.getTerrainType() == TerrainType.MEADOW && hex.hasResource(ResourceType.FOOD);
+                break;
+            case STABLE:
+                validTerrain = hex.getTerrainType() == TerrainType.PLAINS && hex.hasResource(ResourceType.FOOD);
+                break;
+            case STONE_MINE:
+                validTerrain = th.isStoneMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE);
+                break;
+            case IRON_MINE:
+                validTerrain = th.isIronMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON);
+                break;
+            case SETTLEMENT:
+                // [اصلاح حیاتی گام ۷]: شهرک فقط روی زمین‌های ذاتاً خالی از منبع ساخته می‌شود
+                boolean hasAnyResource = hex.hasResource(ResourceType.WOOD) ||
+                        hex.hasResource(ResourceType.STONE) ||
+                        hex.hasResource(ResourceType.IRON) ||
+                        hex.hasResource(ResourceType.FOOD);
+
+                validTerrain = th.isSettlementUnlocked() && !hasAnyResource;
+                break;
         }
 
         if (!validTerrain) return false;
 
+        // بررسی موجودی انبار برای هزینه ساخت
         return inv.hasEnough(ResourceType.WOOD, type.getWoodCost()) &&
                 inv.hasEnough(ResourceType.STONE, type.getStoneCost()) &&
                 inv.hasEnough(ResourceType.IRON, type.getIronCost());
@@ -53,10 +73,10 @@ public class BuildController {
                 case SETTLEMENT: hex.setBuilding(new Settlement()); break;
             }
 
-            // [اصلاح حیاتی گام ۶]: به‌روزرسانی فوری مه‌جنگ پس از ساخت سازه جدید
+            // به‌روزرسانی فوری مه‌جنگ پس از ساخت سازه جدید (از گام ۶)
             gameMap.updateFogOfWar();
 
-            // [اصلاح حیاتی گام ۶]: ارسال سیگنال به گرافیک برای رندر مجدد نقشه
+            // ارسال سیگنال به گرافیک برای رندر مجدد نقشه (از گام ۶)
             GameEventDispatcher.fireBuildingConstructed(hex);
         }
     }
