@@ -35,7 +35,7 @@ public class GameMap {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
                     centerHex.setInsideBorder(true);
-                    // [اصلاح حیاتی گام ۸]: اتصال تان‌هال به هکس مرکزی!
+                    // اتصال تان‌هال به هکس مرکزی (از گام ۸)
                     centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
                     continue;
@@ -68,6 +68,46 @@ public class GameMap {
                 }
                 hexes.add(newHex);
             }
+        }
+
+        // [اصلاح حیاتی گام ۱۱]: تضمین وجود منابع اولیه (حداقل یک جنگل) در شعاع ۲ هکسی تان‌هال
+        ensureStartingResources();
+    }
+
+    /**
+     * متد کمکی برای تضمین دسترسی به منابع حیاتی اولیه (جنگل)
+     */
+    private void ensureStartingResources() {
+        boolean hasForestNear = false;
+        List<Hex> availableCandidates = new ArrayList<>();
+
+        // اسکن هکس‌های با فاصله حداکثر ۲ از مبدأ
+        for (Hex hex : hexes) {
+            int dist = getHexDistance(0, 0, hex.getQ(), hex.getR());
+            if (dist > 0 && dist <= 2) {
+                if (hex.getTerrainType() == TerrainType.FOREST) {
+                    hasForestNear = true;
+                    break; // یک جنگل پیدا شد، نقشه معتبر است
+                }
+                // کاندیداها: هکس‌هایی که کوهستان نیستند تا ظاهر نقشه خیلی به هم نریزد
+                if (hex.getTerrainType() != TerrainType.MOUNTAIN) {
+                    availableCandidates.add(hex);
+                }
+            }
+        }
+
+        // اگر جنگلی در شعاع ۲ هکسی پیدا نشد، یک هکس کاندیدا را به زور به جنگل تبدیل می‌کنیم
+        if (!hasForestNear && !availableCandidates.isEmpty()) {
+            Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
+            targetHex.setTerrainType(TerrainType.FOREST);
+
+            // اگر قبلاً غذایی به این هکس (مثلاً دشت) اختصاص یافته بود، آن را پاک می‌کنیم
+            if (targetHex.hasResource(ResourceType.FOOD)) {
+                targetHex.extractResource(ResourceType.FOOD, 10000);
+            }
+
+            // اضافه کردن ۵۰۰ واحد چوب به هکسِ تغییریافته
+            targetHex.addResource(ResourceType.WOOD, 500);
         }
     }
 
@@ -140,7 +180,6 @@ public class GameMap {
         int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            // گارد امنیتی رعایت شده: فقط هکس‌های کشف‌شده وارد مرز می‌شوند
             if (neighbor != null && neighbor.isExplored()) {
                 neighbor.setInsideBorder(true);
             }
