@@ -3,7 +3,8 @@ package model;
 import java.util.LinkedList;
 import java.util.Queue;
 
-public class TownHall {
+// [اصلاح حیاتی گام ۸]: تان‌هال حالا یک ساختمان واقعی است
+public class TownHall extends Building {
     private final int q;
     private final int r;
     private final Inventory inventory;
@@ -17,6 +18,8 @@ public class TownHall {
     private final Queue<ProductionTask> productionQueue;
 
     public TownHall(int q, int r) {
+        // فراخوانی سازنده کلاس والد (Building) با ظرفیت صفر کارگر
+        super(BuildingType.TOWN_HALL.getMaxWorkers());
         this.q = q;
         this.r = r;
         this.inventory = new Inventory(200);
@@ -34,19 +37,17 @@ public class TownHall {
         this.settlementUnlocked = false;
     }
 
-    /**
-     * فاز ۱ پایان نوبت: تولید منابع پایه (Safeguard) از تان‌هال.
-     * این متد فقط و فقط منابع حداقلی تولید می‌کند — صف تولید اینجا پیش نمی‌رود.
-     */
+    // [اصلاح حیاتی گام ۸]: پیاده‌سازی متد اجباری کلاس والد
+    @Override
+    public BuildingType getType() {
+        return BuildingType.TOWN_HALL;
+    }
+
     public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, 1);
         this.inventory.addResource(ResourceType.FOOD, 1);
     }
 
-    /**
-     * فاز ۲ پایان نوبت: پیشرفت صف تولید یونیت/آپگرید.
-     * این متد مستقل از Safeguard است و فقط هنگامی که Starvation نیست فراخوانی می‌شود.
-     */
     public void advanceProductionQueue() {
         if (productionQueue.isEmpty()) return;
 
@@ -89,9 +90,6 @@ public class TownHall {
     public boolean isSettlementUnlocked() { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean unlocked) { this.settlementUnlocked = unlocked; }
 
-    // =========================================================
-    // Inner Class: ProductionTask
-    // =========================================================
     public static class ProductionTask {
         private final String name;
         private int turnsRemaining;

@@ -51,17 +51,16 @@ public class GamePanel extends JPanel {
 
                 if (clickedHex != null) {
                     if (SwingUtilities.isLeftMouseButton(e)) {
-                        // اصلاح: کلیک چپ یونیت را انتخاب می‌کند (شامل stationed workers)
                         selectUnitAt(clickedHex);
                     } else if (SwingUtilities.isRightMouseButton(e)) {
-                        if (clickedHex.getQ() == 0 && clickedHex.getR() == 0 && selectedUnit == null) {
+                        // اصلاح: اگر روی ساختمان تان‌هال کلیک شد، منوی آن باز شود!
+                        if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL && selectedUnit == null) {
                             showTownHallMenu(e);
                         } else if (selectedUnit != null &&
                                 selectedUnit.getQ() == clickedHex.getQ() &&
                                 selectedUnit.getR() == clickedHex.getR()) {
                             showUnitContextMenu(e, clickedHex);
                         } else if (selectedUnit != null && animatingUnit == null) {
-                            // Worker مستقر نمی‌تواند حرکت کند
                             if (!(selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed())) {
                                 handleMovementCommand(clickedHex);
                             }
@@ -123,7 +122,7 @@ public class GamePanel extends JPanel {
             html.append("<hr/><b style='color:#FFD700;'>").append(b.getType().name()).append("</b><br/>");
             if (b.isDestroyed()) {
                 html.append("<span style='color:red;'>DESTROYED</span>");
-            } else {
+            } else if (b.getType() != BuildingType.TOWN_HALL) {
                 html.append("Workers: ").append(b.getStationedWorkers()).append("/").append(b.getMaxWorkers()).append("<br/>");
                 html.append("Production: +").append(b.calculateProduction()).append("/Turn");
             }
@@ -223,10 +222,6 @@ public class GamePanel extends JPanel {
         popup.show(this, e.getX(), e.getY());
     }
 
-    /**
-     * اصلاح‌شده: Worker stationed هم قابل انتخاب است — فقط دستور حرکت به آن داده نمی‌شود.
-     * منوی context نمایش می‌دهد که می‌توان eject کرد.
-     */
     private void showUnitContextMenu(MouseEvent e, Hex hex) {
         if (selectedUnit == null) return;
 
@@ -256,7 +251,6 @@ public class GamePanel extends JPanel {
             Worker worker = (Worker) selectedUnit;
 
             if (worker.isStationed()) {
-                // Worker مستقر: فقط گزینه خروج نمایش داده می‌شود
                 JMenuItem leaveItem = new JMenuItem("🚪 Leave Facility (AP not restored)");
                 leaveItem.addActionListener(ev -> {
                     mainController.getUnitController().handleEject(worker);
@@ -265,9 +259,8 @@ public class GamePanel extends JPanel {
                 popup.add(leaveItem);
 
             } else {
-                // Worker آزاد: گزینه استقرار در سازه موجود
                 Building building = hex.getBuilding();
-                if (building != null && !building.isDestroyed()) {
+                if (building != null && !building.isDestroyed() && building.getType() != BuildingType.TOWN_HALL) {
                     boolean canStation = mainController.getUnitController().canStation(worker, hex);
                     String stationLabel = "⚙️ Station in " + building.getType().name()
                             + " (-1 AP) ["
@@ -280,7 +273,7 @@ public class GamePanel extends JPanel {
                     });
                     popup.add(stationItem);
                 } else {
-                    JMenuItem noBuilding = new JMenuItem("⛔ No facility on this hex");
+                    JMenuItem noBuilding = new JMenuItem("⛔ No workable facility here");
                     noBuilding.setEnabled(false);
                     popup.add(noBuilding);
                 }
@@ -304,9 +297,6 @@ public class GamePanel extends JPanel {
         }
     }
 
-    /**
-     * متد کمکی برای ساخت آیتم‌های منوی Builder — جلوگیری از تکرار کد
-     */
     private JMenuItem createBuildMenuItem(Builder builder, Hex hex, BuildingType type, String label) {
         String fullLabel = label + " (-" + type.getApCost() + " AP | "
                 + (type.getWoodCost() > 0 ? type.getWoodCost() + "W " : "")
@@ -323,10 +313,6 @@ public class GamePanel extends JPanel {
         return item;
     }
 
-    /**
-     * اصلاح‌شده: Worker stationed هم قابل انتخاب است.
-     * تفاوت: stationed worker انتخاب می‌شود ولی نمی‌توان بهش دستور حرکت داد.
-     */
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
         for (Unit u : mainController.getGameMap().getUnits()) {
@@ -421,17 +407,7 @@ public class GamePanel extends JPanel {
             if (hex.isExplored()) drawHexDetails(g2d, hex);
         }
 
-        // رندر تان‌هال
-        Point thPt = getHexPixelCoords(0, 0);
-        g2d.setColor(new Color(0, 0, 0, 150));
-        g2d.fillRoundRect(thPt.x - (int)(18 * zoomFactor) + 2, thPt.y - (int)(18 * zoomFactor) + 4,
-                (int)(36 * zoomFactor), (int)(36 * zoomFactor), 10, 10);
-        g2d.setColor(new Color(255, 215, 0));
-        g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
-        g2d.drawRoundRect(thPt.x - (int)(18 * zoomFactor), thPt.y - (int)(18 * zoomFactor),
-                (int)(36 * zoomFactor), (int)(36 * zoomFactor), 10, 10);
-        g2d.setFont(new Font("SansSerif", Font.BOLD, (int)(18 * zoomFactor)));
-        g2d.drawString("TH", thPt.x - (int)(12 * zoomFactor), thPt.y + (int)(6 * zoomFactor));
+        // [اصلاح حیاتی گام ۸]: پاک شدن هاردکد تان‌هال! گرافیک آن به drawBuildingIcon منتقل شد.
 
         for (Unit u : mainController.getGameMap().getUnits()) {
             if (u.isAlive()) drawUnit(g2d, u);
@@ -440,7 +416,6 @@ public class GamePanel extends JPanel {
 
     private void drawMovementHighlights(Graphics2D g2d) {
         if (selectedUnit == null || animatingUnit != null) return;
-        // Worker stationed نمی‌تواند حرکت کند — highlight نشان داده نمی‌شود
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
         for (Hex hex : mainController.getGameMap().getHexes()) {
@@ -547,6 +522,20 @@ public class GamePanel extends JPanel {
     }
 
     private void drawBuildingIcon(Graphics2D g2d, Building b, Point pt, int size) {
+        // [اصلاح حیاتی گام ۸]: رندر تخصصی TownHall
+        if (b.getType() == BuildingType.TOWN_HALL) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRoundRect(pt.x - (int)(18 * zoomFactor) + 2, pt.y - (int)(18 * zoomFactor) + 4,
+                    (int)(36 * zoomFactor), (int)(36 * zoomFactor), 10, 10);
+            g2d.setColor(new Color(255, 215, 0));
+            g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
+            g2d.drawRoundRect(pt.x - (int)(18 * zoomFactor), pt.y - (int)(18 * zoomFactor),
+                    (int)(36 * zoomFactor), (int)(36 * zoomFactor), 10, 10);
+            g2d.setFont(new Font("SansSerif", Font.BOLD, (int)(18 * zoomFactor)));
+            g2d.drawString("TH", pt.x - (int)(12 * zoomFactor), pt.y + (int)(6 * zoomFactor));
+            return; // اگر تان‌هال بود، بقیه رسم‌ها انجام نشود
+        }
+
         int x = pt.x;
         int y = pt.y + 4;
 
@@ -589,7 +578,6 @@ public class GamePanel extends JPanel {
             g2d.setColor(Color.BLACK);
             g2d.drawOval(x - size/4, y - size/4, size/2, size/2);
         } else {
-            // معادن و سایر ساختمان‌ها
             g2d.setColor(Color.DARK_GRAY);
             Polygon mine = new Polygon();
             mine.addPoint(x, y - size/2);
@@ -600,7 +588,6 @@ public class GamePanel extends JPanel {
             g2d.fillArc(x - size/4, y, size/2, size, 0, 180);
         }
 
-        // نمایش تعداد کارگران
         int fontSize = (int)(12 * zoomFactor);
         if (fontSize > 6) {
             g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize - 2));
@@ -640,33 +627,27 @@ public class GamePanel extends JPanel {
         else if (u instanceof BorderExpander) { unitColor = new Color(218, 112, 214); typeLetter = "X"; }
         else                            { unitColor = Color.GRAY;               typeLetter = "U"; }
 
-        // Worker stationed: کوچک‌تر، کنار ساختمان
         if (isStationed) {
             radius = Math.max(4, (int)(10 * zoomFactor));
             px += (int)(18 * zoomFactor);
             py -= (int)(8 * zoomFactor);
-            // حلقه نارنجی نمایش "در حال کار"
             g2d.setColor(new Color(255, 165, 0, 150));
             g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
             g2d.drawOval(px - radius - 3, py - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
             g2d.setStroke(new BasicStroke(1f));
         }
 
-        // سایه یونیت
         g2d.setColor(new Color(0, 0, 0, 160));
         g2d.fillOval(px - radius + 3, py - radius + 4, radius * 2, radius * 2);
 
-        // بدنه یونیت با gradient
         GradientPaint up = new GradientPaint(px, py - radius, unitColor.brighter(), px, py + radius, unitColor.darker());
         g2d.setPaint(up);
         g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
 
-        // حاشیه سفید
         g2d.setColor(Color.WHITE);
         g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
         g2d.drawOval(px - radius, py - radius, radius * 2, radius * 2);
 
-        // نوشته AP روی یونیت
         int fontSize = (int)(13 * zoomFactor);
         if (fontSize > 6 && !isStationed) {
             g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
@@ -680,7 +661,6 @@ public class GamePanel extends JPanel {
             g2d.drawString(text, txtX, txtY);
         }
 
-        // حلقه انتخاب
         if (u == selectedUnit) {
             g2d.setColor(new Color(0, 255, 255, 200));
             g2d.setStroke(new BasicStroke((float)(3.0 * zoomFactor)));

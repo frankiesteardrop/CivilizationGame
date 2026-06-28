@@ -35,6 +35,8 @@ public class GameMap {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
                     centerHex.setInsideBorder(true);
+                    // [اصلاح حیاتی گام ۸]: اتصال تان‌هال به هکس مرکزی!
+                    centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
                     continue;
                 }

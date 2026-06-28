@@ -1,10 +1,8 @@
 package model;
 
-/**
- * کانتینر داده‌های ثابت (Flyweight Pattern) برای انواع سازه‌ها.
- * تمامی رفتارهای پویا به لایه کلاس‌های Building منتقل شده‌اند.
- */
 public enum BuildingType {
+    // [اصلاح حیاتی گام ۸]: اضافه شدن TOWN_HALL به عنوان یک ساختمان رسمی
+    TOWN_HALL(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0),
     LUMBER_MILL(1, 0, 0, 0, ResourceType.WOOD, 2, 5, ResourceType.WOOD, 1),
     STONE_MINE(2, 10, 0, 0, ResourceType.STONE, 2, 4, ResourceType.WOOD, 1),
     IRON_MINE(2, 20, 0, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2),
