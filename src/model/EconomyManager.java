@@ -7,13 +7,7 @@ public class EconomyManager {
         Inventory inventory = townHall.getInventory();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
-        for (Unit u : map.getUnits()) {
-            u.resetAP();
-        }
-
-        townHall.applySafeguard();
-
-        // استخراج و تولید کاملاً منطبق با سیستم چندمنبعی
+        // 1. تولید ساختمان‌ها و استخراج
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
@@ -33,6 +27,7 @@ public class EconomyManager {
             }
         }
 
+        // 2. محاسبه هزینه نگهداری (Upkeep) سازه‌ها
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
@@ -51,22 +46,33 @@ public class EconomyManager {
             }
         }
 
+        // 3. محاسبه مصرف غذای یونیت‌ها و مکانیزم بحران قحطی (Starvation)
         int totalFoodNeeded = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) totalFoodNeeded += u.getFoodConsumption();
         }
 
+        boolean isStarving = false;
         if (!inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded)) {
-            inventory.forceDecreaseResource(ResourceType.FOOD, totalFoodNeeded);
-            for (Unit u : map.getUnits()) {
-                if (u.isAlive()) u.consumeAP(1);
+            // در صورت قحطی، موجودی را تا صفر خالی می‌کنیم (نه منفی)
+            inventory.forceDecreaseResource(ResourceType.FOOD, inventory.getResourceAmount(ResourceType.FOOD));
+            isStarving = true;
+        }
+
+        // 4. بازنشانی AP یونیت‌ها (و اعمال جریمه قحطی)
+        for (Unit u : map.getUnits()) {
+            u.resetAP();
+            if (isStarving && u.isAlive()) {
+                u.consumeAP(1); // اعمال جریمه قحطی روی AP
             }
         }
+
+        // 5. اعمال SafeGuard
+        townHall.applySafeguard();
     }
 
     private static void ejectWorkers(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
-            // جراحی موفق: استفاده از رفتار کپسوله‌شده eject به جای setter منسوخ
             if (u instanceof Worker && u.getQ() == buildingHex.getQ() && u.getR() == buildingHex.getR()) {
                 ((Worker) u).eject();
             }

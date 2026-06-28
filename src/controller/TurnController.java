@@ -4,8 +4,6 @@ import model.GameMap;
 import model.Unit;
 import model.Worker;
 import model.GameEventDispatcher;
-import javax.swing.JOptionPane;
-import java.awt.Component;
 
 public class TurnController {
     private final GameMap gameMap;
@@ -14,32 +12,20 @@ public class TurnController {
         this.gameMap = gameMap;
     }
 
-    public boolean tryEndTurn(Component parentView) {
-        boolean hasIdle = false;
+    // متد کپسوله‌شده برای استعلام گرافیک (بدون هیچ وابستگی به UI)
+    public boolean hasIdleUnits() {
         for (Unit u : gameMap.getUnits()) {
             if (u.isAlive() && u.getCurrentAP() > 0) {
                 if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-                hasIdle = true;
-                break;
+                return true;
             }
         }
+        return false;
+    }
 
-        if (hasIdle) {
-            int confirm = JOptionPane.showConfirmDialog(parentView,
-                    "You have idle units with remaining AP. Are you sure you want to end the turn?",
-                    "Idle Units Warning",
-                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) {
-                return false;
-            }
-        }
-
-        // ۱. منطق بازی به روز می‌شود (AP ریست می‌شود، اقتصاد محاسبه می‌شود)
+    // اجرای قطعی پایان نوبت
+    public void forceEndTurn() {
         gameMap.nextTurn();
-
-        // ۲. به جای اینکه HUD دستی خودش را آپدیت کند، رویداد شلیک می‌کنیم
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
-
-        return true;
     }
 }

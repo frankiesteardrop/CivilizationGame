@@ -10,12 +10,7 @@ public class BuildController {
     }
 
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
-        // گارد امنیتی سراسری: هیچ سازه‌ای خارج از مرز ساخته نمی‌شود
-        if (!hex.isInsideBorder()) {
-            return false;
-        }
-
-        if (hex.getBuilding() != null || builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) {
+        if (!hex.isInsideBorder() || hex.getBuilding() != null || builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) {
             return false;
         }
 
@@ -29,7 +24,7 @@ public class BuildController {
             case STABLE: validTerrain = hex.getTerrainType() == TerrainType.PLAINS && hex.hasResource(ResourceType.FOOD); break;
             case STONE_MINE: validTerrain = th.isStoneMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE); break;
             case IRON_MINE: validTerrain = th.isIronMineUnlocked() && hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON); break;
-            case SETTLEMENT: validTerrain = th.isSettlementUnlocked() && hex.isResourceDepleted(); break; // شهرک‌ها روی زمین‌های فاقد منبع ساخته می‌شوند
+            case SETTLEMENT: validTerrain = th.isSettlementUnlocked() && hex.isResourceDepleted(); break;
         }
 
         if (!validTerrain) return false;
