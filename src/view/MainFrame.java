@@ -2,6 +2,7 @@ package view;
 
 import controller.AudioManager;
 import controller.MainController;
+import model.GameEventDispatcher; // [اضافه شده]: دسترسی به سیستم رویدادها برای پاکسازی حافظه
 import model.GameMap;
 import javax.swing.*;
 import java.awt.*;
@@ -12,7 +13,10 @@ public class MainFrame extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainContainer;
     private final GamePanel gamePanel;
-    private final MainController mainController; // استفاده از MainController به جای GameController
+    private final MainController mainController;
+
+    // [اصلاح حیاتی گام ۹]: نگهداری رفرنس به gameWrapper برای مدیریت چرخه حیات و جلوگیری از ساخت نمونه‌های تکراری
+    private JPanel gameWrapper;
 
     public MainFrame(GameMap gameMap) {
         this.mainController = new MainController(gameMap);
@@ -41,7 +45,15 @@ public class MainFrame extends JFrame {
     }
 
     public void startGame() {
-        JPanel gameWrapper = new JPanel(new BorderLayout());
+        // [اصلاح حیاتی گام ۹]: پاکسازی کامل شنونده‌های قبلی از حافظه برای جلوگیری قطعی از Memory Leak
+        GameEventDispatcher.clearAllListeners();
+
+        // [اصلاح حیاتی گام ۹]: پاک کردن پنل بازی قبلی از کانتینر در صورت وجود، برای جلوگیری از تلنبار شدن UI
+        if (gameWrapper != null) {
+            mainContainer.remove(gameWrapper);
+        }
+
+        gameWrapper = new JPanel(new BorderLayout());
         HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
 
         gameWrapper.add(hudPanel, BorderLayout.NORTH);
