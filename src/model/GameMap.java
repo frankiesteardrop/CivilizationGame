@@ -11,8 +11,6 @@ public class GameMap {
     private final Random random;
     private final TownHall townHall;
     private int currentTurn = 1;
-
-    // فلگ وضعیت قحطی — تنظیم می‌شود توسط EconomyManager، خوانده می‌شود در nextTurn
     private boolean isStarving = false;
 
     public GameMap(int radius) {
@@ -27,9 +25,6 @@ public class GameMap {
         updateFogOfWar();
     }
 
-    // =========================================================
-    // تولید نقشه
-    // =========================================================
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
             int r1 = Math.max(-radius, -q - radius);
@@ -75,7 +70,6 @@ public class GameMap {
     }
 
     private void spawnInitialUnits() {
-        // پراکنده‌سازی یونیت‌های اولیه روی هکس‌های مجاور تان‌هال
         units.add(new Explorer(1, 0));
         units.add(new Builder(0, 1));
         units.add(new Builder(-1, 1));
@@ -83,31 +77,15 @@ public class GameMap {
         units.add(new Worker(-1, 0));
     }
 
-    // =========================================================
-    // ❤️ هسته اصلی بازی: nextTurn با ترتیب دقیق طبق داک
-    // =========================================================
     public void nextTurn() {
-        /*
-         * ترتیب اجرا طبق داک:
-         *  ۱. تجدید AP همه یونیت‌ها (ابتدای نوبت جدید)
-         *  ۲. تولید منابع + پیشرفت صف تولید + Upkeep + غذا (EconomyManager)
-         *  ۳. اعمال جریمه Starvation روی AP (اگر وضعیت قحطی فعال باشد)
-         *  ۴. شماره نوبت افزایش می‌یابد
-         */
-
-        // مرحله ۱: تجدید AP همه یونیت‌های زنده برای نوبت جدید
         for (Unit unit : units) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
-        // مرحله ۲: اجرای کامل چرخه اقتصادی (تولید، صف، upkeep، غذا)
-        // EconomyManager فقط isStarving را برمی‌گرداند — resetAP اینجا انجام نمی‌شود
         isStarving = EconomyManager.processEndTurn(this);
 
-        // مرحله ۳: اگر Starvation فعال است، یک واحد AP از همه یونیت‌ها کم می‌شود
-        // این بعد از resetAP انجام می‌شود تا AP جدید کاهش یابد، نه AP قدیمی
         if (isStarving) {
             for (Unit unit : units) {
                 if (unit.isAlive()) {
@@ -116,18 +94,11 @@ public class GameMap {
             }
         }
 
-        // مرحله ۴: پاک‌سازی یونیت‌های مرده از لیست
         units.removeIf(u -> !u.isAlive());
-
-        // مرحله ۵: افزایش شماره نوبت
         currentTurn++;
     }
 
-    // =========================================================
-    // Fog of War
-    // =========================================================
     public void updateFogOfWar() {
-        // شعاع دید ثابت تان‌هال
         Hex centerHex = getHexAt(townHall.getQ(), townHall.getR());
         if (centerHex != null) centerHex.setExplored(true);
 
@@ -137,7 +108,6 @@ public class GameMap {
             }
         }
 
-        // شعاع دید یونیت‌ها
         for (Unit unit : units) {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
@@ -148,7 +118,6 @@ public class GameMap {
             }
         }
 
-        // شعاع دید ساختمان‌ها (طبق داک، ساختمان‌ها هم vision دارند)
         for (Hex hex : hexes) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 for (Hex other : hexes) {
@@ -160,9 +129,6 @@ public class GameMap {
         }
     }
 
-    // =========================================================
-    // Border Expansion
-    // =========================================================
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
         if (centerHex != null && centerHex.isExplored()) {
@@ -172,18 +138,15 @@ public class GameMap {
         int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            // طبق داک: فقط هکس‌هایی که قبلاً Explore شده‌اند به مرز اضافه می‌شوند
+            // گارد امنیتی رعایت شده: فقط هکس‌های کشف‌شده وارد مرز می‌شوند
             if (neighbor != null && neighbor.isExplored()) {
                 neighbor.setInsideBorder(true);
             }
         }
     }
 
-    // =========================================================
-    // Unit Cap
-    // =========================================================
     public int getUnitCap() {
-        int cap = 10; // سقف اولیه
+        int cap = 10;
         for (Hex h : hexes) {
             Building b = h.getBuilding();
             if (b != null && b.getType() == BuildingType.SETTLEMENT && !b.isDestroyed()) {
@@ -193,9 +156,6 @@ public class GameMap {
         return cap;
     }
 
-    // =========================================================
-    // Getters و متدهای کمکی
-    // =========================================================
     public int getHexDistance(int q1, int r1, int q2, int r2) {
         return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
     }

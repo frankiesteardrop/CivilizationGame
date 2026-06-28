@@ -6,18 +6,25 @@ public class BorderExpander extends Unit {
     }
 
     /**
-     * اجرای کامل رویداد مرزگشایی روی نقشه بازی و حذف یونیت از چرخه حیات
+     * اجرای ایمن رویداد مرزگشایی.
+     * خروجی boolean به کنترلر اطمینان می‌دهد که عملیات انجام شده است.
      */
-    public void expandBorder(GameMap map) {
-        if (!this.isAlive()) return;
+    public boolean expandBorder(GameMap map) {
+        if (!this.isAlive()) return false;
 
-        // اعمال منطق گسترش روی مختصات فعلی این یونیت
+        Hex currentHex = map.getHexAt(this.getQ(), this.getR());
+
+        // گارد امنیتی مدل: محافظت از قوانین مه‌جنگ مستقل از لایه گرافیک
+        if (currentHex == null || !currentHex.isExplored()) {
+            return false;
+        }
+
+        // اعمال منطق گسترش
         map.expandBorderAt(this.getQ(), this.getR());
-
-        // مه‌جنگ را بلافاصله پس از تغییر مرزها به‌روزرسانی می‌کنیم
         map.updateFogOfWar();
 
-        // حذف کامل (Consume) شدن یونیت پس از استفاده
+        // مصرف (Consume) کامل یونیت
         this.kill();
+        return true;
     }
 }
