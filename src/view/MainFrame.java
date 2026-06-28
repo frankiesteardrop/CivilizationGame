@@ -26,7 +26,7 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        AudioManager.playMusic("resources/music.wav");
+        AudioManager.playMusic("/music.wav");
 
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
         gamePanel = new GamePanel(mainController);
