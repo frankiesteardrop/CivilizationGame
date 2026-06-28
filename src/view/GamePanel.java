@@ -93,13 +93,30 @@ public class GamePanel extends JPanel {
         addMouseMotionListener(mouseAdapter);
 
         addMouseWheelListener(e -> {
+            int oldZoomIndex = zoomIndex;
+
             if (e.getWheelRotation() < 0 && zoomIndex < ZOOM_LEVELS.length - 1) {
                 zoomIndex++;
             } else if (e.getWheelRotation() > 0 && zoomIndex > 0) {
                 zoomIndex--;
             }
-            zoomFactor = ZOOM_LEVELS[zoomIndex];
-            repaint();
+
+            // اگر زوم تغییر نکرده باشد، نیازی به محاسبات سنگین نیست
+            if (oldZoomIndex != zoomIndex) {
+                double oldZoomFactor = zoomFactor;
+                zoomFactor = ZOOM_LEVELS[zoomIndex];
+
+                // [اصلاح حیاتی گام ۱۰]: محاسبه ریاضی زوم به مرکز ماوس (Affine Transformation)
+                // ۱. پیدا کردن مختصات منطقی (Logical) نقطه‌ای که ماوس روی آن است (در مقیاس قدیمی)
+                double logicalX = (e.getX() - offsetX) / oldZoomFactor;
+                double logicalY = (e.getY() - offsetY) / oldZoomFactor;
+
+                // ۲. تنظیم آفست‌های جدید برای اینکه همان نقطه منطقی، در مقیاس جدید هم دقیقاً زیر ماوس بیفتد
+                offsetX = (int) (e.getX() - (logicalX * zoomFactor));
+                offsetY = (int) (e.getY() - (logicalY * zoomFactor));
+
+                repaint();
+            }
         });
     }
 
