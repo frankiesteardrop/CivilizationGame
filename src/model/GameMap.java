@@ -9,8 +9,11 @@ public class GameMap {
     private final List<Unit> units;
     private final int radius;
     private final Random random;
-    private TownHall townHall;
+    private final TownHall townHall;
     private int currentTurn = 1;
+
+    // فلگ وضعیت قحطی — تنظیم می‌شود توسط EconomyManager، خوانده می‌شود در nextTurn
+    private boolean isStarving = false;
 
     public GameMap(int radius) {
         this.radius = radius;
@@ -24,11 +27,15 @@ public class GameMap {
         updateFogOfWar();
     }
 
+    // =========================================================
+    // تولید نقشه
+    // =========================================================
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
             int r1 = Math.max(-radius, -q - radius);
             int r2 = Math.min(radius, -q + radius);
             for (int r = r1; r <= r2; r++) {
+
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
@@ -40,15 +47,14 @@ public class GameMap {
                 TerrainType terrain = getRandomTerrain();
                 Hex newHex = new Hex(q, r, terrain);
 
-                // تزریق منابع به هکس‌ها بر اساس معماری چندمنبعی
                 switch (terrain) {
                     case FOREST:
                         newHex.addResource(ResourceType.WOOD, 500);
                         break;
                     case MOUNTAIN:
-                        newHex.addResource(ResourceType.STONE, 400); // کوهستان همیشه سنگ دارد
+                        newHex.addResource(ResourceType.STONE, 400);
                         if (random.nextDouble() < 0.3) {
-                            newHex.addResource(ResourceType.IRON, 200); // 30% شانس داشتن آهن به طور همزمان
+                            newHex.addResource(ResourceType.IRON, 200);
                         }
                         break;
                     case MEADOW:
@@ -69,41 +75,127 @@ public class GameMap {
     }
 
     private void spawnInitialUnits() {
-        units.add(new Explorer(0, 0));
-        units.add(new Builder(0, 0));
+        // پراکنده‌سازی یونیت‌های اولیه روی هکس‌های مجاور تان‌هال
+        units.add(new Explorer(1, 0));
         units.add(new Builder(0, 1));
-        units.add(new Worker(0, -1));
+        units.add(new Builder(-1, 1));
         units.add(new Worker(1, -1));
+        units.add(new Worker(-1, 0));
     }
 
-    public void updateFogOfWar() {
-        for (Hex hex : hexes) {
-            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) hex.setExplored(true);
-        }
+    // =========================================================
+    // ❤️ هسته اصلی بازی: nextTurn با ترتیب دقیق طبق داک
+    // =========================================================
+    public void nextTurn() {
+        /*
+         * ترتیب اجرا طبق داک:
+         *  ۱. تجدید AP همه یونیت‌ها (ابتدای نوبت جدید)
+         *  ۲. تولید منابع + پیشرفت صف تولید + Upkeep + غذا (EconomyManager)
+         *  ۳. اعمال جریمه Starvation روی AP (اگر وضعیت قحطی فعال باشد)
+         *  ۴. شماره نوبت افزایش می‌یابد
+         */
 
+        // مرحله ۱: تجدید AP همه یونیت‌های زنده برای نوبت جدید
         for (Unit unit : units) {
             if (unit.isAlive()) {
-                int visionRadius = unit.getVisionRadius();
-                for (Hex hex : hexes) {
-                    if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
-                        hex.setExplored(true);
+                unit.resetAP();
+            }
+        }
+
+        // مرحله ۲: اجرای کامل چرخه اقتصادی (تولید، صف، upkeep، غذا)
+        // EconomyManager فقط isStarving را برمی‌گرداند — resetAP اینجا انجام نمی‌شود
+        isStarving = EconomyManager.processEndTurn(this);
+
+        // مرحله ۳: اگر Starvation فعال است، یک واحد AP از همه یونیت‌ها کم می‌شود
+        // این بعد از resetAP انجام می‌شود تا AP جدید کاهش یابد، نه AP قدیمی
+        if (isStarving) {
+            for (Unit unit : units) {
+                if (unit.isAlive()) {
+                    unit.consumeAP(1);
+                }
+            }
+        }
+
+        // مرحله ۴: پاک‌سازی یونیت‌های مرده از لیست
+        units.removeIf(u -> !u.isAlive());
+
+        // مرحله ۵: افزایش شماره نوبت
+        currentTurn++;
+    }
+
+    // =========================================================
+    // Fog of War
+    // =========================================================
+    public void updateFogOfWar() {
+        // شعاع دید ثابت تان‌هال
+        Hex centerHex = getHexAt(townHall.getQ(), townHall.getR());
+        if (centerHex != null) centerHex.setExplored(true);
+
+        for (Hex hex : hexes) {
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 2) {
+                hex.setExplored(true);
+            }
+        }
+
+        // شعاع دید یونیت‌ها
+        for (Unit unit : units) {
+            if (!unit.isAlive()) continue;
+            int visionRadius = unit.getVisionRadius();
+            for (Hex hex : hexes) {
+                if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
+                    hex.setExplored(true);
+                }
+            }
+        }
+
+        // شعاع دید ساختمان‌ها (طبق داک، ساختمان‌ها هم vision دارند)
+        for (Hex hex : hexes) {
+            if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
+                for (Hex other : hexes) {
+                    if (getHexDistance(hex.getQ(), hex.getR(), other.getQ(), other.getR()) <= 1) {
+                        other.setExplored(true);
                     }
                 }
             }
         }
     }
 
+    // =========================================================
+    // Border Expansion
+    // =========================================================
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null) centerHex.setInsideBorder(true);
+        if (centerHex != null && centerHex.isExplored()) {
+            centerHex.setInsideBorder(true);
+        }
 
         int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            if (neighbor != null) neighbor.setInsideBorder(true);
+            // طبق داک: فقط هکس‌هایی که قبلاً Explore شده‌اند به مرز اضافه می‌شوند
+            if (neighbor != null && neighbor.isExplored()) {
+                neighbor.setInsideBorder(true);
+            }
         }
     }
 
+    // =========================================================
+    // Unit Cap
+    // =========================================================
+    public int getUnitCap() {
+        int cap = 10; // سقف اولیه
+        for (Hex h : hexes) {
+            Building b = h.getBuilding();
+            if (b != null && b.getType() == BuildingType.SETTLEMENT && !b.isDestroyed()) {
+                cap += 5;
+            }
+        }
+        return cap;
+    }
+
+    // =========================================================
+    // Getters و متدهای کمکی
+    // =========================================================
     public int getHexDistance(int q1, int r1, int q2, int r2) {
         return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
     }
@@ -125,28 +217,14 @@ public class GameMap {
 
     public TownHall getTownHall() { return townHall; }
     public int getCurrentTurn() { return currentTurn; }
-
-    public void nextTurn() {
-        EconomyManager.processEndTurn(this);
-        for (Unit unit : units) {
-            if (unit.isAlive()) unit.resetAP();
-        }
-        currentTurn++;
-    }
-
-    public int getUnitCap() {
-        int cap = 10;
-        for (Hex h : hexes) {
-            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.SETTLEMENT && !h.getBuilding().isDestroyed()) {
-                cap += 5;
-            }
-        }
-        return cap;
-    }
+    public boolean isStarving() { return isStarving; }
+    public void setStarving(boolean starving) { this.isStarving = starving; }
 
     public int getAliveUnitsCount() {
         int count = 0;
-        for (Unit u : units) { if (u.isAlive()) count++; }
+        for (Unit u : units) {
+            if (u.isAlive()) count++;
+        }
         return count;
     }
 }

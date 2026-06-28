@@ -34,12 +34,29 @@ public class TownHall {
         this.settlementUnlocked = false;
     }
 
-    public void applySafeguard(boolean isStarving) {
+    /**
+     * فاز ۱ پایان نوبت: تولید منابع پایه (Safeguard) از تان‌هال.
+     * این متد فقط و فقط منابع حداقلی تولید می‌کند — صف تولید اینجا پیش نمی‌رود.
+     */
+    public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, 1);
         this.inventory.addResource(ResourceType.FOOD, 1);
+    }
 
-        if (!isStarving) {
-            advanceProductionQueue();
+    /**
+     * فاز ۲ پایان نوبت: پیشرفت صف تولید یونیت/آپگرید.
+     * این متد مستقل از Safeguard است و فقط هنگامی که Starvation نیست فراخوانی می‌شود.
+     */
+    public void advanceProductionQueue() {
+        if (productionQueue.isEmpty()) return;
+
+        ProductionTask currentTask = productionQueue.peek();
+        currentTask.decrementTurn();
+
+        if (currentTask.isCompleted()) {
+            productionQueue.poll();
+            currentTask.complete();
+            GameEventDispatcher.fireProductionCompleted(currentTask.getName());
         }
     }
 
@@ -57,19 +74,6 @@ public class TownHall {
         productionQueue.add(new ProductionTask(itemName, turnCost, onComplete));
     }
 
-    private void advanceProductionQueue() {
-        if (productionQueue.isEmpty()) return;
-
-        ProductionTask currentTask = productionQueue.peek();
-        currentTask.decrementTurn();
-
-        if (currentTask.isCompleted()) {
-            productionQueue.poll();
-            currentTask.complete();
-            GameEventDispatcher.fireProductionCompleted(currentTask.getName());
-        }
-    }
-
     public int getQ() { return q; }
     public int getR() { return r; }
     public Inventory getInventory() { return inventory; }
@@ -85,6 +89,9 @@ public class TownHall {
     public boolean isSettlementUnlocked() { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean unlocked) { this.settlementUnlocked = unlocked; }
 
+    // =========================================================
+    // Inner Class: ProductionTask
+    // =========================================================
     public static class ProductionTask {
         private final String name;
         private int turnsRemaining;

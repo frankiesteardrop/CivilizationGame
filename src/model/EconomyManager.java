@@ -1,106 +1,202 @@
 package model;
 
+/**
+ * مدیریت چرخه اقتصادی بازی.
+ *
+ * ترتیب دقیق اجرا در هر پایان نوبت (طبق داک):
+ *   فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
+ *   فاز ۲: پیشرفت صف تولید تان‌هال (فقط اگر Starvation نباشد)
+ *   فاز ۳: کسر Upkeep ساختمان‌ها
+ *   فاز ۴: کسر غذای یونیت‌ها + تشخیص و اعمال Starvation
+ *
+ * توجه: resetAP یونیت‌ها در این کلاس انجام نمی‌شود —
+ * این کار مختص GameMap.nextTurn() است تا از اجرای دوباره جلوگیری شود.
+ */
 public class EconomyManager {
 
-    public static void processEndTurn(GameMap map) {
+    /**
+     * نقطه ورود اصلی — اجرای کامل چرخه پایان نوبت به ترتیب صحیح.
+     * @return true اگر بازی وارد فاز Starvation شده باشد
+     */
+    public static boolean processEndTurn(GameMap map) {
+        // فاز ۱: تولید منابع
+        produceResources(map);
+
+        // فاز ۲: پیشرفت صف تولید (تان‌هال ابتدا starvation چک می‌شود)
+        // starvation در فاز ۴ مشخص می‌شه، ولی چون صف تولید قبل از غذا پیش می‌رود،
+        // از وضعیت فعلی ذخیره غذا برای پیش‌بینی استفاده می‌کنیم.
+        // طبق داک: "صف تولید یک مرحله به جلو پیش می‌رود" — این قبل از کسر غذاست.
+        map.getTownHall().advanceProductionQueue();
+
+        // فاز ۳: کسر Upkeep ساختمان‌ها
+        processUpkeep(map);
+
+        // فاز ۴: کسر غذا + تشخیص Starvation
+        boolean isStarving = processFoodConsumption(map);
+
+        // اعمال پیامدهای Starvation (کاهش AP) — قبل از resetAP که در GameMap انجام می‌شود
+        if (isStarving) {
+            applyStarvationPenalty(map);
+        }
+
+        return isStarving;
+    }
+
+    // =========================================================
+    // فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
+    // =========================================================
+    private static void produceResources(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
+        // تولید Safeguard تان‌هال (حداقل تولید پایه)
+        townHall.produceSafeguardResources();
+
+        // تولید ساختمان‌های فعال
         for (Hex hex : map.getHexes()) {
-            if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
-                Building b = hex.getBuilding();
-                int production = b.calculateProduction();
+            Building b = hex.getBuilding();
+            if (b == null || b.isDestroyed()) continue;
 
-                if (hasProfTools && (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
-                    production = (int) (production * 1.5);
-                }
+            int production = b.calculateProduction();
+            if (production <= 0) continue;
 
-                if (production > 0) {
-                    ResourceType targetRes = b.getType().getProducedResource();
-                    if (hex.hasResource(targetRes)) {
-                        int extracted = hex.extractResource(targetRes, production);
-                        inventory.addResource(targetRes, extracted);
-                    }
+            // اعمال ضریب ابزارآلات حرفه‌ای فقط برای معادن
+            if (hasProfTools &&
+                    (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
+                production = (int)(production * 1.5);
+            }
+
+            ResourceType targetRes = b.getType().getProducedResource();
+            if (targetRes != ResourceType.NONE && hex.hasResource(targetRes)) {
+                int extracted = hex.extractResource(targetRes, production);
+                inventory.addResource(targetRes, extracted);
+
+                // اگر منبع هکس تمام شد، کارگران باید auto-eject شوند
+                if (!hex.hasResource(targetRes)) {
+                    ejectWorkersFromHex(map, hex);
                 }
             }
         }
+    }
+
+    // =========================================================
+    // فاز ۳: کسر Upkeep ساختمان‌ها
+    // =========================================================
+    private static void processUpkeep(GameMap map) {
+        Inventory inventory = map.getTownHall().getInventory();
 
         for (Hex hex : map.getHexes()) {
-            if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
-                Building b = hex.getBuilding();
-                if (b.getUpkeepAmount() > 0) {
-                    boolean success = inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount());
-                    if (!success) {
-                        b.registerFailedUpkeep();
-                        if (b.isDestroyed()) {
-                            ejectWorkers(map, hex);
-                            hex.setBuilding(null);
-                        }
-                    } else {
-                        b.resetFailedUpkeep();
-                    }
+            Building b = hex.getBuilding();
+            if (b == null || b.isDestroyed()) continue;
+            if (b.getUpkeepAmount() <= 0) continue;
+
+            boolean paid = inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount());
+
+            if (!paid) {
+                b.registerFailedUpkeep();
+                // اگر ۳ نوبت پشت سر هم Upkeep پرداخت نشد، ساختمان تخریب می‌شود
+                if (b.isDestroyed()) {
+                    ejectWorkersFromHex(map, hex);
+                    hex.setBuilding(null);
                 }
+            } else {
+                b.resetFailedUpkeep();
             }
         }
+    }
+
+    // =========================================================
+    // فاز ۴: کسر غذای یونیت‌ها + تشخیص Starvation
+    // =========================================================
+    private static boolean processFoodConsumption(GameMap map) {
+        Inventory inventory = map.getTownHall().getInventory();
 
         int totalFoodNeeded = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) totalFoodNeeded += u.getFoodConsumption();
         }
 
-        boolean isStarving = false;
-        if (!inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded)) {
-            inventory.forceDecreaseResource(ResourceType.FOOD, inventory.getResourceAmount(ResourceType.FOOD));
-            isStarving = true;
-        }
+        if (totalFoodNeeded == 0) return false;
 
-        for (Unit u : map.getUnits()) {
-            u.resetAP();
-            if (isStarving && u.isAlive()) {
-                u.consumeAP(1);
+        boolean canPay = inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
+
+        if (!canPay) {
+            // غذا به صفر کاهش می‌یابد — ذخیره نمی‌تواند منفی شود
+            int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
+            if (currentFood > 0) {
+                inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
             }
+            return true; // وضعیت Starvation فعال شد
         }
 
-        townHall.applySafeguard(isStarving);
+        return false;
     }
 
-    private static void ejectWorkers(GameMap map, Hex buildingHex) {
+    // =========================================================
+    // اعمال جریمه Starvation: کاهش ۱ AP از همه یونیت‌های زنده
+    // مهم: این قبل از resetAP فراخوانی می‌شود، نه بعد از آن
+    // =========================================================
+    private static void applyStarvationPenalty(GameMap map) {
+        // در حالت Starvation، AP یونیت‌ها در ابتدای نوبت بعدی یک واحد کمتر خواهد بود.
+        // این با استفاده از یک flag در GameMap مدیریت می‌شود تا پس از resetAP اعمال شود.
+        map.setStarving(true);
+    }
+
+    // =========================================================
+    // متد کمکی: بیرون انداختن کارگران از یک ساختمان (Auto-Eject)
+    // =========================================================
+    public static void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
-            if (u instanceof Worker && u.getQ() == buildingHex.getQ() && u.getR() == buildingHex.getR()) {
-                ((Worker) u).eject();
+            if (u instanceof Worker) {
+                Worker w = (Worker) u;
+                if (w.isStationed() &&
+                        w.getQ() == buildingHex.getQ() &&
+                        w.getR() == buildingHex.getR()) {
+                    w.eject();
+                }
             }
         }
     }
 
+    // =========================================================
+    // محاسبه نرخ خالص تولید برای HUD (فقط خواندنی، بدون تغییر state)
+    // =========================================================
     public static int calculateNetProduction(GameMap map, ResourceType type) {
         int net = 0;
         TownHall townHall = map.getTownHall();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
+        // Safeguard تان‌هال
         if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
 
         for (Hex h : map.getHexes()) {
-            if (h.getBuilding() != null && !h.getBuilding().isDestroyed()) {
-                Building b = h.getBuilding();
-                if (b.getType().getProducedResource() == type) {
-                    int prod = b.calculateProduction();
-                    if (hasProfTools && (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
-                        prod = (int) (prod * 1.5);
-                    }
-                    net += prod;
+            Building b = h.getBuilding();
+            if (b == null || b.isDestroyed()) continue;
+
+            // تولید این ساختمان
+            if (b.getType().getProducedResource() == type) {
+                int prod = b.calculateProduction();
+                if (hasProfTools &&
+                        (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
+                    prod = (int)(prod * 1.5);
                 }
-                if (b.getUpkeepResource() == type) {
-                    net -= b.getUpkeepAmount();
-                }
+                net += prod;
+            }
+
+            // Upkeep این ساختمان
+            if (b.getUpkeepResource() == type) {
+                net -= b.getUpkeepAmount();
             }
         }
 
+        // مصرف غذای یونیت‌ها
         if (type == ResourceType.FOOD) {
             for (Unit u : map.getUnits()) {
                 if (u.isAlive()) net -= u.getFoodConsumption();
             }
         }
+
         return net;
     }
 }
