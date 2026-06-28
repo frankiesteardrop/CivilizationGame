@@ -1,9 +1,9 @@
 package controller;
 
+import model.GameEventDispatcher;
 import model.GameMap;
 import model.Unit;
 import model.Worker;
-import model.GameEventDispatcher;
 
 public class TurnController {
     private final GameMap gameMap;
@@ -12,20 +12,30 @@ public class TurnController {
         this.gameMap = gameMap;
     }
 
-    // متد کپسوله‌شده برای استعلام گرافیک (بدون هیچ وابستگی به UI)
+    /**
+     * بررسی وجود یونیت‌های Idle (زنده، دارای AP، غیر-stationed).
+     * اصلاح شده: یونیت با AP=0 idle محسوب نمی‌شود حتی اگر stationed نباشد.
+     */
     public boolean hasIdleUnits() {
         for (Unit u : gameMap.getUnits()) {
-            if (u.isAlive() && u.getCurrentAP() > 0) {
-                if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-                return true;
-            }
+            if (!u.isAlive()) continue;
+            if (u.getCurrentAP() <= 0) continue;
+
+            // Worker stationed مشغول کار است — idle نیست
+            if (u instanceof Worker && ((Worker) u).isStationed()) continue;
+
+            return true;
         }
         return false;
     }
 
-    // اجرای قطعی پایان نوبت
+    /**
+     * اجرای قطعی پایان نوبت.
+     * ابتدا چرخه بازی را پیش می‌برد، سپس رویداد TurnEnded را می‌زند.
+     */
     public void forceEndTurn() {
         gameMap.nextTurn();
+        // ارسال رویداد پایان نوبت به تمام listener‌ها (از جمله HUDPanel)
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
     }
 }

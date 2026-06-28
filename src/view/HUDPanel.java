@@ -10,25 +10,27 @@ import java.awt.event.MouseEvent;
 public class HUDPanel extends JPanel implements GameEventListener {
     private final MainController mainController;
     private final GamePanel gamePanel;
-    private final JPanel infoContainer; // کانتینر دربرگیرنده کارت‌های اطلاعات
+    private final JPanel infoContainer;
     private final JButton endTurnBtn;
     private boolean confirmIdleMode = false;
+
+    // وضعیت Starvation از رویداد دریافت می‌شود — نه هر بار محاسبه می‌شود
+    private boolean isStarving = false;
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
         this.gamePanel = gamePanel;
 
         setLayout(new BorderLayout());
-        setBackground(new Color(25, 28, 33)); // تم دارک اصلی
+        setBackground(new Color(25, 28, 33));
 
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)), // نوار آبی سلطنتی پایین
+                BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)),
                 BorderFactory.createEmptyBorder(8, 15, 8, 15)
         ));
 
-        // کانتینر کارتی با چیدمان افقی و فاصله‌های استاندارد
         infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        infoContainer.setOpaque(false); // شفاف برای نمایش بک‌گراند پنل اصلی
+        infoContainer.setOpaque(false);
         add(infoContainer, BorderLayout.CENTER);
 
         endTurnBtn = new JButton("END TURN");
@@ -38,12 +40,17 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn.setFocusPainted(false);
         endTurnBtn.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         endTurnBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        endTurnBtn.setOpaque(true);
 
         endTurnBtn.addMouseListener(new MouseAdapter() {
             @Override
-            public void mouseEntered(MouseEvent e) { endTurnBtn.setBackground(endTurnBtn.getBackground().brighter()); }
+            public void mouseEntered(MouseEvent e) {
+                endTurnBtn.setBackground(endTurnBtn.getBackground().brighter());
+            }
             @Override
-            public void mouseExited(MouseEvent e) { updateButtonColor(); }
+            public void mouseExited(MouseEvent e) {
+                updateButtonColor();
+            }
         });
 
         endTurnBtn.addActionListener(e -> handleEndTurn());
@@ -54,14 +61,40 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void updateButtonColor() {
-        if (confirmIdleMode) endTurnBtn.setBackground(new Color(230, 126, 34));
-        else endTurnBtn.setBackground(new Color(192, 57, 43));
+        if (confirmIdleMode) {
+            endTurnBtn.setBackground(new Color(230, 126, 34));
+        } else {
+            endTurnBtn.setBackground(new Color(192, 57, 43));
+        }
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount) { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onUnitKilled(Unit unit) { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onProductionCompleted(String itemName) { SwingUtilities.invokeLater(this::updateHUD); }
+    // =========================================================
+    // پیاده‌سازی GameEventListener
+    // =========================================================
+
+    @Override
+    public void onResourceChanged(ResourceType type, int newAmount) {
+        SwingUtilities.invokeLater(this::updateHUD);
+    }
+
+    @Override
+    public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {
+        SwingUtilities.invokeLater(this::updateHUD);
+    }
+
+    @Override
+    public void onUnitKilled(Unit unit) {
+        SwingUtilities.invokeLater(this::updateHUD);
+    }
+
+    @Override
+    public void onProductionCompleted(String itemName) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            // نمایش اعلان تکمیل تولید به بازیکن
+            showProductionNotification(itemName);
+        });
+    }
 
     @Override
     public void onTurnEnded(int newTurn) {
@@ -74,36 +107,65 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
+    /**
+     * اصلاح اصلی گام ۳: وضعیت Starvation از رویداد دریافت می‌شود.
+     * این رویداد مستقیماً از EconomyManager بعد از تشخیص قحطی فیر می‌شود.
+     */
+    @Override
+    public void onStarvationChanged(boolean starving) {
+        SwingUtilities.invokeLater(() -> {
+            this.isStarving = starving;
+            updateHUD();
+
+            // نمایش هشدار چشمگیر قحطی به صورت یه بار (اولین ورود به Starvation)
+            if (starving) {
+                showStarvationAlert();
+            }
+        });
+    }
+
+    // =========================================================
+    // رندر HUD
+    // =========================================================
+
     private void updateHUD() {
-        // پاک کردن کانتینر برای رسم مجدد کارت‌های آپدیت‌شده
         infoContainer.removeAll();
 
         GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
         int max = inv.getMaxCapacity();
 
-        int netFood = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
-        int netWood = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
+        int netFood  = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
+        int netWood  = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
         int netStone = EconomyManager.calculateNetProduction(map, ResourceType.STONE);
-        int netIron = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
+        int netIron  = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
 
-        boolean isStarving = inv.getResourceAmount(ResourceType.FOOD) == 0 && netFood < 0;
+        // کارت‌های منابع
+        infoContainer.add(createResourceCard(
+                "🍔 Food",  inv.getResourceAmount(ResourceType.FOOD),  max, netFood,  new Color(46, 204, 113)));
+        infoContainer.add(createResourceCard(
+                "🪵 Wood",  inv.getResourceAmount(ResourceType.WOOD),  max, netWood,  new Color(211, 84, 0)));
+        infoContainer.add(createResourceCard(
+                "🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, netStone, new Color(149, 165, 166)));
+        infoContainer.add(createResourceCard(
+                "⚙️ Iron",  inv.getResourceAmount(ResourceType.IRON),  max, netIron,  new Color(243, 156, 18)));
 
-        // کارت‌های منابع با رنگ‌های اختصاصی
-        infoContainer.add(createResourceCard("🍔 Food", inv.getResourceAmount(ResourceType.FOOD), max, netFood, new Color(46, 204, 113)));
-        infoContainer.add(createResourceCard("🪵 Wood", inv.getResourceAmount(ResourceType.WOOD), max, netWood, new Color(211, 84, 0)));
-        infoContainer.add(createResourceCard("🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, netStone, new Color(149, 165, 166)));
-        infoContainer.add(createResourceCard("⚙️ Iron", inv.getResourceAmount(ResourceType.IRON), max, netIron, new Color(243, 156, 18)));
-
-        // کارت صف تولید (Queue)
+        // کارت صف تولید
+        // اصلاح گام ۳: اگر Starvation فعال است، صف منجمد نشان داده می‌شود
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         String queueText;
-        Color queueColor = new Color(241, 196, 15);
+        Color queueColor;
+
         if (currentTask != null) {
-            queueText = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
             if (isStarving) {
-                queueText += " <span style='color:#e74c3c;'>(FROZEN)</span>";
+                // صف منجمد است — طبق داک در Starvation صف پیشرفت نمی‌کند
+                queueText = currentTask.getName()
+                        + " (" + currentTask.getTurnsRemaining() + "T)"
+                        + " <span style='color:#e74c3c;'>❄️ FROZEN</span>";
                 queueColor = new Color(231, 76, 60);
+            } else {
+                queueText = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
+                queueColor = new Color(241, 196, 15);
             }
         } else {
             queueText = "<span style='color:#7f8c8d;'>Idle</span>";
@@ -111,67 +173,166 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        // کارت جمعیت و یونیت‌ها
-        int e = 0, b = 0, w = 0, x = 0;
+        // کارت جمعیت + تفکیک نوع یونیت‌ها
+        int expCount = 0, buildCount = 0, workCount = 0, expndCount = 0;
         for (Unit u : map.getUnits()) {
-            if (u.isAlive()) {
-                if (u instanceof Explorer) e++;
-                else if (u instanceof Builder) b++;
-                else if (u instanceof Worker) w++;
-                else if (u instanceof BorderExpander) x++;
-            }
+            if (!u.isAlive()) continue;
+            if (u instanceof Explorer)      expCount++;
+            else if (u instanceof Builder)  buildCount++;
+            else if (u instanceof Worker)   workCount++;
+            else if (u instanceof BorderExpander) expndCount++;
         }
-        String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap() + " <span style='font-size:10px; color:#bdc3c7;'>(E:" + e + " B:" + b + " W:" + w + " X:" + x + ")</span>";
+        String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap()
+                + " <span style='font-size:10px; color:#bdc3c7;'>"
+                + "(E:" + expCount + " B:" + buildCount
+                + " W:" + workCount + " X:" + expndCount + ")</span>";
         infoContainer.add(createCard("👥 Pop", unitText, new Color(52, 152, 219), false));
 
-        // کارت شماره نوبت (Turn)
-        infoContainer.add(createCard("⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
+        // کارت شماره نوبت
+        infoContainer.add(createCard(
+                "⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
 
-        // اخطار قحطی (کارت چشمک‌زن/قرمز تند)
+        // هشدار قحطی — واضح و چشمگیر
+        // اصلاح گام ۳: از فیلد isStarving که از رویداد دریافت شده استفاده می‌شود
         if (isStarving) {
-            infoContainer.add(createCard("⚠️ ALERT", "STARVATION", new Color(231, 76, 60), true));
+            infoContainer.add(createStarvationCard());
         }
 
-        // رفرش و رندر مجدد کانتینر
         infoContainer.revalidate();
         infoContainer.repaint();
     }
 
-    // متد کمکی برای ساخت کارت‌های منابع
+    // =========================================================
+    // متدهای کمکی ساخت کارت‌ها
+    // =========================================================
+
     private JPanel createResourceCard(String title, int amount, int max, int net, Color accentColor) {
         String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
         String sign = net > 0 ? "+" : "";
-        String valueText = amount + "<span style='color:#7f8c8d'>/" + max + "</span> "
+        String valueText = amount
+                + "<span style='color:#7f8c8d'>/" + max + "</span> "
                 + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
         return createCard(title, valueText, accentColor, false);
     }
 
-    // متد کارخانه (Factory) برای تولید پنل‌های شیک و تفکیک‌شده
     private JPanel createCard(String title, String valueText, Color accentColor, boolean isAlert) {
         JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52)); // رنگ پس‌زمینه کارت
-
-        // ایجاد حاشیه (Border) ترکیبی: یک خط رنگی در سمت چپ به عنوان شاخص بصری + پدینگ داخلی
+        card.setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52));
+        card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 4, 0, 0, accentColor),
                 BorderFactory.createEmptyBorder(6, 12, 6, 12)
         ));
 
         String titleStyle = isAlert ? "color:white;" : "color:#bdc3c7;";
-        JLabel label = new JLabel("<html><body style='color:white; font-family:Segoe UI; font-size:13px; margin:0; padding:0;'>"
-                + "<span style='" + titleStyle + " margin-right:5px;'>" + title + ":</span>" + valueText
-                + "</body></html>");
+        JLabel label = new JLabel(
+                "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
+                        + "<span style='" + titleStyle + "'>" + title + ":</span> " + valueText
+                        + "</body></html>"
+        );
         card.add(label, BorderLayout.CENTER);
-
         return card;
     }
 
+    /**
+     * کارت اختصاصی Starvation با طراحی بصری قوی‌تر و اطلاعات کامل‌تر.
+     */
+    private JPanel createStarvationCard() {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(new Color(180, 20, 20));
+        card.setOpaque(true);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+        ));
+
+        JLabel label = new JLabel(
+                "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
+                        + "<b>⚠️ STARVATION!</b>"
+                        + "<span style='color:#ffaaaa; font-size:11px;'> Queue frozen | -1 AP/unit</span>"
+                        + "</body></html>"
+        );
+        card.add(label, BorderLayout.CENTER);
+        return card;
+    }
+
+    /**
+     * نمایش یک‌باره هشدار قحطی به صورت dialog — فقط اولین بار.
+     */
+    private void showStarvationAlert() {
+        JDialog alert = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
+        alert.setUndecorated(true);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(180, 20, 20));
+        panel.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
+
+        JLabel msg = new JLabel(
+                "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION CRISIS!</b><br/>"
+                        + "<span style='color:#ffcccc; font-size:12px;'>"
+                        + "Your people are starving!<br/>Production queue frozen. Units lose 1 AP per turn."
+                        + "</span></center></html>",
+                SwingConstants.CENTER
+        );
+        msg.setBorder(BorderFactory.createEmptyBorder(15, 25, 15, 25));
+        panel.add(msg, BorderLayout.CENTER);
+
+        alert.setContentPane(panel);
+        alert.pack();
+        alert.setLocationRelativeTo(this);
+        alert.setVisible(true);
+
+        // بسته شدن خودکار بعد از ۳ ثانیه
+        Timer closeTimer = new Timer(3000, e -> alert.dispose());
+        closeTimer.setRepeats(false);
+        closeTimer.start();
+    }
+
+    /**
+     * نمایش اعلان تکمیل تولید یونیت یا آپگرید.
+     */
+    private void showProductionNotification(String itemName) {
+        JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
+        notif.setUndecorated(true);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(39, 174, 96));
+        panel.setBorder(BorderFactory.createLineBorder(new Color(46, 204, 113), 2));
+
+        JLabel msg = new JLabel(
+                "<html><center><b style='color:white; font-size:14px;'>✅ Production Complete!</b><br/>"
+                        + "<span style='color:#d5f5e3; font-size:12px;'>"
+                        + itemName + " is ready."
+                        + "</span></center></html>",
+                SwingConstants.CENTER
+        );
+        msg.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        panel.add(msg, BorderLayout.CENTER);
+
+        notif.setContentPane(panel);
+        notif.pack();
+        // نمایش در گوشه پایین راست صفحه
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        notif.setLocation(screen.width - notif.getWidth() - 20, screen.height - notif.getHeight() - 60);
+        notif.setVisible(true);
+
+        Timer closeTimer = new Timer(2500, e -> notif.dispose());
+        closeTimer.setRepeats(false);
+        closeTimer.start();
+    }
+
+    // =========================================================
+    // هندل کردن دکمه End Turn
+    // =========================================================
+
     private void handleEndTurn() {
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+            // هشدار یونیت‌های idle — نوبت بلافاصله تمام نمی‌شود
             confirmIdleMode = true;
-            endTurnBtn.setText("IDLE UNITS! CONFIRM");
+            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
             updateButtonColor();
         } else {
+            // تأیید دوم یا بدون یونیت idle — پایان نوبت قطعی
             confirmIdleMode = false;
             mainController.getTurnController().forceEndTurn();
         }

@@ -10,7 +10,7 @@ package model;
  *   فاز ۴: کسر غذای یونیت‌ها + تشخیص و اعمال Starvation
  *
  * توجه: resetAP یونیت‌ها در این کلاس انجام نمی‌شود —
- * این کار مختص GameMap.nextTurn() است تا از اجرای دوباره جلوگیری شود.
+ * این کار مختص GameMap.nextTurn() است.
  */
 public class EconomyManager {
 
@@ -19,14 +19,8 @@ public class EconomyManager {
      * @return true اگر بازی وارد فاز Starvation شده باشد
      */
     public static boolean processEndTurn(GameMap map) {
-        // فاز ۱: تولید منابع
+        // فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
         produceResources(map);
-
-        // فاز ۲: پیشرفت صف تولید (تان‌هال ابتدا starvation چک می‌شود)
-        // starvation در فاز ۴ مشخص می‌شه، ولی چون صف تولید قبل از غذا پیش می‌رود،
-        // از وضعیت فعلی ذخیره غذا برای پیش‌بینی استفاده می‌کنیم.
-        // طبق داک: "صف تولید یک مرحله به جلو پیش می‌رود" — این قبل از کسر غذاست.
-        map.getTownHall().advanceProductionQueue();
 
         // فاز ۳: کسر Upkeep ساختمان‌ها
         processUpkeep(map);
@@ -34,10 +28,14 @@ public class EconomyManager {
         // فاز ۴: کسر غذا + تشخیص Starvation
         boolean isStarving = processFoodConsumption(map);
 
-        // اعمال پیامدهای Starvation (کاهش AP) — قبل از resetAP که در GameMap انجام می‌شود
-        if (isStarving) {
-            applyStarvationPenalty(map);
+        // فاز ۲: پیشرفت صف تولید — فقط اگر Starvation نباشد
+        // طبق داک: در حالت Starvation رشد جمعیت شهر کاملاً متوقف می‌شود
+        if (!isStarving) {
+            map.getTownHall().advanceProductionQueue();
         }
+
+        // ارسال رویداد Starvation به لایه View از طریق Event System
+        GameEventDispatcher.fireStarvationChanged(isStarving);
 
         return isStarving;
     }
@@ -50,7 +48,7 @@ public class EconomyManager {
         Inventory inventory = townHall.getInventory();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
-        // تولید Safeguard تان‌هال (حداقل تولید پایه)
+        // تولید Safeguard تان‌هال (حداقل تولید پایه — همیشه اجرا می‌شود)
         townHall.produceSafeguardResources();
 
         // تولید ساختمان‌های فعال
@@ -63,16 +61,19 @@ public class EconomyManager {
 
             // اعمال ضریب ابزارآلات حرفه‌ای فقط برای معادن
             if (hasProfTools &&
-                    (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
+                    (b.getType() == BuildingType.STONE_MINE ||
+                            b.getType() == BuildingType.IRON_MINE)) {
                 production = (int)(production * 1.5);
             }
 
             ResourceType targetRes = b.getType().getProducedResource();
-            if (targetRes != ResourceType.NONE && hex.hasResource(targetRes)) {
+            if (targetRes == ResourceType.NONE) continue;
+
+            if (hex.hasResource(targetRes)) {
                 int extracted = hex.extractResource(targetRes, production);
                 inventory.addResource(targetRes, extracted);
 
-                // اگر منبع هکس تمام شد، کارگران باید auto-eject شوند
+                // اگر منبع هکس تمام شد، کارگران را auto-eject کن
                 if (!hex.hasResource(targetRes)) {
                     ejectWorkersFromHex(map, hex);
                 }
@@ -122,29 +123,19 @@ public class EconomyManager {
         boolean canPay = inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
 
         if (!canPay) {
-            // غذا به صفر کاهش می‌یابد — ذخیره نمی‌تواند منفی شود
+            // غذا به صفر می‌رسد — نمی‌تواند منفی شود
             int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
             if (currentFood > 0) {
                 inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
             }
-            return true; // وضعیت Starvation فعال شد
+            return true; // Starvation فعال شد
         }
 
         return false;
     }
 
     // =========================================================
-    // اعمال جریمه Starvation: کاهش ۱ AP از همه یونیت‌های زنده
-    // مهم: این قبل از resetAP فراخوانی می‌شود، نه بعد از آن
-    // =========================================================
-    private static void applyStarvationPenalty(GameMap map) {
-        // در حالت Starvation، AP یونیت‌ها در ابتدای نوبت بعدی یک واحد کمتر خواهد بود.
-        // این با استفاده از یک flag در GameMap مدیریت می‌شود تا پس از resetAP اعمال شود.
-        map.setStarving(true);
-    }
-
-    // =========================================================
-    // متد کمکی: بیرون انداختن کارگران از یک ساختمان (Auto-Eject)
+    // متد کمکی: بیرون انداختن کارگران از یک هکس (Auto-Eject)
     // =========================================================
     public static void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
@@ -178,7 +169,8 @@ public class EconomyManager {
             if (b.getType().getProducedResource() == type) {
                 int prod = b.calculateProduction();
                 if (hasProfTools &&
-                        (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
+                        (b.getType() == BuildingType.STONE_MINE ||
+                                b.getType() == BuildingType.IRON_MINE)) {
                     prod = (int)(prod * 1.5);
                 }
                 net += prod;
