@@ -9,6 +9,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final MainController mainController;
     private final GamePanel gamePanel;
     private final JLabel infoLabel;
+    private final JButton endTurnBtn; // دسترسی به دکمه برای تغییر هوشمند وضعیت
+    private boolean confirmIdleMode = false; // وضعیت دو مرحله‌ای پایان نوبت
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
@@ -27,9 +29,9 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         add(infoLabel, BorderLayout.CENTER);
 
-        JButton endTurnBtn = new JButton("End Turn");
+        endTurnBtn = new JButton("End Turn");
         endTurnBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        endTurnBtn.setBackground(new Color(178, 34, 34));
+        endTurnBtn.setBackground(new Color(178, 34, 34)); // Crimson
         endTurnBtn.setForeground(Color.WHITE);
         endTurnBtn.setFocusPainted(false);
         endTurnBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -48,6 +50,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onTurnEnded(int newTurn) {
         SwingUtilities.invokeLater(() -> {
+            // ریست کردن وضعیت دکمه هوشمند در آغاز نوبت جدید
+            confirmIdleMode = false;
+            endTurnBtn.setText("End Turn");
+            endTurnBtn.setBackground(new Color(178, 34, 34));
+
             updateHUD();
             gamePanel.repaint();
         });
@@ -63,7 +70,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         String stoneHtml = formatResource("Stone", inv.getResourceAmount(ResourceType.STONE), max, EconomyManager.calculateNetProduction(map, ResourceType.STONE));
         String ironHtml = formatResource("Iron", inv.getResourceAmount(ResourceType.IRON), max, EconomyManager.calculateNetProduction(map, ResourceType.IRON));
 
-        // ۱. منطق نمایش صف تولید
         String queueHtml = " | &nbsp;<b>Queue:</b> ";
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
@@ -72,7 +78,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
             queueHtml += "<font color='#808080'>Idle</font>";
         }
 
-        // ۲. منطق آمار تفکیکی یونیت‌ها
         int e = 0, b = 0, w = 0, x = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) {
@@ -97,6 +102,14 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void handleEndTurn() {
-        mainController.getTurnController().tryEndTurn(this);
+        // منطق هوشمند جایگزین JOptionPane (بدون مسدود کردن رابط کاربری)
+        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+            confirmIdleMode = true;
+            endTurnBtn.setText("Confirm End Turn (Idle Units)");
+            endTurnBtn.setBackground(new Color(255, 140, 0)); // تغییر رنگ به نارنجی هشدار
+        } else {
+            confirmIdleMode = false;
+            mainController.getTurnController().forceEndTurn();
+        }
     }
 }

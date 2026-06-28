@@ -81,55 +81,52 @@ public class GamePanel extends JPanel {
     private void showTownHallMenu(MouseEvent e) {
         JPopupMenu popup = new JPopupMenu();
         TownHall th = mainController.getGameMap().getTownHall();
-        Inventory inv = th.getInventory();
-        boolean atUnitCap = mainController.getGameMap().getAliveUnitsCount() >= mainController.getGameMap().getUnitCap();
 
-        // --- بخش آپگریدها ---
+        // استفاده کامل از کنترلر بدون درگیر کردن لایه View با Inventory
         JMenuItem whItem = new JMenuItem(th.getWarehouseUpgradeLevel() == 2 ? "Warehouse MAXED" : "Upgrade Warehouse (100 W, 50 S)");
-        if (th.getWarehouseUpgradeLevel() == 2 || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) whItem.setEnabled(false);
+        if (!mainController.getUpgradeController().canAffordWarehouseUpgrade()) whItem.setEnabled(false);
         whItem.addActionListener(ev -> { mainController.getUpgradeController().handleWarehouseUpgrade(); repaint(); });
         popup.add(whItem);
 
         JMenuItem smItem = new JMenuItem(th.isStoneMineUnlocked() ? "Tech: Stone Mine (Unlocked)" : "Unlock Stone Mine (50 W)");
-        if (th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 50)) smItem.setEnabled(false);
+        if (!mainController.getUpgradeController().canUnlockTech("STONE_MINE")) smItem.setEnabled(false);
         smItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("STONE_MINE"); repaint(); });
         popup.add(smItem);
 
         JMenuItem imItem = new JMenuItem(th.isIronMineUnlocked() ? "Tech: Iron Mine (Unlocked)" : "Unlock Iron Mine (100 W, 50 S)");
-        if (th.isIronMineUnlocked() || !th.isStoneMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 50)) imItem.setEnabled(false);
+        if (!mainController.getUpgradeController().canUnlockTech("IRON_MINE")) imItem.setEnabled(false);
         imItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("IRON_MINE"); repaint(); });
         popup.add(imItem);
 
         JMenuItem ptItem = new JMenuItem(th.isProfessionalToolsUnlocked() ? "Tech: Prof. Tools (Unlocked)" : "Unlock Prof. Tools (100 W, 100 S, 50 I)");
-        if (th.isProfessionalToolsUnlocked() || !th.isIronMineUnlocked() || !inv.hasEnough(ResourceType.WOOD, 100) || !inv.hasEnough(ResourceType.STONE, 100) || !inv.hasEnough(ResourceType.IRON, 50)) ptItem.setEnabled(false);
+        if (!mainController.getUpgradeController().canUnlockTech("PROF_TOOLS")) ptItem.setEnabled(false);
         ptItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("PROF_TOOLS"); repaint(); });
         popup.add(ptItem);
 
         JMenuItem setItem = new JMenuItem(th.isSettlementUnlocked() ? "Tech: Settlement (Unlocked)" : "Unlock Settlement (200 W, 100 S)");
-        if (th.isSettlementUnlocked() || !inv.hasEnough(ResourceType.WOOD, 200) || !inv.hasEnough(ResourceType.STONE, 100)) setItem.setEnabled(false);
+        if (!mainController.getUpgradeController().canUnlockTech("SETTLEMENT")) setItem.setEnabled(false);
         setItem.addActionListener(ev -> { mainController.getUpgradeController().unlockTech("SETTLEMENT"); repaint(); });
         popup.add(setItem);
 
-        popup.addSeparator(); // خط جداکننده زیبا
+        popup.addSeparator();
 
-        // --- بخش تولید یونیت‌ها ---
         JMenuItem tWorker = new JMenuItem("Train Worker (20 F) - 1 Turn");
-        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 20)) tWorker.setEnabled(false);
+        if (!mainController.getUpgradeController().canTrainUnit("WORKER")) tWorker.setEnabled(false);
         tWorker.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("WORKER"); repaint(); });
         popup.add(tWorker);
 
         JMenuItem tBuilder = new JMenuItem("Train Builder (30 F, 10 W) - 2 Turns");
-        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 30) || !inv.hasEnough(ResourceType.WOOD, 10)) tBuilder.setEnabled(false);
+        if (!mainController.getUpgradeController().canTrainUnit("BUILDER")) tBuilder.setEnabled(false);
         tBuilder.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("BUILDER"); repaint(); });
         popup.add(tBuilder);
 
         JMenuItem tExplorer = new JMenuItem("Train Explorer (50 F) - 3 Turns");
-        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 50)) tExplorer.setEnabled(false);
+        if (!mainController.getUpgradeController().canTrainUnit("EXPLORER")) tExplorer.setEnabled(false);
         tExplorer.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("EXPLORER"); repaint(); });
         popup.add(tExplorer);
 
         JMenuItem tExpander = new JMenuItem("Train Border Expander (40 F, 20 W) - 3 Turns");
-        if (atUnitCap || !inv.hasEnough(ResourceType.FOOD, 40) || !inv.hasEnough(ResourceType.WOOD, 20)) tExpander.setEnabled(false);
+        if (!mainController.getUpgradeController().canTrainUnit("BORDER_EXPANDER")) tExpander.setEnabled(false);
         tExpander.addActionListener(ev -> { mainController.getUpgradeController().trainUnit("BORDER_EXPANDER"); repaint(); });
         popup.add(tExpander);
 
@@ -162,7 +159,8 @@ public class GamePanel extends JPanel {
             if (building != null) {
                 if (!worker.isStationed()) {
                     JMenuItem stationItem = new JMenuItem("Station in " + building.getType().name());
-                    if (building.getStationedWorkers() >= building.getMaxWorkers() || worker.getCurrentAP() == 0) stationItem.setEnabled(false);
+                    // بررسی منطقی بدون نیاز به کدهای هاردکد شده طولانی
+                    if (building.getStationedWorkers() >= building.getMaxWorkers() || worker.getCurrentAP() < 1) stationItem.setEnabled(false);
                     stationItem.addActionListener(ev -> { mainController.getUnitController().handleStation(worker, hex); repaint(); });
                     popup.add(stationItem);
                 } else {
@@ -186,9 +184,7 @@ public class GamePanel extends JPanel {
     private void selectUnitAt(Hex hex) {
         selectedUnit = null;
         for (Unit u : mainController.getGameMap().getUnits()) {
-            // کارگران مستقر شده قابل انتخاب نیستند مگر اینکه در منوی ساختمان خروج زده شود
             if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-
             if (u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()) {
                 selectedUnit = u; break;
             }
@@ -196,7 +192,7 @@ public class GamePanel extends JPanel {
     }
 
     private void handleMovementCommand(Hex targetHex) {
-        if (mainController.getUnitController().canMove(selectedUnit, targetHex, this)) {
+        if (mainController.getUnitController().canMove(selectedUnit, targetHex)) {
             animatingUnit = selectedUnit;
             animStartX = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).x;
             animStartY = getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR()).y;
@@ -267,6 +263,9 @@ public class GamePanel extends JPanel {
             }
         }
 
+        // رسم هاله‌ی حرکتی (Movement Highlight) پیش از رسم جزئیات و یونیت‌ها
+        drawMovementHighlights(g2d);
+
         for (Hex hex : mainController.getGameMap().getHexes()) {
             if (hex.isExplored()) {
                 drawHexDetails(g2d, hex);
@@ -280,6 +279,25 @@ public class GamePanel extends JPanel {
 
         for (Unit u : mainController.getGameMap().getUnits()) {
             if (u.isAlive()) drawUnit(g2d, u);
+        }
+    }
+
+    private void drawMovementHighlights(Graphics2D g2d) {
+        if (selectedUnit != null && animatingUnit == null) {
+            for (Hex hex : mainController.getGameMap().getHexes()) {
+                if (mainController.getUnitController().canMove(selectedUnit, hex)) {
+                    Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
+                    int currentSize = (int) (HEX_SIZE * zoomFactor);
+                    Polygon polygon = createHexPolygon(pt, currentSize);
+
+                    g2d.setColor(new Color(135, 206, 250, 80)); // آبی روشن نیمه‌شفاف
+                    g2d.fillPolygon(polygon);
+                    g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
+                    g2d.setColor(new Color(0, 191, 255, 200)); // حاشیه درخشان
+                    g2d.drawPolygon(polygon);
+                    g2d.setStroke(new BasicStroke(1f));
+                }
+            }
         }
     }
 
@@ -305,7 +323,6 @@ public class GamePanel extends JPanel {
             case MEADOW: baseColor = new Color(129, 199, 132); break;
         }
 
-        // تمایز بصری هکس‌های دارای منبع (GradientPaint)
         if (hex.getResourceType() != ResourceType.NONE && !hex.isResourceDepleted()) {
             GradientPaint gp = new GradientPaint(pt.x, pt.y - currentSize, baseColor.brighter(), pt.x, pt.y + currentSize, baseColor.darker());
             g2d.setPaint(gp);
@@ -337,16 +354,14 @@ public class GamePanel extends JPanel {
 
         if (hex.getResourceType() != ResourceType.NONE) {
             if (hex.isResourceDepleted()) {
-                // گرافیک اتمام منبع (X قرمز)
                 g2d.setColor(new Color(50, 50, 50, 180));
                 g2d.fillOval(pt.x - rSize/2, pt.y - (int)(15 * zoomFactor) - rSize/2, rSize, rSize);
-                g2d.setColor(new Color(220, 20, 60)); // Crimson Red
+                g2d.setColor(new Color(220, 20, 60));
                 g2d.setStroke(new BasicStroke(2f));
                 g2d.drawLine(pt.x - rSize/4, pt.y - (int)(15 * zoomFactor) - rSize/4, pt.x + rSize/4, pt.y - (int)(15 * zoomFactor) + rSize/4);
                 g2d.drawLine(pt.x + rSize/4, pt.y - (int)(15 * zoomFactor) - rSize/4, pt.x - rSize/4, pt.y - (int)(15 * zoomFactor) + rSize/4);
                 g2d.setStroke(new BasicStroke(1f));
             } else if (fontSize > 6) {
-                // رندرینگ منبع سالم
                 g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
                 String resStr = "";
                 Color iconColor = Color.WHITE;
@@ -374,12 +389,11 @@ public class GamePanel extends JPanel {
         int x = pt.x;
         int y = pt.y + 2;
 
-        // سایه ساختمان
         g2d.setColor(new Color(0, 0, 0, 150));
         g2d.fillRect(x - size/2 + 2, y + 2, size, size);
 
         if (b.getType() == BuildingType.SETTLEMENT) {
-            g2d.setColor(new Color(138, 43, 226)); // Purple
+            g2d.setColor(new Color(138, 43, 226));
             Polygon house = new Polygon();
             house.addPoint(x, y - size/2);
             house.addPoint(x + size/2, y);
@@ -451,15 +465,15 @@ public class GamePanel extends JPanel {
         else if (u instanceof Worker) { unitColor = new Color(255, 140, 0); typeLetter = "W"; }
         else if (u instanceof BorderExpander) { unitColor = new Color(138, 43, 226); typeLetter = "X"; }
 
-        // منطق جدید برای نمایش کارگران مستقر به صورت چسبیده به ساختمان
         if (isStationed) {
-            radius = Math.max(4, (int)(8 * zoomFactor)); // کوچک‌تر رسم می‌شود
-            px += (int)(15 * zoomFactor); // افست به گوشه هکس
+            radius = Math.max(4, (int)(8 * zoomFactor));
+            px += (int)(15 * zoomFactor);
             py -= (int)(5 * zoomFactor);
         }
 
+        // سایه یونیت (ارتقای بصری)
         g2d.setColor(new Color(0, 0, 0, 150));
-        g2d.fillOval(px - radius + 2, py - radius + 2, radius * 2, radius * 2);
+        g2d.fillOval(px - radius + 2, py - radius + 3, radius * 2, radius * 2);
 
         g2d.setColor(unitColor);
         g2d.fillOval(px - radius, py - radius, radius * 2, radius * 2);
