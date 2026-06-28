@@ -6,10 +6,8 @@ public interface GameEventListener {
     void onUnitKilled(Unit unit);
     void onProductionCompleted(String itemName);
     void onTurnEnded(int newTurn);
-
-    /**
-     * رویداد جدید: اطلاع‌رسانی تغییر وضعیت Starvation به لایه View.
-     * @param isStarving true اگر بازی وارد فاز قحطی شده باشد
-     */
     void onStarvationChanged(boolean isStarving);
+
+    // متد جدید برای گام ۵: اطلاع از تغییر وضعیت یونیت (مثل Idle شدن کارگر)
+    void onUnitStateChanged(Unit unit);
 }

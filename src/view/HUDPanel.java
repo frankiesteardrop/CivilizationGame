@@ -107,10 +107,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
-    /**
-     * اصلاح اصلی گام ۳: وضعیت Starvation از رویداد دریافت می‌شود.
-     * این رویداد مستقیماً از EconomyManager بعد از تشخیص قحطی فیر می‌شود.
-     */
     @Override
     public void onStarvationChanged(boolean starving) {
         SwingUtilities.invokeLater(() -> {
@@ -121,6 +117,18 @@ public class HUDPanel extends JPanel implements GameEventListener {
             if (starving) {
                 showStarvationAlert();
             }
+        });
+    }
+
+    /**
+     * پیاده‌سازی رویداد گام ۵: اطلاع از تغییر وضعیت یونیت (Idle/Stationed)
+     * با این متد، گرافیک بلافاصله به تغییرات واکنش نشان می‌دهد.
+     */
+    @Override
+    public void onUnitStateChanged(Unit unit) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            gamePanel.repaint(); // رفرش کردن نقشه برای آپدیت آیکون/وضعیت استقرار
         });
     }
 
@@ -151,14 +159,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 "⚙️ Iron",  inv.getResourceAmount(ResourceType.IRON),  max, netIron,  new Color(243, 156, 18)));
 
         // کارت صف تولید
-        // اصلاح گام ۳: اگر Starvation فعال است، صف منجمد نشان داده می‌شود
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         String queueText;
         Color queueColor;
 
         if (currentTask != null) {
             if (isStarving) {
-                // صف منجمد است — طبق داک در Starvation صف پیشرفت نمی‌کند
                 queueText = currentTask.getName()
                         + " (" + currentTask.getTurnsRemaining() + "T)"
                         + " <span style='color:#e74c3c;'>❄️ FROZEN</span>";
@@ -192,8 +198,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.add(createCard(
                 "⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
 
-        // هشدار قحطی — واضح و چشمگیر
-        // اصلاح گام ۳: از فیلد isStarving که از رویداد دریافت شده استفاده می‌شود
+        // هشدار قحطی
         if (isStarving) {
             infoContainer.add(createStarvationCard());
         }
@@ -234,9 +239,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         return card;
     }
 
-    /**
-     * کارت اختصاصی Starvation با طراحی بصری قوی‌تر و اطلاعات کامل‌تر.
-     */
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(new Color(180, 20, 20));
@@ -256,9 +258,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         return card;
     }
 
-    /**
-     * نمایش یک‌باره هشدار قحطی به صورت dialog — فقط اولین بار.
-     */
     private void showStarvationAlert() {
         JDialog alert = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         alert.setUndecorated(true);
@@ -282,15 +281,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
         alert.setLocationRelativeTo(this);
         alert.setVisible(true);
 
-        // بسته شدن خودکار بعد از ۳ ثانیه
         Timer closeTimer = new Timer(3000, e -> alert.dispose());
         closeTimer.setRepeats(false);
         closeTimer.start();
     }
 
-    /**
-     * نمایش اعلان تکمیل تولید یونیت یا آپگرید.
-     */
     private void showProductionNotification(String itemName) {
         JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         notif.setUndecorated(true);
@@ -311,7 +306,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         notif.setContentPane(panel);
         notif.pack();
-        // نمایش در گوشه پایین راست صفحه
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         notif.setLocation(screen.width - notif.getWidth() - 20, screen.height - notif.getHeight() - 60);
         notif.setVisible(true);
@@ -327,12 +321,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
     private void handleEndTurn() {
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
-            // هشدار یونیت‌های idle — نوبت بلافاصله تمام نمی‌شود
             confirmIdleMode = true;
             endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
             updateButtonColor();
         } else {
-            // تأیید دوم یا بدون یونیت idle — پایان نوبت قطعی
             confirmIdleMode = false;
             mainController.getTurnController().forceEndTurn();
         }
