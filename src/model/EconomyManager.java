@@ -7,7 +7,6 @@ public class EconomyManager {
         Inventory inventory = townHall.getInventory();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
-        // 1. تولید ساختمان‌ها و استخراج
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
@@ -27,7 +26,6 @@ public class EconomyManager {
             }
         }
 
-        // 2. محاسبه هزینه نگهداری (Upkeep) سازه‌ها
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
                 Building b = hex.getBuilding();
@@ -46,7 +44,6 @@ public class EconomyManager {
             }
         }
 
-        // 3. محاسبه مصرف غذای یونیت‌ها و مکانیزم بحران قحطی (Starvation)
         int totalFoodNeeded = 0;
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) totalFoodNeeded += u.getFoodConsumption();
@@ -54,21 +51,18 @@ public class EconomyManager {
 
         boolean isStarving = false;
         if (!inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded)) {
-            // در صورت قحطی، موجودی را تا صفر خالی می‌کنیم (نه منفی)
             inventory.forceDecreaseResource(ResourceType.FOOD, inventory.getResourceAmount(ResourceType.FOOD));
             isStarving = true;
         }
 
-        // 4. بازنشانی AP یونیت‌ها (و اعمال جریمه قحطی)
         for (Unit u : map.getUnits()) {
             u.resetAP();
             if (isStarving && u.isAlive()) {
-                u.consumeAP(1); // اعمال جریمه قحطی روی AP
+                u.consumeAP(1);
             }
         }
 
-        // 5. اعمال SafeGuard
-        townHall.applySafeguard();
+        townHall.applySafeguard(isStarving);
     }
 
     private static void ejectWorkers(GameMap map, Hex buildingHex) {

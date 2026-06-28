@@ -9,8 +9,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final MainController mainController;
     private final GamePanel gamePanel;
     private final JLabel infoLabel;
-    private final JButton endTurnBtn; // دسترسی به دکمه برای تغییر هوشمند وضعیت
-    private boolean confirmIdleMode = false; // وضعیت دو مرحله‌ای پایان نوبت
+    private final JButton endTurnBtn;
+    private boolean confirmIdleMode = false;
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
@@ -31,7 +31,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         endTurnBtn = new JButton("End Turn");
         endTurnBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        endTurnBtn.setBackground(new Color(178, 34, 34)); // Crimson
+        endTurnBtn.setBackground(new Color(178, 34, 34));
         endTurnBtn.setForeground(Color.WHITE);
         endTurnBtn.setFocusPainted(false);
         endTurnBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -50,7 +50,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onTurnEnded(int newTurn) {
         SwingUtilities.invokeLater(() -> {
-            // ریست کردن وضعیت دکمه هوشمند در آغاز نوبت جدید
             confirmIdleMode = false;
             endTurnBtn.setText("End Turn");
             endTurnBtn.setBackground(new Color(178, 34, 34));
@@ -64,16 +63,21 @@ public class HUDPanel extends JPanel implements GameEventListener {
         GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
         int max = inv.getMaxCapacity();
+        int netFood = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
 
-        String foodHtml = formatResource("Food", inv.getResourceAmount(ResourceType.FOOD), max, EconomyManager.calculateNetProduction(map, ResourceType.FOOD));
+        String foodHtml = formatResource("Food", inv.getResourceAmount(ResourceType.FOOD), max, netFood);
         String woodHtml = formatResource("Wood", inv.getResourceAmount(ResourceType.WOOD), max, EconomyManager.calculateNetProduction(map, ResourceType.WOOD));
         String stoneHtml = formatResource("Stone", inv.getResourceAmount(ResourceType.STONE), max, EconomyManager.calculateNetProduction(map, ResourceType.STONE));
         String ironHtml = formatResource("Iron", inv.getResourceAmount(ResourceType.IRON), max, EconomyManager.calculateNetProduction(map, ResourceType.IRON));
 
+        boolean isStarving = inv.getResourceAmount(ResourceType.FOOD) == 0 && netFood < 0;
+
         String queueHtml = " | &nbsp;<b>Queue:</b> ";
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
-            queueHtml += "<font color='#FFD700'>" + currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)</font>";
+            String queueColor = isStarving ? "#FF4500" : "#FFD700";
+            String freezeText = isStarving ? " (FROZEN)" : "";
+            queueHtml += "<font color='" + queueColor + "'>" + currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)" + freezeText + "</font>";
         } else {
             queueHtml += "<font color='#808080'>Idle</font>";
         }
@@ -92,7 +96,9 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         String turnHtml = " | &nbsp;<font color='#00FFFF'><b>Turn: " + map.getCurrentTurn() + "</b></font>";
 
-        infoLabel.setText("<html>" + foodHtml + woodHtml + stoneHtml + ironHtml + queueHtml + unitHtml + turnHtml + "</html>");
+        String starvationWarning = isStarving ? " | &nbsp;<font color='#FF0000'><b>[CRITICAL: STARVATION]</b></font>" : "";
+
+        infoLabel.setText("<html>" + foodHtml + woodHtml + stoneHtml + ironHtml + queueHtml + unitHtml + turnHtml + starvationWarning + "</html>");
     }
 
     private String formatResource(String name, int amount, int max, int net) {
@@ -102,11 +108,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void handleEndTurn() {
-        // منطق هوشمند جایگزین JOptionPane (بدون مسدود کردن رابط کاربری)
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
             confirmIdleMode = true;
             endTurnBtn.setText("Confirm End Turn (Idle Units)");
-            endTurnBtn.setBackground(new Color(255, 140, 0)); // تغییر رنگ به نارنجی هشدار
+            endTurnBtn.setBackground(new Color(255, 140, 0));
         } else {
             confirmIdleMode = false;
             mainController.getTurnController().forceEndTurn();

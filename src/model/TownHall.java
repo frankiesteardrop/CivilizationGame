@@ -14,7 +14,6 @@ public class TownHall {
     private boolean professionalToolsUnlocked;
     private boolean settlementUnlocked;
 
-    // صف ساختاریافته تولیدات تان‌هال (Production Queue)
     private final Queue<ProductionTask> productionQueue;
 
     public TownHall(int q, int r) {
@@ -35,12 +34,13 @@ public class TownHall {
         this.settlementUnlocked = false;
     }
 
-    public void applySafeguard() {
+    public void applySafeguard(boolean isStarving) {
         this.inventory.addResource(ResourceType.WOOD, 1);
         this.inventory.addResource(ResourceType.FOOD, 1);
 
-        // جلو بردن صف تولید تان‌هال در پایان هر نوبت
-        advanceProductionQueue();
+        if (!isStarving) {
+            advanceProductionQueue();
+        }
     }
 
     public void upgradeWarehouse() {
@@ -53,9 +53,6 @@ public class TownHall {
         }
     }
 
-    /**
-     * افزودن یک آیتم یا یونیت به صف تولید تان‌هال
-     */
     public void queueProduction(String itemName, int turnCost, Runnable onComplete) {
         productionQueue.add(new ProductionTask(itemName, turnCost, onComplete));
     }
@@ -88,9 +85,6 @@ public class TownHall {
     public boolean isSettlementUnlocked() { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean unlocked) { this.settlementUnlocked = unlocked; }
 
-    /**
-     * کلاس داخلی ساختاریافته برای نگهداری تسک‌های صف تولید
-     */
     public static class ProductionTask {
         private final String name;
         private int turnsRemaining;
