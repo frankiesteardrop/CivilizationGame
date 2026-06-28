@@ -1,19 +1,22 @@
 package controller;
 
 import javax.sound.sampled.*;
-import java.io.File;
+import java.io.BufferedInputStream;
+import java.io.InputStream;
 import java.io.IOException;
 
 public class AudioManager {
     private static Clip clip;
     private static FloatControl volumeControl;
 
-    // متد پخش آهنگ
-    public static void playMusic(String filePath) {
+    // متد پخش آهنگ با استاندارد Classpath
+    public static void playMusic(String resourcePath) {
         try {
-            File musicFile = new File(filePath);
-            if (musicFile.exists()) {
-                AudioInputStream audioInput = AudioSystem.getAudioInputStream(musicFile);
+            // خواندن فایل از پوشه resources به صورت Stream
+            InputStream audioSrc = AudioManager.class.getResourceAsStream(resourcePath);
+            if (audioSrc != null) {
+                InputStream bufferedIn = new BufferedInputStream(audioSrc);
+                AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn);
                 clip = AudioSystem.getClip();
                 clip.open(audioInput);
 
@@ -24,27 +27,25 @@ public class AudioManager {
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
                 clip.start();
             } else {
-                System.out.println("Error: Music file not found at " + filePath);
+                System.err.println("Error: Music file not found in resources: " + resourcePath);
             }
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
-            e.printStackTrace();
+            System.err.println("Error playing music: " + e.getMessage());
         }
     }
 
     // متد تنظیم صدا که به اسلایدر MainMenuPanel متصل است
     public static void setVolume(int volumePercent) {
         if (volumeControl != null) {
-            // تبدیل درصد (0 تا 100) به دسی‌بل برای جاوا
             float min = volumeControl.getMinimum();
             float max = volumeControl.getMaximum();
-            // جلوگیری از افت شدید صدا در درصدهای پایین
             float range = max - min;
             float gain = (range * volumePercent / 100f) + min;
             volumeControl.setValue(gain);
         }
     }
 
-    // متد توقف آهنگ (در صورت نیاز)
+    // متد توقف آهنگ
     public static void stopMusic() {
         if (clip != null && clip.isRunning()) {
             clip.stop();
