@@ -34,7 +34,12 @@ public class GamePanel extends JPanel {
         this.mainController = mainController;
         setBackground(new Color(15, 18, 22));
         setFocusable(true);
-        ToolTipManager.sharedInstance().setInitialDelay(200);
+
+        // اصلاح گام ۲: بدون این خط، getToolTipText هرگز صدا زده نمی‌شود
+        setToolTipText("");
+
+        ToolTipManager.sharedInstance().setInitialDelay(300);
+        ToolTipManager.sharedInstance().setDismissDelay(8000);
 
         animationTimer = new Timer(16, e -> {
             updateAnimation();
@@ -243,6 +248,7 @@ public class GamePanel extends JPanel {
         if (selectedUnit == null) return;
 
         JPopupMenu popup = new JPopupMenu();
+        stylePopupMenu(popup);
 
         if (selectedUnit instanceof Builder) {
             Builder builder = (Builder) selectedUnit;
@@ -250,25 +256,39 @@ public class GamePanel extends JPanel {
             if (hex.getBuilding() != null) {
                 JMenuItem occupiedItem = new JMenuItem("⛔ Hex already has a building");
                 occupiedItem.setEnabled(false);
+                styleMenuItem(occupiedItem);
                 popup.add(occupiedItem);
             } else if (!hex.isInsideBorder()) {
                 JMenuItem borderItem = new JMenuItem("⛔ Must be inside your borders");
                 borderItem.setEnabled(false);
+                styleMenuItem(borderItem);
                 popup.add(borderItem);
             } else {
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.LUMBER_MILL, "🌲 Build Lumber Mill"));
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.FARM, "🌾 Build Farm"));
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.STABLE, "🐄 Build Stable"));
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.STONE_MINE, "⛏️ Build Stone Mine"));
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.IRON_MINE, "🔩 Build Iron Mine"));
-                popup.add(createBuildMenuItem(builder, hex, BuildingType.SETTLEMENT, "🏘️ Build Settlement"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.LUMBER_MILL,
+                        "🌲 Build Lumber Mill"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.FARM,
+                        "🌾 Build Farm"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.STABLE,
+                        "🐄 Build Stable"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.STONE_MINE,
+                        "⛏️ Build Stone Mine"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.IRON_MINE,
+                        "🔩 Build Iron Mine"));
+                popup.add(createBuildMenuItem(builder, hex, BuildingType.SETTLEMENT,
+                        "🏘️ Build Settlement"));
             }
 
         } else if (selectedUnit instanceof Worker) {
             Worker worker = (Worker) selectedUnit;
 
             if (worker.isStationed()) {
-                JMenuItem leaveItem = new JMenuItem("🚪 Leave Facility (AP not restored)");
+                // اصلاح گام ۲: خروج رایگان است — نیاز به AP ندارد
+                JMenuItem leaveItem = new JMenuItem(
+                        "🚪 Leave Facility (free — AP not restored)");
+                styleMenuItem(leaveItem);
+                // canEject فقط بررسی می‌کند Worker stationed باشد — نه AP
+                leaveItem.setEnabled(
+                        mainController.getUnitController().canEject(worker));
                 leaveItem.addActionListener(ev -> {
                     mainController.getUnitController().handleEject(worker);
                     repaint();
@@ -277,33 +297,57 @@ public class GamePanel extends JPanel {
 
             } else {
                 Building building = hex.getBuilding();
-                if (building != null && !building.isDestroyed() && building.getType() != BuildingType.TOWN_HALL) {
-                    boolean canStation = mainController.getUnitController().canStation(worker, hex);
-                    String stationLabel = "⚙️ Station in " + building.getType().name()
-                            + " (-1 AP) ["
-                            + building.getStationedWorkers() + "/" + building.getMaxWorkers() + "]";
+                if (building != null
+                        && !building.isDestroyed()
+                        && building.getType() != BuildingType.TOWN_HALL) {
+
+                    boolean canStation = mainController.getUnitController()
+                            .canStation(worker, hex);
+
+                    String stationLabel = "⚙️ Station in "
+                            + building.getType().name()
+                            + " (-" + Worker.getStationApCost() + " AP) ["
+                            + building.getStationedWorkers()
+                            + "/" + building.getMaxWorkers() + "]";
+
                     JMenuItem stationItem = new JMenuItem(stationLabel);
+                    styleMenuItem(stationItem);
                     if (!canStation) stationItem.setEnabled(false);
                     stationItem.addActionListener(ev -> {
                         mainController.getUnitController().handleStation(worker, hex);
                         repaint();
                     });
                     popup.add(stationItem);
+
                 } else {
-                    JMenuItem noBuilding = new JMenuItem("⛔ No workable facility here");
+                    JMenuItem noBuilding = new JMenuItem(
+                            "⛔ No workable facility on this hex");
                     noBuilding.setEnabled(false);
+                    styleMenuItem(noBuilding);
                     popup.add(noBuilding);
                 }
             }
 
         } else if (selectedUnit instanceof BorderExpander) {
             BorderExpander expander = (BorderExpander) selectedUnit;
-            boolean canExpand = hex.isExplored() && expander.getCurrentAP() >= 1;
-            JMenuItem expandItem = new JMenuItem("🗺️ Expand Border (Consume Unit)");
+
+            // اصلاح گام ۳: استفاده از canExpand که AP را هم بررسی می‌کند
+            boolean canExpand = expander.canExpand(mainController.getGameMap());
+
+            String expandLabel = "🗺️ Expand Border here (-"
+                    + BorderExpander.getExpandApCost()
+                    + " AP, unit consumed)";
+
+            JMenuItem expandItem = new JMenuItem(expandLabel);
+            styleMenuItem(expandItem);
             if (!canExpand) expandItem.setEnabled(false);
+
             expandItem.addActionListener(ev -> {
-                expander.expandBorder(mainController.getGameMap());
-                selectedUnit = null;
+                boolean success = expander.expandBorder(mainController.getGameMap());
+                if (success) {
+                    selectedUnit = null;
+                    gamePanel.repaint(); // اگر این کد داخل GamePanel است، از repaint() مستقیم استفاده کن
+                }
                 repaint();
             });
             popup.add(expandItem);
@@ -312,6 +356,22 @@ public class GamePanel extends JPanel {
         if (popup.getComponentCount() > 0) {
             popup.show(this, e.getX(), e.getY());
         }
+    }
+
+// =========================================================
+// متدهای کمکی استایل‌دهی پاپ‌آپ — حرفه‌ای و یکدست
+// =========================================================
+
+    private void stylePopupMenu(JPopupMenu popup) {
+        popup.setBackground(new Color(30, 33, 40));
+        popup.setBorder(BorderFactory.createLineBorder(new Color(70, 130, 180), 1));
+    }
+
+    private void styleMenuItem(JMenuItem item) {
+        item.setBackground(new Color(30, 33, 40));
+        item.setForeground(Color.WHITE);
+        item.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
     }
 
     private JMenuItem createBuildMenuItem(Builder builder, Hex hex, BuildingType type, String label) {
