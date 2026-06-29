@@ -5,34 +5,34 @@ package model;
  *
  * ترتیب دقیق اجرا در هر پایان نوبت (طبق داک):
  *   فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
- *   فاز ۲: پیشرفت صف تولید تان‌هال (فقط اگر Starvation نباشد)
+ *   فاز ۲: پیشرفت صف تولید تان‌هال
  *   فاز ۳: کسر Upkeep ساختمان‌ها
  *   فاز ۴: کسر غذای یونیت‌ها + تشخیص و اعمال Starvation
  *
  * توجه: resetAP یونیت‌ها در این کلاس انجام نمی‌شود —
- * این کار مختص GameMap.nextTurn() است.
+ * این کار مختص GameMap.nextTurn() است و قبل از فراخوانی این کلاس انجام می‌شود.
  */
 public class EconomyManager {
 
     /**
-     * نقطه ورود اصلی — اجرای کامل چرخه پایان نوبت به ترتیب صحیح.
+     * نقطه ورود اصلی — اجرای کامل چرخه پایان نوبت به ترتیب صحیح طبق داک.
+     *
+     * @param map نقشه بازی جاری
      * @return true اگر بازی وارد فاز Starvation شده باشد
      */
     public static boolean processEndTurn(GameMap map) {
+
         // فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
         produceResources(map);
+
+        // فاز ۲: پیشرفت صف تولید تان‌هال (طبق داک باید قبل از Upkeep باشد)
+        map.getTownHall().advanceProductionQueue();
 
         // فاز ۳: کسر Upkeep ساختمان‌ها
         processUpkeep(map);
 
         // فاز ۴: کسر غذا + تشخیص Starvation
         boolean isStarving = processFoodConsumption(map);
-
-        // فاز ۲: پیشرفت صف تولید — فقط اگر Starvation نباشد
-        // طبق داک: در حالت Starvation رشد جمعیت شهر کاملاً متوقف می‌شود
-        if (!isStarving) {
-            map.getTownHall().advanceProductionQueue();
-        }
 
         // ارسال رویداد Starvation به لایه View از طریق Event System
         GameEventDispatcher.fireStarvationChanged(isStarving);
@@ -56,6 +56,9 @@ public class EconomyManager {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed()) continue;
 
+            // TownHall تولید خود را از طریق produceSafeguardResources انجام می‌دهد
+            if (b.getType() == BuildingType.TOWN_HALL) continue;
+
             int production = b.calculateProduction();
             if (production <= 0) continue;
 
@@ -69,6 +72,7 @@ public class EconomyManager {
             ResourceType targetRes = b.getType().getProducedResource();
             if (targetRes == ResourceType.NONE) continue;
 
+            // فقط اگر هکس منبع مورد نظر را داشت، استخراج کن
             if (hex.hasResource(targetRes)) {
                 int extracted = hex.extractResource(targetRes, production);
                 inventory.addResource(targetRes, extracted);
@@ -90,6 +94,10 @@ public class EconomyManager {
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed()) continue;
+
+            // TownHall هزینه نگهداری ندارد
+            if (b.getType() == BuildingType.TOWN_HALL) continue;
+
             if (b.getUpkeepAmount() <= 0) continue;
 
             boolean paid = inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount());
@@ -100,6 +108,7 @@ public class EconomyManager {
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
                     hex.setBuilding(null);
+                    GameEventDispatcher.fireBuildingConstructed(hex); // آپدیت UI
                 }
             } else {
                 b.resetFailedUpkeep();
@@ -123,7 +132,7 @@ public class EconomyManager {
         boolean canPay = inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
 
         if (!canPay) {
-            // غذا به صفر می‌رسد — نمی‌تواند منفی شود
+            // غذا به حداقل صفر می‌رسد — هرگز منفی نمی‌شود
             int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
             if (currentFood > 0) {
                 inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
@@ -135,7 +144,7 @@ public class EconomyManager {
     }
 
     // =========================================================
-    // متد کمکی: بیرون انداختن کارگران از یک هکس (Auto-Eject)
+    // متد کمکی عمومی: بیرون انداختن کارگران از یک هکس (Auto-Eject)
     // =========================================================
     public static void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
@@ -158,14 +167,15 @@ public class EconomyManager {
         TownHall townHall = map.getTownHall();
         boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
-        // Safeguard تان‌هال
+        // Safeguard تان‌هال — همیشه +۱ برای چوب و غذا
         if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
 
         for (Hex h : map.getHexes()) {
             Building b = h.getBuilding();
             if (b == null || b.isDestroyed()) continue;
+            if (b.getType() == BuildingType.TOWN_HALL) continue;
 
-            // تولید این ساختمان
+            // تولید این ساختمان برای نوع منبع مورد نظر
             if (b.getType().getProducedResource() == type) {
                 int prod = b.calculateProduction();
                 if (hasProfTools &&
@@ -176,13 +186,13 @@ public class EconomyManager {
                 net += prod;
             }
 
-            // Upkeep این ساختمان
+            // کسر Upkeep این ساختمان اگر با نوع منبع مورد نظر مطابقت داشت
             if (b.getUpkeepResource() == type) {
                 net -= b.getUpkeepAmount();
             }
         }
 
-        // مصرف غذای یونیت‌ها
+        // کسر مصرف غذای یونیت‌ها
         if (type == ResourceType.FOOD) {
             for (Unit u : map.getUnits()) {
                 if (u.isAlive()) net -= u.getFoodConsumption();

@@ -25,6 +25,9 @@ public class GameMap {
         updateFogOfWar();
     }
 
+    // =========================================================
+    // تولید نقشه
+    // =========================================================
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
             int r1 = Math.max(-radius, -q - radius);
@@ -35,7 +38,6 @@ public class GameMap {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
                     centerHex.setInsideBorder(true);
-                    // اتصال تان‌هال به هکس مرکزی (از گام ۸)
                     centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
                     continue;
@@ -55,14 +57,19 @@ public class GameMap {
                         }
                         break;
                     case MEADOW:
-                        if (random.nextDouble() < 0.5) newHex.addResource(ResourceType.FOOD, 300);
+                        if (random.nextDouble() < 0.5) {
+                            newHex.addResource(ResourceType.FOOD, 300);
+                        }
                         break;
                     case PLAINS:
-                        if (random.nextDouble() < 0.3) newHex.addResource(ResourceType.FOOD, 300);
+                        if (random.nextDouble() < 0.3) {
+                            newHex.addResource(ResourceType.FOOD, 300);
+                        }
                         break;
                 }
 
-                if (getHexDistance(0, 0, q, r) <= 1) {
+                // هکس‌های شعاع ۱ از مرکز از ابتدا کشف‌شده و داخل مرز هستند
+                if (getHexDistance(townHall.getQ(), townHall.getR(), q, r) <= 1) {
                     newHex.setExplored(true);
                     newHex.setInsideBorder(true);
                 }
@@ -70,43 +77,41 @@ public class GameMap {
             }
         }
 
-        // [اصلاح حیاتی گام ۱۱]: تضمین وجود منابع اولیه (حداقل یک جنگل) در شعاع ۲ هکسی تان‌هال
         ensureStartingResources();
     }
 
     /**
-     * متد کمکی برای تضمین دسترسی به منابع حیاتی اولیه (جنگل)
+     * تضمین وجود حداقل یک هکس جنگلی در شعاع ۲ هکسی از TownHall.
+     * طبق داک: فاصله هکس جنگل از TownHall نباید بیشتر از ۲ باشد.
      */
     private void ensureStartingResources() {
         boolean hasForestNear = false;
         List<Hex> availableCandidates = new ArrayList<>();
 
-        // اسکن هکس‌های با فاصله حداکثر ۲ از مبدأ
         for (Hex hex : hexes) {
-            int dist = getHexDistance(0, 0, hex.getQ(), hex.getR());
+            int dist = getHexDistance(townHall.getQ(), townHall.getR(),
+                    hex.getQ(), hex.getR());
             if (dist > 0 && dist <= 2) {
                 if (hex.getTerrainType() == TerrainType.FOREST) {
                     hasForestNear = true;
-                    break; // یک جنگل پیدا شد، نقشه معتبر است
+                    break;
                 }
-                // کاندیداها: هکس‌هایی که کوهستان نیستند تا ظاهر نقشه خیلی به هم نریزد
                 if (hex.getTerrainType() != TerrainType.MOUNTAIN) {
                     availableCandidates.add(hex);
                 }
             }
         }
 
-        // اگر جنگلی در شعاع ۲ هکسی پیدا نشد، یک هکس کاندیدا را به زور به جنگل تبدیل می‌کنیم
         if (!hasForestNear && !availableCandidates.isEmpty()) {
-            Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
+            Hex targetHex = availableCandidates.get(
+                    random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
 
-            // اگر قبلاً غذایی به این هکس (مثلاً دشت) اختصاص یافته بود، آن را پاک می‌کنیم
+            // پاک کردن منابع قبلی (مثلاً FOOD از دشت)
             if (targetHex.hasResource(ResourceType.FOOD)) {
-                targetHex.extractResource(ResourceType.FOOD, 10000);
+                targetHex.extractResource(ResourceType.FOOD, Integer.MAX_VALUE);
             }
 
-            // اضافه کردن ۵۰۰ واحد چوب به هکسِ تغییریافته
             targetHex.addResource(ResourceType.WOOD, 500);
         }
     }
@@ -119,15 +124,34 @@ public class GameMap {
         units.add(new Worker(-1, 0));
     }
 
+    // =========================================================
+    // چرخه نوبت — ترتیب صحیح طبق داک
+    // =========================================================
+
+    /**
+     * اجرای چرخه پایان نوبت به ترتیب دقیق طبق داک:
+     *
+     * ۱. تجدید AP همه یونیت‌های زنده
+     * ۲. تولید منابع + پیشرفت صف تولید (فاز ۱ و ۲ در EconomyManager)
+     * ۳. کسر Upkeep (فاز ۳ در EconomyManager)
+     * ۴. کسر غذا + تشخیص Starvation (فاز ۴ در EconomyManager)
+     * ۵. اعمال پنالتی AP در صورت Starvation
+     * ۶. حذف یونیت‌های مرده از لیست
+     * ۷. افزایش شمارنده نوبت
+     */
     public void nextTurn() {
+        // مرحله ۱: تجدید AP همه یونیت‌های زنده (طبق داک — اولین کار در ابتدای نوبت جدید)
         for (Unit unit : units) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
+        // مراحل ۲ تا ۴: چرخه اقتصادی (ترتیب داخلی در EconomyManager)
         isStarving = EconomyManager.processEndTurn(this);
 
+        // مرحله ۵: اعمال پنالتی Starvation روی AP یونیت‌ها
+        // (بعد از resetAP اجرا می‌شود تا AP همیشه کمتر از maxAP باشد)
         if (isStarving) {
             for (Unit unit : units) {
                 if (unit.isAlive()) {
@@ -136,34 +160,49 @@ public class GameMap {
             }
         }
 
+        // مرحله ۶: پاکسازی یونیت‌های مرده از لیست فعال
         units.removeIf(u -> !u.isAlive());
+
+        // مرحله ۷: پیشرفت شمارنده نوبت
         currentTurn++;
     }
 
-    public void updateFogOfWar() {
-        Hex centerHex = getHexAt(townHall.getQ(), townHall.getR());
-        if (centerHex != null) centerHex.setExplored(true);
+    // =========================================================
+    // سیستم مه‌جنگ (Fog of War)
+    // =========================================================
 
+    /**
+     * آپدیت کامل Fog of War بر اساس موقعیت همه یونیت‌ها و ساختمان‌ها.
+     * اصلاح: استفاده از مختصات واقعی TownHall به جای هاردکد (0,0)
+     */
+    public void updateFogOfWar() {
+        // دید TownHall — شعاع ۲ هکس از موقعیت واقعی آن
         for (Hex hex : hexes) {
-            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 2) {
+            if (getHexDistance(townHall.getQ(), townHall.getR(),
+                    hex.getQ(), hex.getR()) <= 2) {
                 hex.setExplored(true);
             }
         }
 
+        // دید یونیت‌های زنده
         for (Unit unit : units) {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
             for (Hex hex : hexes) {
-                if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
+                if (getHexDistance(unit.getQ(), unit.getR(),
+                        hex.getQ(), hex.getR()) <= visionRadius) {
                     hex.setExplored(true);
                 }
             }
         }
 
+        // دید ساختمان‌های فعال (شعاع ۱ هکس)
         for (Hex hex : hexes) {
-            if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) {
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed()) {
                 for (Hex other : hexes) {
-                    if (getHexDistance(hex.getQ(), hex.getR(), other.getQ(), other.getR()) <= 1) {
+                    if (getHexDistance(hex.getQ(), hex.getR(),
+                            other.getQ(), other.getR()) <= 1) {
                         other.setExplored(true);
                     }
                 }
@@ -171,6 +210,14 @@ public class GameMap {
         }
     }
 
+    // =========================================================
+    // توسعه مرز
+    // =========================================================
+
+    /**
+     * افزودن هکس مرکزی و ۶ همسایه آن به مرزهای امپراتوری.
+     * فقط هکس‌هایی که قبلاً کشف شده‌اند می‌توانند به مرز اضافه شوند.
+     */
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
         if (centerHex != null && centerHex.isExplored()) {
@@ -186,6 +233,14 @@ public class GameMap {
         }
     }
 
+    // =========================================================
+    // متدهای کمکی
+    // =========================================================
+
+    /**
+     * محاسبه Unit Cap فعلی بر اساس تعداد Settlement‌های فعال.
+     * مقدار پایه: ۱۰ یونیت. هر Settlement: +۵ یونیت.
+     */
     public int getUnitCap() {
         int cap = 10;
         for (Hex h : hexes) {
@@ -197,8 +252,13 @@ public class GameMap {
         return cap;
     }
 
+    /**
+     * محاسبه فاصله بین دو هکس با فرمول استاندارد Axial Coordinates.
+     */
     public int getHexDistance(int q1, int r1, int q2, int r2) {
-        return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
+        return (Math.abs(q1 - q2)
+                + Math.abs(q1 + r1 - q2 - r2)
+                + Math.abs(r1 - r2)) / 2;
     }
 
     private TerrainType getRandomTerrain() {
@@ -206,26 +266,29 @@ public class GameMap {
         return terrains[random.nextInt(terrains.length)];
     }
 
-    public List<Hex> getHexes() { return hexes; }
-    public List<Unit> getUnits() { return units; }
-
-    public Hex getHexAt(int q, int r) {
-        for (Hex hex : hexes) {
-            if (hex.getQ() == q && hex.getR() == r) return hex;
-        }
-        return null;
-    }
-
-    public TownHall getTownHall() { return townHall; }
-    public int getCurrentTurn() { return currentTurn; }
-    public boolean isStarving() { return isStarving; }
-    public void setStarving(boolean starving) { this.isStarving = starving; }
-
     public int getAliveUnitsCount() {
         int count = 0;
         for (Unit u : units) {
             if (u.isAlive()) count++;
         }
         return count;
+    }
+
+    // =========================================================
+    // Getters
+    // =========================================================
+
+    public List<Hex> getHexes() { return hexes; }
+    public List<Unit> getUnits() { return units; }
+    public TownHall getTownHall() { return townHall; }
+    public int getCurrentTurn() { return currentTurn; }
+    public boolean isStarving() { return isStarving; }
+    public void setStarving(boolean starving) { this.isStarving = starving; }
+
+    public Hex getHexAt(int q, int r) {
+        for (Hex hex : hexes) {
+            if (hex.getQ() == q && hex.getR() == r) return hex;
+        }
+        return null;
     }
 }
