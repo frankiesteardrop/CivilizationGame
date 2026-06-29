@@ -135,57 +135,62 @@ public class HUDPanel extends JPanel implements GameEventListener {
     // =========================================================
     // رندر HUD
     // =========================================================
-
     private void updateHUD() {
         infoContainer.removeAll();
 
         GameMap map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
-        int max = inv.getMaxCapacity();
+
+        // اصلاح گام ۴: هر منبع ظرفیت جداگانه دارد
+        int maxFood  = inv.getCapacity(ResourceType.FOOD);
+        int maxWood  = inv.getCapacity(ResourceType.WOOD);
+        int maxStone = inv.getCapacity(ResourceType.STONE);
+        int maxIron  = inv.getCapacity(ResourceType.IRON);
 
         int netFood  = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
         int netWood  = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
         int netStone = EconomyManager.calculateNetProduction(map, ResourceType.STONE);
         int netIron  = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
 
-        // کارت‌های منابع
-        infoContainer.add(createResourceCard(
-                "🍔 Food",  inv.getResourceAmount(ResourceType.FOOD),  max, netFood,  new Color(46, 204, 113)));
-        infoContainer.add(createResourceCard(
-                "🪵 Wood",  inv.getResourceAmount(ResourceType.WOOD),  max, netWood,  new Color(211, 84, 0)));
-        infoContainer.add(createResourceCard(
-                "🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, netStone, new Color(149, 165, 166)));
-        infoContainer.add(createResourceCard(
-                "⚙️ Iron",  inv.getResourceAmount(ResourceType.IRON),  max, netIron,  new Color(243, 156, 18)));
+        infoContainer.add(createResourceCard("🍔 Food",
+                inv.getResourceAmount(ResourceType.FOOD),  maxFood,  netFood,
+                new Color(46, 204, 113)));
+        infoContainer.add(createResourceCard("🪵 Wood",
+                inv.getResourceAmount(ResourceType.WOOD),  maxWood,  netWood,
+                new Color(211, 84, 0)));
+        infoContainer.add(createResourceCard("🪨 Stone",
+                inv.getResourceAmount(ResourceType.STONE), maxStone, netStone,
+                new Color(149, 165, 166)));
+        infoContainer.add(createResourceCard("⚙️ Iron",
+                inv.getResourceAmount(ResourceType.IRON),  maxIron,  netIron,
+                new Color(243, 156, 18)));
 
         // کارت صف تولید
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         String queueText;
         Color queueColor;
-
         if (currentTask != null) {
             if (isStarving) {
-                queueText = currentTask.getName()
-                        + " (" + currentTask.getTurnsRemaining() + "T)"
-                        + " <span style='color:#e74c3c;'>❄️ FROZEN</span>";
+                queueText  = currentTask.getName() + " (" + currentTask.getTurnsRemaining()
+                        + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>";
                 queueColor = new Color(231, 76, 60);
             } else {
-                queueText = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
+                queueText  = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
                 queueColor = new Color(241, 196, 15);
             }
         } else {
-            queueText = "<span style='color:#7f8c8d;'>Idle</span>";
+            queueText  = "<span style='color:#7f8c8d;'>Idle</span>";
             queueColor = new Color(127, 140, 141);
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        // کارت جمعیت + تفکیک نوع یونیت‌ها
+        // کارت جمعیت
         int expCount = 0, buildCount = 0, workCount = 0, expndCount = 0;
         for (Unit u : map.getUnits()) {
             if (!u.isAlive()) continue;
-            if (u instanceof Explorer)      expCount++;
-            else if (u instanceof Builder)  buildCount++;
-            else if (u instanceof Worker)   workCount++;
+            if      (u instanceof Explorer)       expCount++;
+            else if (u instanceof Builder)        buildCount++;
+            else if (u instanceof Worker)         workCount++;
             else if (u instanceof BorderExpander) expndCount++;
         }
         String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap()
@@ -194,14 +199,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 + " W:" + workCount + " X:" + expndCount + ")</span>";
         infoContainer.add(createCard("👥 Pop", unitText, new Color(52, 152, 219), false));
 
-        // کارت شماره نوبت
-        infoContainer.add(createCard(
-                "⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
+        // کارت نوبت
+        infoContainer.add(createCard("⏳ Turn",
+                String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
 
         // هشدار قحطی
-        if (isStarving) {
-            infoContainer.add(createStarvationCard());
-        }
+        if (isStarving) infoContainer.add(createStarvationCard());
 
         infoContainer.revalidate();
         infoContainer.repaint();
