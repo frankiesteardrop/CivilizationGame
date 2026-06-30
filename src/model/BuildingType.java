@@ -10,7 +10,8 @@ public enum BuildingType {
 
     IRON_MINE(2, 40, 15, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2),
 
-    FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.FOOD, 1),
+    // اصلاح گام ۲: هزینه نگهداری Farm به جای غذا، به چوب (WOOD) تغییر یافت
+    FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.WOOD, 1),
 
     STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1),
 

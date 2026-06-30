@@ -10,7 +10,7 @@ public class Hex {
 
     // سیستم جدید چندمنبعی (Multi-Resource System)
     private final Map<ResourceType, Integer> resources;
-    private final Map<ResourceType, Integer> capacities;
+    // کدهای مرده ظرفیت (capacities) پاکسازی شد
 
     private boolean isExplored;
     private boolean isInsideBorder;
@@ -21,7 +21,6 @@ public class Hex {
         this.r = r;
         this.terrainType = terrainType;
         this.resources = new HashMap<>();
-        this.capacities = new HashMap<>();
         this.isExplored = false;
         this.isInsideBorder = false;
         this.building = null;
@@ -38,10 +37,9 @@ public class Hex {
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
 
-    // متدهای جدید مدیریت منابع
+    // متدهای مدیریت منابع
     public void addResource(ResourceType type, int amount) {
         resources.put(type, amount);
-        capacities.put(type, amount);
     }
 
     public boolean hasResource(ResourceType type) {
@@ -64,17 +62,8 @@ public class Hex {
         return true;
     }
 
-    // --- آداپتورهای سازگاری برای GamePanel (لایه گرافیک) ---
-    public ResourceType getResourceType() {
-        if (resources.isEmpty() || isResourceDepleted()) return ResourceType.NONE;
-        // اولویت نمایش در گرافیک با منابع استراتژیک است
-        if (hasResource(ResourceType.IRON)) return ResourceType.IRON;
-        if (hasResource(ResourceType.STONE)) return ResourceType.STONE;
-        return resources.keySet().iterator().next();
-    }
-
-    public int getResourceAmount() {
-        ResourceType primary = getResourceType();
-        return primary == ResourceType.NONE ? 0 : resources.get(primary);
+    // اصلاح گام ۲: متد جدید برای بازگرداندن کل ساختار منابع جهت نمایش حرفه‌ای در لایه View
+    public Map<ResourceType, Integer> getResources() {
+        return resources;
     }
 }

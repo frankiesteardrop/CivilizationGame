@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.Random;
 
 public class GameMap {
-    private final List<Hex> hexes;
-    private final List<Unit> units;
+    // اصلاح گام ۲: استفاده از ساختار Generic (Repository)
+    private final Repository<Hex> hexes;
+    private final Repository<Unit> units;
     private final int radius;
     private final Random random;
     private final TownHall townHall;
@@ -15,14 +16,14 @@ public class GameMap {
 
     public GameMap(int radius) {
         this.radius = radius;
-        this.hexes = new ArrayList<>();
-        this.units = new ArrayList<>();
+        this.hexes = new Repository<>();
+        this.units = new Repository<>();
         this.townHall = new TownHall(0, 0);
         this.random = new Random();
 
         generateMap();
         spawnInitialUnits();
-        updateFogOfWar();
+        // اصلاح گام ۲: فراخوانی updateFogOfWar حذف شد تا مه‌جنگ نقض نشود
     }
 
     // =========================================================
@@ -34,6 +35,7 @@ public class GameMap {
             int r2 = Math.min(radius, -q + radius);
             for (int r = r1; r <= r2; r++) {
 
+                // اصلاح گام ۲: فقط مرکز اکتشاف شده و دارای مرز است
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
@@ -68,11 +70,6 @@ public class GameMap {
                         break;
                 }
 
-                // هکس‌های شعاع ۱ از مرکز از ابتدا کشف‌شده و داخل مرز هستند
-                if (getHexDistance(townHall.getQ(), townHall.getR(), q, r) <= 1) {
-                    newHex.setExplored(true);
-                    newHex.setInsideBorder(true);
-                }
                 hexes.add(newHex);
             }
         }
@@ -88,7 +85,7 @@ public class GameMap {
         boolean hasForestNear = false;
         List<Hex> availableCandidates = new ArrayList<>();
 
-        for (Hex hex : hexes) {
+        for (Hex hex : hexes.getAll()) {
             int dist = getHexDistance(townHall.getQ(), townHall.getR(),
                     hex.getQ(), hex.getR());
             if (dist > 0 && dist <= 2) {
@@ -128,20 +125,9 @@ public class GameMap {
     // چرخه نوبت — ترتیب صحیح طبق داک
     // =========================================================
 
-    /**
-     * اجرای چرخه پایان نوبت به ترتیب دقیق طبق داک:
-     *
-     * ۱. تجدید AP همه یونیت‌های زنده
-     * ۲. تولید منابع + پیشرفت صف تولید (فاز ۱ و ۲ در EconomyManager)
-     * ۳. کسر Upkeep (فاز ۳ در EconomyManager)
-     * ۴. کسر غذا + تشخیص Starvation (فاز ۴ در EconomyManager)
-     * ۵. اعمال پنالتی AP در صورت Starvation
-     * ۶. حذف یونیت‌های مرده از لیست
-     * ۷. افزایش شمارنده نوبت
-     */
     public void nextTurn() {
-        // مرحله ۱: تجدید AP همه یونیت‌های زنده (طبق داک — اولین کار در ابتدای نوبت جدید)
-        for (Unit unit : units) {
+        // مرحله ۱: تجدید AP همه یونیت‌های زنده
+        for (Unit unit : units.getAll()) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
@@ -151,16 +137,15 @@ public class GameMap {
         isStarving = EconomyManager.processEndTurn(this);
 
         // مرحله ۵: اعمال پنالتی Starvation روی AP یونیت‌ها
-        // (بعد از resetAP اجرا می‌شود تا AP همیشه کمتر از maxAP باشد)
         if (isStarving) {
-            for (Unit unit : units) {
+            for (Unit unit : units.getAll()) {
                 if (unit.isAlive()) {
                     unit.consumeAP(1);
                 }
             }
         }
 
-        // مرحله ۶: پاکسازی یونیت‌های مرده از لیست فعال
+        // مرحله ۶: پاکسازی یونیت‌های مرده از لیست فعال (با استفاده از متد Repository)
         units.removeIf(u -> !u.isAlive());
 
         // مرحله ۷: پیشرفت شمارنده نوبت
@@ -171,24 +156,16 @@ public class GameMap {
     // سیستم مه‌جنگ (Fog of War)
     // =========================================================
 
-    /**
-     * آپدیت کامل Fog of War بر اساس موقعیت همه یونیت‌ها و ساختمان‌ها.
-     * اصلاح: استفاده از مختصات واقعی TownHall به جای هاردکد (0,0)
-     */
     public void updateFogOfWar() {
-        // دید TownHall — شعاع ۲ هکس از موقعیت واقعی آن
-        for (Hex hex : hexes) {
-            if (getHexDistance(townHall.getQ(), townHall.getR(),
-                    hex.getQ(), hex.getR()) <= 2) {
-                hex.setExplored(true);
-            }
-        }
+        // اصلاح گام ۲: دید TownHall فقط خود هکس است (عدم افشای غیرمجاز نقشه)
+        Hex thHex = getHexAt(townHall.getQ(), townHall.getR());
+        if (thHex != null) thHex.setExplored(true);
 
         // دید یونیت‌های زنده
-        for (Unit unit : units) {
+        for (Unit unit : units.getAll()) {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
-            for (Hex hex : hexes) {
+            for (Hex hex : hexes.getAll()) {
                 if (getHexDistance(unit.getQ(), unit.getR(),
                         hex.getQ(), hex.getR()) <= visionRadius) {
                     hex.setExplored(true);
@@ -197,10 +174,10 @@ public class GameMap {
         }
 
         // دید ساختمان‌های فعال (شعاع ۱ هکس)
-        for (Hex hex : hexes) {
+        for (Hex hex : hexes.getAll()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed()) {
-                for (Hex other : hexes) {
+                for (Hex other : hexes.getAll()) {
                     if (getHexDistance(hex.getQ(), hex.getR(),
                             other.getQ(), other.getR()) <= 1) {
                         other.setExplored(true);
@@ -214,10 +191,6 @@ public class GameMap {
     // توسعه مرز
     // =========================================================
 
-    /**
-     * افزودن هکس مرکزی و ۶ همسایه آن به مرزهای امپراتوری.
-     * فقط هکس‌هایی که قبلاً کشف شده‌اند می‌توانند به مرز اضافه شوند.
-     */
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
         if (centerHex != null && centerHex.isExplored()) {
@@ -237,13 +210,9 @@ public class GameMap {
     // متدهای کمکی
     // =========================================================
 
-    /**
-     * محاسبه Unit Cap فعلی بر اساس تعداد Settlement‌های فعال.
-     * مقدار پایه: ۱۰ یونیت. هر Settlement: +۵ یونیت.
-     */
     public int getUnitCap() {
         int cap = 10;
-        for (Hex h : hexes) {
+        for (Hex h : hexes.getAll()) {
             Building b = h.getBuilding();
             if (b != null && b.getType() == BuildingType.SETTLEMENT && !b.isDestroyed()) {
                 cap += 5;
@@ -252,9 +221,6 @@ public class GameMap {
         return cap;
     }
 
-    /**
-     * محاسبه فاصله بین دو هکس با فرمول استاندارد Axial Coordinates.
-     */
     public int getHexDistance(int q1, int r1, int q2, int r2) {
         return (Math.abs(q1 - q2)
                 + Math.abs(q1 + r1 - q2 - r2)
@@ -266,27 +232,24 @@ public class GameMap {
         return terrains[random.nextInt(terrains.length)];
     }
 
+    // اصلاح گام ۲: استفاده از مفهوم قدرتمند Streams برای فیلتر و شمارش
     public int getAliveUnitsCount() {
-        int count = 0;
-        for (Unit u : units) {
-            if (u.isAlive()) count++;
-        }
-        return count;
+        return (int) units.stream().filter(Unit::isAlive).count();
     }
 
     // =========================================================
     // Getters
     // =========================================================
 
-    public List<Hex> getHexes() { return hexes; }
-    public List<Unit> getUnits() { return units; }
+    public List<Hex> getHexes() { return hexes.getAll(); }
+    public List<Unit> getUnits() { return units.getAll(); }
     public TownHall getTownHall() { return townHall; }
     public int getCurrentTurn() { return currentTurn; }
     public boolean isStarving() { return isStarving; }
     public void setStarving(boolean starving) { this.isStarving = starving; }
 
     public Hex getHexAt(int q, int r) {
-        for (Hex hex : hexes) {
+        for (Hex hex : hexes.getAll()) {
             if (hex.getQ() == q && hex.getR() == r) return hex;
         }
         return null;
