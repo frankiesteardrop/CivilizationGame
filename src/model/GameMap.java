@@ -23,7 +23,9 @@ public class GameMap {
 
         generateMap();
         spawnInitialUnits();
-        // اصلاح گام ۲: فراخوانی updateFogOfWar حذف شد تا مه‌جنگ نقض نشود
+
+        // هات‌فیکس: فراخوانی مجدد مه‌جنگ برای جلوگیری از نامرئی شدن یونیت‌ها در ابتدای بازی
+        updateFogOfWar();
     }
 
     // =========================================================
@@ -157,9 +159,13 @@ public class GameMap {
     // =========================================================
 
     public void updateFogOfWar() {
-        // اصلاح گام ۲: دید TownHall فقط خود هکس است (عدم افشای غیرمجاز نقشه)
-        Hex thHex = getHexAt(townHall.getQ(), townHall.getR());
-        if (thHex != null) thHex.setExplored(true);
+        // هات‌فیکس: دید TownHall — شعاع ۱ (طبق صورت‌سوال: هکس‌های اطراف Town Hall)
+        for (Hex hex : hexes.getAll()) {
+            if (getHexDistance(townHall.getQ(), townHall.getR(),
+                    hex.getQ(), hex.getR()) <= 1) {
+                hex.setExplored(true);
+            }
+        }
 
         // دید یونیت‌های زنده
         for (Unit unit : units.getAll()) {

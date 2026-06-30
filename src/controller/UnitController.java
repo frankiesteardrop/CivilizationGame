@@ -18,7 +18,8 @@ public class UnitController {
     public boolean canMove(Unit unit, Hex targetHex) {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
-        if (!targetHex.isExplored()) return false;
+
+        // هات‌فیکس: خط محدودکننده کاوش پاک شد تا یونیت‌ها بتوانند در تاریکی قدم بگذارند و نقشه کشف شود.
 
         int dq = targetHex.getQ() - unit.getQ();
         int dr = targetHex.getR() - unit.getR();
