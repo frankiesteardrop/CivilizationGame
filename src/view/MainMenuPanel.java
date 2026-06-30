@@ -40,7 +40,8 @@ public class MainMenuPanel extends JPanel {
         JButton exitButton = new JButton("Exit");
         exitButton.setFont(new Font("Arial", Font.BOLD, 20));
         exitButton.setFocusPainted(false);
-        exitButton.addActionListener(e -> exitGame());
+        // اصلاح گام ۴: استفاده مستقیم از متد MainFrame برای رعایت اصل DRY
+        exitButton.addActionListener(e -> mainFrame.exitGameSafely());
         gbc.gridy = 3;
         add(exitButton, gbc);
     }
@@ -62,16 +63,5 @@ public class MainMenuPanel extends JPanel {
         panel.add(volumeSlider, BorderLayout.CENTER);
 
         JOptionPane.showMessageDialog(this, panel, "Settings", JOptionPane.PLAIN_MESSAGE);
-    }
-
-    private void exitGame() {
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to exit the game?",
-                "Exit Confirmation",
-                JOptionPane.YES_NO_OPTION);
-
-        if (confirm == JOptionPane.YES_OPTION) {
-            System.exit(0);
-        }
     }
 }

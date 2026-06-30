@@ -9,14 +9,6 @@ import java.awt.event.MouseEvent;
 
 /**
  * پنل HUD بازی — نمایش همیشه‌نمایان اطلاعات امپراتوری.
- *
- * اصلاح گام ۶:
- * - updateHUD از getCapacity(type) استفاده می‌کند (per-resource)
- * - onBuildingConstructed: به جای فقط repaint، ابتدا
- *   updateFogOfWar را صدا می‌زند تا شعاع دید ساختمان جدید
- *   بلافاصله در رندر بعدی منعکس شود
- * - showStarvationAlert یک‌بار نمایش داده می‌شود نه در هر Turn
- * - هشدار قحطی در HUDPanel ثابت می‌ماند تا وضعیت برطرف شود
  */
 public class HUDPanel extends JPanel implements GameEventListener {
 
@@ -27,8 +19,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
     private boolean confirmIdleMode = false;
     private boolean isStarving = false;
-
-    // اصلاح گام ۶: نمایش alert قحطی فقط یک بار
     private boolean starvationAlertShown = false;
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
@@ -52,10 +42,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         GameEventDispatcher.addListener(this);
         updateHUD();
     }
-
-    // =========================================================
-    // ساخت دکمه End Turn
-    // =========================================================
 
     private JButton buildEndTurnButton() {
         JButton btn = new JButton("END TURN");
@@ -85,10 +71,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 ? new Color(230, 126, 34)
                 : new Color(192, 57, 43));
     }
-
-    // =========================================================
-    // پیاده‌سازی GameEventListener
-    // =========================================================
 
     @Override
     public void onResourceChanged(ResourceType type, int newAmount) {
@@ -158,18 +140,13 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
-    // اصلاح گام دوم: هندل کردن رندرینگ ویرانه‌ها در صورت تخریب ساختمان
     @Override
     public void onBuildingDestroyed(Hex hex) {
         SwingUtilities.invokeLater(() -> {
-            updateHUD(); // برای آپدیت تغییرات در منابع مصرفی (Upkeep)
-            gamePanel.repaint(); // رفرش نقشه برای نمایش گرافیک ویرانه
+            updateHUD();
+            gamePanel.repaint();
         });
     }
-
-    // =========================================================
-    // رندر HUD
-    // =========================================================
 
     private void updateHUD() {
         infoContainer.removeAll();
@@ -226,14 +203,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        int expCount = 0, buildCount = 0, workCount = 0, expndCount = 0;
-        for (Unit u : map.getUnits()) {
-            if (!u.isAlive()) continue;
-            if      (u instanceof Explorer)       expCount++;
-            else if (u instanceof Builder)        buildCount++;
-            else if (u instanceof Worker)         workCount++;
-            else if (u instanceof BorderExpander) expndCount++;
-        }
+        // اصلاح گام ۴: استفاده از Streams برای شمارش یونیت‌ها
+        long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
+        long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
+        long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
+        long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
+
         String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap()
                 + " <span style='font-size:10px; color:#bdc3c7;'>"
                 + "(E:" + expCount
@@ -255,10 +230,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.revalidate();
         infoContainer.repaint();
     }
-
-    // =========================================================
-    // متدهای کمکی ساخت کارت‌ها
-    // =========================================================
 
     private JPanel createResourceCard(String title, int amount, int max,
                                       int net, Color accentColor) {
@@ -316,10 +287,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         card.add(label, BorderLayout.CENTER);
         return card;
     }
-
-    // =========================================================
-    // Notification Dialogs
-    // =========================================================
 
     private void showStarvationAlert() {
         JDialog alert = new JDialog(
@@ -389,11 +356,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.start();
     }
 
-    // =========================================================
-    // هندل کردن دکمه End Turn
-    // =========================================================
-
+    // اصلاح گام ۴: جلوگیری از پایان نوبت حین انیمیشن (رفع باگ ۱۲)
     private void handleEndTurn() {
+        if (gamePanel.isAnimating()) return;
+
         if (!confirmIdleMode
                 && mainController.getTurnController().hasIdleUnits()) {
             confirmIdleMode = true;

@@ -56,12 +56,6 @@ public class MainFrame extends JFrame {
 
     /**
      * شروع یک بازی جدید.
-     *
-     * اصلاح گام ۴: هر بار که این متد صدا زده می‌شود:
-     * ۱. تمام listener‌های قدیمی پاکسازی می‌شوند (جلوگیری از Memory Leak)
-     * ۲. یک GameMap جدید با نقشه تازه تولید می‌شود
-     * ۳. یک MainController جدید روی آن GameMap ساخته می‌شود
-     * ۴. UI بازی کاملاً از نو ساخته می‌شود
      */
     public void startGame() {
         // مرحله ۱: پاکسازی کامل listener‌های قدیمی
@@ -96,7 +90,6 @@ public class MainFrame extends JFrame {
 
     /**
      * بازگشت به منوی اصلی بدون خروج از برنامه.
-     * برای دکمه‌ای که ممکن است در آینده به بازی اضافه شود.
      */
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();
@@ -105,8 +98,9 @@ public class MainFrame extends JFrame {
 
     /**
      * خروج ایمن از بازی با Pop-up تأییدیه.
+     * اصلاح گام ۴: تبدیل به public برای استفاده در منوی اصلی (DRY Principle)
      */
-    private void exitGameSafely() {
+    public void exitGameSafely() {
         int confirm = JOptionPane.showConfirmDialog(
                 this,
                 "Are you sure you want to exit the game?",

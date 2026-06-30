@@ -62,8 +62,7 @@ public class EconomyManager {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
-                    // اصلاح گام دوم: حذف hex.setBuilding(null) تا ساختمان به عنوان ویرانه در نقشه بماند
-                    GameEventDispatcher.fireBuildingDestroyed(hex); // شلیک رویداد صحیح
+                    GameEventDispatcher.fireBuildingDestroyed(hex);
                 }
             } else {
                 b.resetFailedUpkeep();
@@ -74,10 +73,10 @@ public class EconomyManager {
     private static boolean processFoodConsumption(GameMap map) {
         Inventory inventory = map.getTownHall().getInventory();
 
-        int totalFoodNeeded = 0;
-        for (Unit u : map.getUnits()) {
-            if (u.isAlive()) totalFoodNeeded += u.getFoodConsumption();
-        }
+        // اصلاح گام ۴: استفاده از جاوا Streams برای بهینه‌سازی و رعایت اهداف آموزشی
+        int totalFoodNeeded = map.getUnits().stream()
+                .filter(Unit::isAlive)
+                .mapToInt(Unit::getFoodConsumption).sum();
 
         if (totalFoodNeeded == 0) return false;
 

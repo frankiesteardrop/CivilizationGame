@@ -38,13 +38,16 @@ public class GamePanel extends JPanel {
 
     private final Timer animationTimer;
 
+    // اصلاح گام ۴: فیلدهای لازم برای چرخش بین یونیت‌های هم‌پوشان
+    private Hex lastClickedHex = null;
+    private int unitCycleIndex = 0;
+
     public GamePanel(MainController mainController) {
         this.mainController = mainController;
         setBackground(new Color(15, 18, 22));
         setFocusable(true);
-        setToolTipText("");
-        ToolTipManager.sharedInstance().setInitialDelay(300);
-        ToolTipManager.sharedInstance().setDismissDelay(8000);
+
+        // تول‌تیپ‌ها در اصلاح گام ۴ کاملاً و بی‌رحمانه ریشه‌کن شدند
 
         animationTimer = new Timer(16, e -> {
             updateAnimation();
@@ -55,6 +58,11 @@ public class GamePanel extends JPanel {
 
         setupMouseListeners();
         setupMouseWheelListener();
+    }
+
+    // اصلاح گام ۴: متد کمکی تشخیص انیمیشن
+    public boolean isAnimating() {
+        return animatingUnit != null;
     }
 
     // =========================================================
@@ -137,12 +145,15 @@ public class GamePanel extends JPanel {
     // =========================================================
 
     private void handleRightClick(MouseEvent e, Hex clickedHex) {
-        if (clickedHex.getBuilding() != null
-                && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL
-                && selectedUnit == null) {
-            showTownHallMenu(e);
-            return;
+        // اصلاح گام ۴: لغو انتخاب خودکار برای راحتی کلیک روی TownHall
+        if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
+            if (selectedUnit == null || !(selectedUnit instanceof Worker)) {
+                selectedUnit = null; // Deselect خودکار
+                showTownHallMenu(e);
+                return;
+            }
         }
+
         if (selectedUnit != null
                 && selectedUnit.getQ() == clickedHex.getQ()
                 && selectedUnit.getR() == clickedHex.getR()) {
@@ -154,69 +165,6 @@ public class GamePanel extends JPanel {
                 handleMovementCommand(clickedHex);
             }
         }
-    }
-
-    // =========================================================
-    // Tooltip
-    // =========================================================
-
-    @Override
-    public String getToolTipText(MouseEvent e) {
-        Hex hex = getHexAtPixel(e.getPoint());
-        if (hex == null || !hex.isExplored()) return null;
-
-        StringBuilder html = new StringBuilder(
-                "<html><body style='background-color:#1e2229; color:white; "
-                        + "padding:6px; font-family:Segoe UI; font-size:12px;'>");
-
-        html.append("<b style='color:#00BFFF;'>")
-                .append(hex.getTerrainType().name()).append("</b>");
-
-        if (hex.getResourceType() != ResourceType.NONE) {
-            html.append(" — Resource: <b>").append(hex.getResourceType().name()).append("</b>");
-            if (hex.isResourceDepleted()) {
-                html.append(" <span style='color:#e74c3c;'>(DEPLETED)</span>");
-            }
-        } else {
-            html.append(" <span style='color:#7f8c8d;'>(No Resource)</span>");
-        }
-        html.append("<br/>");
-
-        Building b = hex.getBuilding();
-        if (b != null) {
-            html.append("<hr style='border-color:#444;'/>");
-            html.append("<b style='color:#FFD700;'>").append(b.getType().name()).append("</b><br/>");
-            if (b.isDestroyed()) {
-                html.append("<span style='color:#e74c3c;'>⚠ DESTROYED</span>");
-            } else if (b.getType() != BuildingType.TOWN_HALL) {
-                html.append("Workers: ").append(b.getStationedWorkers())
-                        .append("/").append(b.getMaxWorkers()).append("<br/>");
-                html.append("Production: <b>+").append(b.calculateProduction(mainController.getGameMap().getTownHall()))
-                        .append("</b>/Turn<br/>");
-                html.append("Upkeep: -").append(b.getUpkeepAmount())
-                        .append(" ").append(b.getUpkeepResource().name()).append("/Turn");
-            }
-        }
-
-        for (Unit u : mainController.getGameMap().getUnits()) {
-            if (!u.isAlive()) continue;
-            if (u.getQ() != hex.getQ() || u.getR() != hex.getR()) continue;
-            html.append("<hr style='border-color:#444;'/>");
-            html.append("<b style='color:#32CD32;'>")
-                    .append(u.getClass().getSimpleName()).append("</b><br/>");
-            html.append("AP: <b>").append(u.getCurrentAP())
-                    .append("/").append(u.getMaxAP()).append("</b>");
-            if (u instanceof Builder)
-                html.append("<br/>Charges: <b>").append(((Builder) u).getCharges()).append("</b>");
-            if (u instanceof Worker && ((Worker) u).isStationed())
-                html.append(" <span style='color:#FFA500;'>(Stationed)</span>");
-            if (u instanceof BorderExpander)
-                html.append("<br/>Expand Cost: <b>-")
-                        .append(BorderExpander.getExpandApCost()).append(" AP</b>");
-        }
-
-        html.append("</body></html>");
-        return html.toString();
     }
 
     // =========================================================
@@ -398,8 +346,12 @@ public class GamePanel extends JPanel {
                 + BorderExpander.getExpandApCost() + " AP, unit consumed)");
         styleMenuItem(expandItem);
         if (!canExpand) expandItem.setEnabled(false);
+
+        // اصلاح گام ۴ (و رفع باگ ۷): واگذاری هندل کردن مرزگشا به UnitController در لایه Controller
         expandItem.addActionListener(ev -> {
-            if (expander.expandBorder(mainController.getGameMap())) selectedUnit = null;
+            if (mainController.getUnitController().handleExpandBorder(expander, mainController.getGameMap())) {
+                selectedUnit = null;
+            }
             repaint();
         });
         popup.add(expandItem);
@@ -428,15 +380,24 @@ public class GamePanel extends JPanel {
     // متدهای کمکی حرکت و انتخاب
     // =========================================================
 
+    // اصلاح گام ۴: پیاده‌سازی سیستم هوشمند Cycle Selection
     private void selectUnitAt(Hex hex) {
-        selectedUnit = null;
-        for (Unit u : mainController.getGameMap().getUnits()) {
-            if (!u.isAlive()) continue;
-            if (u.getQ() == hex.getQ() && u.getR() == hex.getR()) {
-                selectedUnit = u;
-                break;
-            }
+        java.util.List<Unit> unitsOnHex = mainController.getGameMap().getUnits().stream()
+                .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
+                .collect(java.util.stream.Collectors.toList());
+
+        if (unitsOnHex.isEmpty()) {
+            selectedUnit = null;
+            return;
         }
+
+        if (hex == lastClickedHex) {
+            unitCycleIndex = (unitCycleIndex + 1) % unitsOnHex.size();
+        } else {
+            unitCycleIndex = 0;
+            lastClickedHex = hex;
+        }
+        selectedUnit = unitsOnHex.get(unitCycleIndex);
     }
 
     private void handleMovementCommand(Hex targetHex) {
@@ -452,10 +413,6 @@ public class GamePanel extends JPanel {
         animProgress = 0.0;
     }
 
-    /**
-     * اصلاح گام چهارم:
-     * انتقال فرمان حرکت و آپدیت مه‌جنگ به Controller برای حفظ یکپارچگی MVC.
-     */
     private void updateAnimation() {
         if (animatingUnit == null) return;
         animProgress += 0.08;
@@ -464,7 +421,6 @@ public class GamePanel extends JPanel {
             GameMap map = mainController.getGameMap();
             Hex targetHex = map.getHexAt(animTargetQ, animTargetR);
 
-            // واگذاری کامل مسئولیت به کنترلر
             mainController.getUnitController().executeMove(animatingUnit, targetHex, map);
 
             animatingUnit = null;
@@ -575,10 +531,9 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        boolean hasActiveResource = hex.getResourceType() != ResourceType.NONE
-                && !hex.isResourceDepleted();
-        boolean hasDepletedResource = hex.getResourceType() != ResourceType.NONE
-                && hex.isResourceDepleted();
+        // اصلاح گام ۴: تطبیق رندر زمین با تغییرات چندمنبعی Hex در فاز ۲
+        boolean hasActiveResource = !hex.getResources().isEmpty() && !hex.isResourceDepleted();
+        boolean hasDepletedResource = !hex.getResources().isEmpty() && hex.isResourceDepleted();
 
         Color topColor, baseColor;
 
@@ -606,8 +561,7 @@ public class GamePanel extends JPanel {
                 break;
             case MOUNTAIN:
                 if (hasActiveResource) {
-                    ResourceType rt = hex.getResourceType();
-                    if (rt == ResourceType.IRON) {
+                    if (hex.hasResource(ResourceType.IRON)) {
                         topColor  = new Color(140, 120, 100);
                         baseColor = new Color(80,  65,  55);
                     } else {
@@ -672,22 +626,29 @@ public class GamePanel extends JPanel {
     private void drawHexDetails(Graphics2D g2d, Hex hex) {
         Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
 
-        drawResourceIcon(g2d, hex, pt);
+        // اصلاح گام ۴: رندر همزمان تمام منابع یک هکس (مثلاً آهن و سنگ کنار هم)
+        int offset = 0;
+        for (ResourceType rt : hex.getResources().keySet()) {
+            if (rt == ResourceType.NONE) continue;
+            drawResourceIcon(g2d, hex, new Point(pt.x + offset, pt.y), rt);
+            offset += (int)(18 * zoomFactor);
+        }
 
         if (hex.getBuilding() != null) {
             drawBuildingIcon(g2d, hex.getBuilding(), pt, (int)(22 * zoomFactor));
         }
     }
 
-    private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt) {
-        ResourceType rt = hex.getResourceType();
+    // اصلاح گام ۴: دریافت ResourceType خاص به عنوان ورودی برای تفکیک رندر
+    private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt, ResourceType rt) {
         if (rt == ResourceType.NONE) return;
 
         int iconSize = Math.max(8, (int)(20 * zoomFactor));
         int iconX = pt.x - (int)(HEX_SIZE * 0.55 * zoomFactor);
         int iconY = pt.y - (int)(HEX_SIZE * 0.70 * zoomFactor);
 
-        if (hex.isResourceDepleted()) {
+        // بررسی Deplete بودن مختص همین منبع
+        if (hex.getResources().getOrDefault(rt, 0) <= 0) {
             g2d.setColor(new Color(50, 50, 50, 210));
             g2d.fillOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
             g2d.setColor(new Color(180, 30, 30));
