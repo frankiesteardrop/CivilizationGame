@@ -6,6 +6,8 @@ import model.Unit;
 import model.Worker;
 import model.Building;
 import model.BuildingType;
+import model.BorderExpander;
+import model.GameConfig;
 
 /**
  * کنترلر مدیریت اقدامات یونیت‌ها.
@@ -69,5 +71,15 @@ public class UnitController {
 
     public boolean canEject(Worker worker) {
         return worker != null && worker.isAlive() && worker.isStationed();
+    }
+
+    // اصلاح گام ۳ (باگ ۷): اضافه شدن هندلر BorderExpander جهت حفظ کامل الگوی MVC
+    public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
+        if (!expander.canExpand(map)) return false;
+        expander.consumeAP(GameConfig.EXPAND_AP_COST);
+        map.expandBorderAt(expander.getQ(), expander.getR());
+        map.updateFogOfWar();
+        expander.kill();
+        return true;
     }
 }

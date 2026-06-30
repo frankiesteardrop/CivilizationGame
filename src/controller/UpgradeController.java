@@ -14,7 +14,8 @@ public class UpgradeController {
     // ثابت‌های اقتصادی بازی (Centralized Game Balance Values)
     // =========================================================
 
-    // هزینه‌های ارتقای انبار
+    // هزینه‌های ارتقای انبار (موقتاً برای سازگاری با HUD حفظ شده‌اند،
+    // اما منطق اصلی از GameConfig خوانده می‌شود)
     public static final int WAREHOUSE_WOOD_COST = 100;
     public static final int WAREHOUSE_STONE_COST = 50;
 
@@ -59,9 +60,13 @@ public class UpgradeController {
         TownHall th = gameMap.getTownHall();
         if (th.getWarehouseUpgradeLevel() >= 2) return false;
 
+        // اصلاح گام ۳ (باگ ۱۹): خواندن داینامیک هزینه ارتقا بسته به سطح انبار از روی GameConfig
+        int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
+        int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
+
         Inventory inv = th.getInventory();
-        return inv.hasEnough(ResourceType.WOOD,  WAREHOUSE_WOOD_COST)
-                && inv.hasEnough(ResourceType.STONE, WAREHOUSE_STONE_COST);
+        return inv.hasEnough(ResourceType.WOOD, woodCost)
+                && inv.hasEnough(ResourceType.STONE, stoneCost);
     }
 
     public boolean canUnlockTech(String techType) {
@@ -94,10 +99,9 @@ public class UpgradeController {
     public boolean canTrainUnit(String unitType) {
         TownHall th = gameMap.getTownHall();
 
-        int futurePopulation = gameMap.getAliveUnitsCount() + (th.isProductionQueueEmpty() ? 0 : 1);
-        if (futurePopulation >= gameMap.getUnitCap()) return false;
-
+        // اصلاح گام ۳ (باگ ۱۷): پاکسازی کدهای مرده و اعمال دقیق منطق چک کردن جمعیت و صف تک‌آیتمی
         if (!th.isProductionQueueEmpty()) return false;
+        if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return false;
 
         Inventory inv = th.getInventory();
 
@@ -119,8 +123,13 @@ public class UpgradeController {
         if (!canAffordWarehouseUpgrade()) return;
         TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
-        inv.consumeResource(ResourceType.WOOD,  WAREHOUSE_WOOD_COST);
-        inv.consumeResource(ResourceType.STONE, WAREHOUSE_STONE_COST);
+
+        // اصلاح گام ۳ (باگ ۱۹): خواندن داینامیک هزینه ارتقا بسته به سطح انبار از روی GameConfig
+        int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
+        int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
+
+        inv.consumeResource(ResourceType.WOOD, woodCost);
+        inv.consumeResource(ResourceType.STONE, stoneCost);
         th.upgradeWarehouse();
     }
 

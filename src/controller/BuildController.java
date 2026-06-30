@@ -8,8 +8,8 @@ import model.*;
  * اصلاح گام ۶:
  * - canBuild اصلاح شد: بررسی‌های null-safe تر
  * - buildStructure: updateFogOfWar قبل از fireBuildingConstructed
- *   صدا زده می‌شود تا HUDPanel و GamePanel بلافاصله شعاع دید
- *   جدید ساختمان را ببینند
+ * صدا زده می‌شود تا HUDPanel و GamePanel بلافاصله شعاع دید
+ * جدید ساختمان را ببینند
  * - کامنت‌های دقیق برای هر مرحله ساخت اضافه شد
  */
 public class BuildController {
@@ -29,7 +29,7 @@ public class BuildController {
      *
      * شرایط عمومی:
      * - هکس داخل مرز باشد
-     * - هکس ساختمان نداشته باشد
+     * - هکس ساختمان نداشته باشد (یا ساختمان قبلی کاملاً تخریب شده باشد)
      * - Builder زنده، شارژ داشته باشد
      * - Builder AP کافی داشته باشد
      * - منابع انبار کافی باشد
@@ -43,8 +43,11 @@ public class BuildController {
         if (!builder.isAlive()) return false;
 
         // شرایط عمومی
-        if (!hex.isInsideBorder())         return false;
-        if (hex.getBuilding() != null)     return false;
+        if (!hex.isInsideBorder()) return false;
+
+        // اصلاح گام ۳ (باگ ۲): امکان ساخت مجدد روی هکس‌های دارای ساختمانِ تخریب‌شده (ویرانه)
+        if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
+
         if (builder.getCharges() <= 0)     return false;
         if (builder.getCurrentAP() < type.getApCost()) return false;
 
@@ -117,20 +120,6 @@ public class BuildController {
 
     /**
      * اجرای ساخت سازه روی هکس مشخص.
-     *
-     * ترتیب اجرا:
-     * ۱. اعتبارسنجی نهایی با canBuild
-     * ۲. کسر منابع از انبار
-     * ۳. کسر AP از Builder
-     * ۴. کاهش شارژ Builder (اگر به صفر رسید، Builder حذف می‌شود)
-     * ۵. قرار دادن ساختمان روی هکس
-     * ۶. آپدیت فوری Fog of War (شعاع دید ساختمان جدید اعمال می‌شود)
-     * ۷. ارسال رویداد به لایه View برای رندر مجدد
-     *
-     * اصلاح گام ۶: updateFogOfWar قبل از fireBuildingConstructed
-     * صدا زده می‌شود — این تضمین می‌کند که وقتی HUDPanel رویداد
-     * را دریافت می‌کند و gamePanel.repaint() صدا می‌زند،
-     * داده‌های Fog of War قبلاً آپدیت شده‌اند.
      */
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
@@ -153,7 +142,6 @@ public class BuildController {
         hex.setBuilding(newBuilding);
 
         // مرحله ۶: آپدیت فوری Fog of War
-        // (باید قبل از رویداد گرافیکی انجام شود)
         gameMap.updateFogOfWar();
 
         // مرحله ۷: اطلاع به لایه View
@@ -162,8 +150,6 @@ public class BuildController {
 
     /**
      * Factory متد برای ساخت نمونه ساختمان بر اساس نوع آن.
-     * جداسازی این منطق از buildStructure باعث می‌شود اضافه کردن
-     * انواع ساختمان جدید در آینده فقط نیاز به تغییر این متد داشته باشد.
      */
     private Building createBuilding(BuildingType type) {
         switch (type) {
