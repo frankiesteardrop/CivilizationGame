@@ -242,15 +242,23 @@ public class GamePanel extends JPanel {
     // =========================================================
     // منوی Town Hall
     // =========================================================
+// =========================================================
+    // منوی Town Hall
+    // =========================================================
 
     private void showTownHallMenu(MouseEvent e) {
         JPopupMenu popup = new JPopupMenu();
         stylePopupMenu(popup);
         TownHall th = mainController.getGameMap().getTownHall();
 
+        // استخراج داینامیک هزینه‌های ارتقا از کنترلر
         String whLabel = th.getWarehouseUpgradeLevel() >= 2
                 ? "✅ Warehouse MAXED"
-                : "📦 Upgrade Warehouse (100W, 50S) — Level " + (th.getWarehouseUpgradeLevel() + 1);
+                : String.format("📦 Upgrade Warehouse (%dW, %dS) — Level %d",
+                UpgradeController.WAREHOUSE_WOOD_COST,
+                UpgradeController.WAREHOUSE_STONE_COST,
+                th.getWarehouseUpgradeLevel() + 1);
+
         JMenuItem whItem = new JMenuItem(whLabel);
         styleMenuItem(whItem);
         if (!mainController.getUpgradeController().canAffordWarehouseUpgrade())
@@ -262,20 +270,41 @@ public class GamePanel extends JPanel {
         popup.add(whItem);
         popup.addSeparator();
 
+        // استخراج داینامیک هزینه‌های تکنولوژی از کنترلر
         addTechMenuItem(popup, th.isStoneMineUnlocked(),
-                "STONE_MINE", "⛏️ Tech: Stone Mine (50W)");
+                "STONE_MINE", String.format("⛏️ Tech: Stone Mine (%dW)",
+                        UpgradeController.TECH_STONE_MINE_WOOD));
+
         addTechMenuItem(popup, th.isIronMineUnlocked(),
-                "IRON_MINE", "🔩 Tech: Iron Mine (100W, 50S)");
+                "IRON_MINE", String.format("🔩 Tech: Iron Mine (%dW, %dS)",
+                        UpgradeController.TECH_IRON_MINE_WOOD,
+                        UpgradeController.TECH_IRON_MINE_STONE));
+
         addTechMenuItem(popup, th.isProfessionalToolsUnlocked(),
-                "PROF_TOOLS", "🔧 Tech: Prof. Tools (100W, 100S, 50I)");
+                "PROF_TOOLS", String.format("🔧 Tech: Prof. Tools (%dW, %dS, %dI)",
+                        UpgradeController.TECH_PROF_TOOLS_WOOD,
+                        UpgradeController.TECH_PROF_TOOLS_STONE,
+                        UpgradeController.TECH_PROF_TOOLS_IRON));
+
         addTechMenuItem(popup, th.isSettlementUnlocked(),
-                "SETTLEMENT", "🏘️ Tech: Settlement (150W, 100S, 50I)");
+                "SETTLEMENT", String.format("🏘️ Tech: Settlement (%dW, %dS, %dI)",
+                        UpgradeController.TECH_SETTLEMENT_WOOD,
+                        UpgradeController.TECH_SETTLEMENT_STONE,
+                        UpgradeController.TECH_SETTLEMENT_IRON));
         popup.addSeparator();
 
-        addTrainMenuItem(popup, "WORKER",          "👷 Train Worker (20F) — 1 Turn");
-        addTrainMenuItem(popup, "BUILDER",         "🔨 Train Builder (30F, 10W) — 2 Turns");
-        addTrainMenuItem(popup, "EXPLORER",        "🧭 Train Explorer (40F, 5W) — 3 Turns");
-        addTrainMenuItem(popup, "BORDER_EXPANDER", "🗺️ Train Border Expander (30F, 20W, 10S) — 3 Turns");
+        // استخراج داینامیک هزینه‌های ساخت یونیت از کنترلر
+        addTrainMenuItem(popup, "WORKER", String.format("👷 Train Worker (%dF) — %d Turn",
+                UpgradeController.WORKER_FOOD_COST, UpgradeController.WORKER_TURN_COST));
+
+        addTrainMenuItem(popup, "BUILDER", String.format("🔨 Train Builder (%dF, %dW) — %d Turns",
+                UpgradeController.BUILDER_FOOD_COST, UpgradeController.BUILDER_WOOD_COST, UpgradeController.BUILDER_TURN_COST));
+
+        addTrainMenuItem(popup, "EXPLORER", String.format("🧭 Train Explorer (%dF, %dW) — %d Turns",
+                UpgradeController.EXPLORER_FOOD_COST, UpgradeController.EXPLORER_WOOD_COST, UpgradeController.EXPLORER_TURN_COST));
+
+        addTrainMenuItem(popup, "BORDER_EXPANDER", String.format("🗺️ Train Border Expander (%dF, %dW, %dS) — %d Turns",
+                UpgradeController.BORDER_EXPANDER_FOOD_COST, UpgradeController.BORDER_EXPANDER_WOOD_COST, UpgradeController.BORDER_EXPANDER_STONE_COST, UpgradeController.BORDER_EXPANDER_TURN_COST));
 
         popup.show(this, e.getX(), e.getY());
     }
