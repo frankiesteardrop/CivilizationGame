@@ -15,11 +15,9 @@ public class Worker extends Unit {
     @Override
     public void resetAP() {
         if (!isAlive) return;
-        if (isStationed) {
-            currentAP = 0;
-        } else {
-            currentAP = maxAP;
-        }
+        // اصلاح گام اول: کارگر مستقر نیز AP کامل دریافت می‌کند (جهت پرداخت هزینه غذا)
+        // اما به دلیل isStationed بودن، اجازه حرکت نخواهد داشت.
+        super.resetAP();
     }
 
     public boolean stationIn(Building building) {

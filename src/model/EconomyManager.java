@@ -33,20 +33,17 @@ public class EconomyManager {
     private static void produceResources(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
-        boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
 
+        // اصلاح گام اول: متغیر hasProfTools و منطق هاردکد شده از اینجا حذف شد.
         townHall.produceSafeguardResources();
 
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
-            int production = b.calculateProduction();
+            // ارسال TownHall به متد برای بررسی تکنولوژی‌های درون خود مدل‌ها
+            int production = b.calculateProduction(townHall);
             if (production <= 0) continue;
-
-            if (hasProfTools && (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
-                production = (int)(production * 1.5);
-            }
 
             ResourceType targetRes = b.getType().getProducedResource();
             if (targetRes == ResourceType.NONE) continue;
@@ -76,7 +73,7 @@ public class EconomyManager {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
-                    hex.setBuilding(null);
+                    hex.setBuilding(null); // توجه: این باگ در گام دوم (Ruins Bug) برطرف خواهد شد
                     GameEventDispatcher.fireBuildingConstructed(hex); // Update UI to remove building
                 }
             } else {
@@ -122,7 +119,8 @@ public class EconomyManager {
     public static int calculateNetProduction(GameMap map, ResourceType type) {
         int net = 0;
         TownHall townHall = map.getTownHall();
-        boolean hasProfTools = townHall.isProfessionalToolsUnlocked();
+
+        // اصلاح گام اول: حذف منطق هاردکد شده
 
         if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
 
@@ -131,10 +129,8 @@ public class EconomyManager {
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
             if (b.getType().getProducedResource() == type) {
-                int prod = b.calculateProduction();
-                if (hasProfTools && (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)) {
-                    prod = (int)(prod * 1.5);
-                }
+                // محاسبه دقیق طبق فرمول داخلی خود ساختمان
+                int prod = b.calculateProduction(townHall);
                 net += prod;
             }
 

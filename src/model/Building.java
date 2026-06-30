@@ -41,8 +41,9 @@ public abstract class Building {
 
     /**
      * محاسبه نرخ تولید بر اساس تعداد کارگران مستقر و نرخ پایه ساختمان
+     * اصلاح گام اول: دریافت شئ TownHall برای واگذاری بررسی تکنولوژی‌ها به کلاس‌های فرزند
      */
-    public int calculateProduction() {
+    public int calculateProduction(TownHall townHall) {
         if (isDestroyed) return 0;
         return stationedWorkers * getType().getBaseProduction();
     }
