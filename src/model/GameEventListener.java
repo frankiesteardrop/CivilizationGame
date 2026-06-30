@@ -11,4 +11,7 @@ public interface GameEventListener {
 
     // [اضافه شده برای گام ۶]: اطلاع از احداث یک ساختمان جدید
     void onBuildingConstructed(Hex hex);
+
+    // اصلاح گام دوم: اطلاع از تخریب یک ساختمان به دلیل عدم پرداخت Upkeep
+    void onBuildingDestroyed(Hex hex);
 }

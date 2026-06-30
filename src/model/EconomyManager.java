@@ -9,24 +9,15 @@ package model;
 public class EconomyManager {
 
     public static boolean processEndTurn(GameMap map) {
-        // فاز ۱: تولید منابع ساختمان‌ها + Safeguard تان‌هال
         produceResources(map);
-
-        // فاز ۲: کسر Upkeep ساختمان‌ها (تخریب در صورت عدم پرداخت ۳ نوبته)
         processUpkeep(map);
-
-        // فاز ۳: کسر غذا + تشخیص Starvation
         boolean isStarving = processFoodConsumption(map);
 
-        // فاز ۴: پیشرفت صف تولید تان‌هال
-        // [اصلاح حیاتی]: صف تولید فقط زمانی پیش می‌رود که قحطی نباشد!
         if (!isStarving) {
             map.getTownHall().advanceProductionQueue();
         }
 
-        // ارسال رویداد Starvation به لایه View از طریق Event System
         GameEventDispatcher.fireStarvationChanged(isStarving);
-
         return isStarving;
     }
 
@@ -34,14 +25,12 @@ public class EconomyManager {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
 
-        // اصلاح گام اول: متغیر hasProfTools و منطق هاردکد شده از اینجا حذف شد.
         townHall.produceSafeguardResources();
 
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
-            // ارسال TownHall به متد برای بررسی تکنولوژی‌های درون خود مدل‌ها
             int production = b.calculateProduction(townHall);
             if (production <= 0) continue;
 
@@ -73,8 +62,8 @@ public class EconomyManager {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
-                    hex.setBuilding(null); // توجه: این باگ در گام دوم (Ruins Bug) برطرف خواهد شد
-                    GameEventDispatcher.fireBuildingConstructed(hex); // Update UI to remove building
+                    // اصلاح گام دوم: حذف hex.setBuilding(null) تا ساختمان به عنوان ویرانه در نقشه بماند
+                    GameEventDispatcher.fireBuildingDestroyed(hex); // شلیک رویداد صحیح
                 }
             } else {
                 b.resetFailedUpkeep();
@@ -120,8 +109,6 @@ public class EconomyManager {
         int net = 0;
         TownHall townHall = map.getTownHall();
 
-        // اصلاح گام اول: حذف منطق هاردکد شده
-
         if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
 
         for (Hex h : map.getHexes()) {
@@ -129,7 +116,6 @@ public class EconomyManager {
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
             if (b.getType().getProducedResource() == type) {
-                // محاسبه دقیق طبق فرمول داخلی خود ساختمان
                 int prod = b.calculateProduction(townHall);
                 net += prod;
             }

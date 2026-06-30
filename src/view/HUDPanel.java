@@ -131,14 +131,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
             this.isStarving = starving;
             updateHUD();
 
-            // اصلاح گام ۶: alert فقط در اولین ورود به Starvation نشان داده می‌شود
             if (starving && !wasStarving && !starvationAlertShown) {
                 starvationAlertShown = true;
                 showStarvationAlert();
             }
 
-            // اگر از Starvation خارج شدیم، flag را ریست کن
-            // تا اگر دوباره وارد شدند، alert دوباره نشان داده شود
             if (!starving) {
                 starvationAlertShown = false;
             }
@@ -153,15 +150,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
-    /**
-     * اصلاح گام ۶ (حیاتی):
-     * وقتی ساختمان جدیدی ساخته می‌شود، Fog of War در BuildController
-     * قبلاً آپدیت شده. اینجا فقط UI را رفرش می‌کنیم.
-     *
-     * توجه: updateFogOfWar() را اینجا صدا نمی‌زنیم چون:
-     * ۱. قبلاً در BuildController.buildStructure صدا زده شده
-     * ۲. صدا زدن دوباره آن از لایه View نقض اصل MVC است
-     */
     @Override
     public void onBuildingConstructed(Hex hex) {
         SwingUtilities.invokeLater(() -> {
@@ -170,8 +158,17 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
+    // اصلاح گام دوم: هندل کردن رندرینگ ویرانه‌ها در صورت تخریب ساختمان
+    @Override
+    public void onBuildingDestroyed(Hex hex) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD(); // برای آپدیت تغییرات در منابع مصرفی (Upkeep)
+            gamePanel.repaint(); // رفرش نقشه برای نمایش گرافیک ویرانه
+        });
+    }
+
     // =========================================================
-    // رندر HUD — اصلاح گام ۶: per-resource capacity
+    // رندر HUD
     // =========================================================
 
     private void updateHUD() {
@@ -180,7 +177,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         GameMap   map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
 
-        // اصلاح گام ۶: هر منبع ظرفیت جداگانه دارد
         int maxFood  = inv.getCapacity(ResourceType.FOOD);
         int maxWood  = inv.getCapacity(ResourceType.WOOD);
         int maxStone = inv.getCapacity(ResourceType.STONE);
@@ -191,7 +187,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         int netStone = EconomyManager.calculateNetProduction(map, ResourceType.STONE);
         int netIron  = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
 
-        // کارت‌های منابع
         infoContainer.add(createResourceCard(
                 "🍔 Food",
                 inv.getResourceAmount(ResourceType.FOOD), maxFood,  netFood,
@@ -209,7 +204,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 inv.getResourceAmount(ResourceType.IRON), maxIron,  netIron,
                 new Color(243, 156, 18)));
 
-        // کارت صف تولید
         TownHall.ProductionTask currentTask =
                 map.getTownHall().getProductionQueue().peek();
         String queueText;
@@ -232,7 +226,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        // کارت جمعیت + تفکیک نوع
         int expCount = 0, buildCount = 0, workCount = 0, expndCount = 0;
         for (Unit u : map.getUnits()) {
             if (!u.isAlive()) continue;
@@ -250,13 +243,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.add(createCard(
                 "👥 Pop", unitText, new Color(52, 152, 219), false));
 
-        // کارت نوبت
         infoContainer.add(createCard(
                 "⏳ Turn",
                 String.valueOf(map.getCurrentTurn()),
                 new Color(155, 89, 182), false));
 
-        // هشدار قحطی — نمایش ثابت در HUD تا وضعیت برطرف شود
         if (isStarving) {
             infoContainer.add(createStarvationCard());
         }
@@ -405,12 +396,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private void handleEndTurn() {
         if (!confirmIdleMode
                 && mainController.getTurnController().hasIdleUnits()) {
-            // اولین کلیک با یونیت‌های idle: هشدار نشان بده
             confirmIdleMode = true;
             endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
             updateButtonColor();
         } else {
-            // کلیک دوم یا بدون یونیت idle: پایان نوبت
             confirmIdleMode = false;
             mainController.getTurnController().forceEndTurn();
         }

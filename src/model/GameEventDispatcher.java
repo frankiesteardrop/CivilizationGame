@@ -52,4 +52,9 @@ public class GameEventDispatcher {
     public static void fireBuildingConstructed(Hex hex) {
         for (GameEventListener l : listeners) l.onBuildingConstructed(hex);
     }
+
+    // اصلاح گام دوم: شلیک رویداد تخریب
+    public static void fireBuildingDestroyed(Hex hex) {
+        for (GameEventListener l : listeners) l.onBuildingDestroyed(hex);
+    }
 }
