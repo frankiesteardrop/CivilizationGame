@@ -4,7 +4,8 @@ public class Builder extends Unit {
     private int charges;
 
     public Builder(int q, int r) {
-        super(q, r, 3, 2, 1);
+        // maxAP=4, foodConsumption=2, visionRadius=2
+        super(q, r, 4, 2, 2);
         this.charges = 3;
     }
 

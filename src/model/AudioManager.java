@@ -8,49 +8,37 @@ import java.io.IOException;
 public class AudioManager {
     private static Clip clip;
     private static FloatControl volumeControl;
-    private static int currentVolume = 50; // حافظه برای ذخیره آخرین درجه صدا
+    private static int currentVolume = 50;
 
-    // متد پخش آهنگ با سیستم جستجوی ضدگلوله (Dual-Fallback)
     public static void playMusic(String resourcePath) {
         try {
-            // تلاش اول: جستجو از طریق Classpath (استاندارد Maven)
-            InputStream audioSrc = AudioManager.class.getResourceAsStream(resourcePath);
+            // استفاده از ClassLoader برای دسترسی ایمن و قطعی به فایل‌ها در محیط Maven/JAR
+            InputStream audioSrc = AudioManager.class.getClassLoader().getResourceAsStream(
+                    // اگر مسیر با '/' شروع می‌شود، آن را حذف کن تا ClassLoader دچار اشتباه نشود
+                    resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath
+            );
 
-            // تلاش دوم (Fallback): اگر محیط توسعه پوشه resources را نشناخت، مستقیماً از فایل سیستم بخواند
-            if (audioSrc == null) {
-                java.io.File directFile = new java.io.File("src/main/resources" + resourcePath);
-                if (!directFile.exists()) directFile = new java.io.File("resources" + resourcePath);
-                if (!directFile.exists()) directFile = new java.io.File(resourcePath.replace("/", "")); // حالت قرارگیری در روت
-
-                if (directFile.exists()) {
-                    audioSrc = new java.io.FileInputStream(directFile);
-                }
-            }
-
-            // اگر با هر دو روش فایل پیدا شد، پخش را شروع کن
             if (audioSrc != null) {
-                InputStream bufferedIn = new java.io.BufferedInputStream(audioSrc);
+                InputStream bufferedIn = new BufferedInputStream(audioSrc);
                 AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn);
                 clip = AudioSystem.getClip();
                 clip.open(audioInput);
 
                 volumeControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-
-                // اعمال آخرین ولوم ذخیره شده
                 setVolume(currentVolume);
 
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
                 clip.start();
             } else {
-                System.err.println("Error: Music file not found anywhere! Check if music.wav actually exists.");
+                System.err.println("Error: Music file '" + resourcePath + "' not found in classpath!");
             }
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
             System.err.println("Error playing music: " + e.getMessage());
         }
     }
-    // متد تنظیم صدا با قابلیت ذخیره در حافظه
+
     public static void setVolume(int volumePercent) {
-        currentVolume = volumePercent; // ذخیره وضعیت
+        currentVolume = volumePercent;
         if (volumeControl != null) {
             float min = volumeControl.getMinimum();
             float max = volumeControl.getMaximum();
@@ -60,7 +48,6 @@ public class AudioManager {
         }
     }
 
-    // متد استعلام آخرین ولوم برای مقداردهی اولیه اسلایدر
     public static int getCurrentVolume() {
         return currentVolume;
     }
