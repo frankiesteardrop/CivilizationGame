@@ -14,9 +14,6 @@
     <name>Civilization Sharif</name>
     <description>Turn-based strategy game — Advanced Programming Project</description>
 
-    <!-- =========================================================
-         خصوصیات پروژه
-         ========================================================= -->
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -24,27 +21,16 @@
         <main.class>controller.Main</main.class>
     </properties>
 
-    <!-- =========================================================
-         وابستگی‌ها
-         ========================================================= -->
     <dependencies>
-        <!-- در حال حاضر این پروژه از کتابخانه خارجی استفاده نمی‌کند.
-             Java Swing بخشی از JDK است و نیازی به dependency ندارد.
-             در آینده کتابخانه‌های جدید اینجا اضافه می‌شوند. -->
     </dependencies>
 
-    <!-- =========================================================
-         تنظیمات Build
-         ========================================================= -->
     <build>
-        <!-- ساختار استاندارد Maven -->
-        <sourceDirectory>src/main/java</sourceDirectory>
+        <sourceDirectory>src</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
 
-        <!-- تعریف پوشه resources برای فایل‌های صوتی و تصویری -->
         <resources>
             <resource>
-                <directory>src/main/resources</directory>
+                <directory>resources</directory>
                 <includes>
                     <include>**/*.wav</include>
                     <include>**/*.mp3</include>
@@ -57,9 +43,6 @@
 
         <plugins>
 
-            <!-- =========================================================
-                 Plugin کامپایل — Java 17
-                 ========================================================= -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -68,7 +51,6 @@
                     <source>17</source>
                     <target>17</target>
                     <encoding>UTF-8</encoding>
-                    <!-- نمایش warning‌های کامپایلر -->
                     <compilerArgs>
                         <arg>-Xlint:unchecked</arg>
                         <arg>-Xlint:deprecation</arg>
@@ -76,10 +58,6 @@
                 </configuration>
             </plugin>
 
-            <!-- =========================================================
-                 Plugin ساخت Fat JAR (Executable) — همه چیز در یک فایل
-                 با این تنظیم: mvn package → civilization-sharif-1.0.jar
-                 ========================================================= -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -96,7 +74,6 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <!-- نام فایل خروجی -->
                     <finalName>civilization-sharif</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
@@ -111,23 +88,16 @@
                 </executions>
             </plugin>
 
-            <!-- =========================================================
-                 Plugin اجرای مستقیم — mvn exec:java
-                 ========================================================= -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
-                    <!-- اطمینان از اینکه resources در classpath هستند -->
                     <includeProjectDependencies>true</includeProjectDependencies>
                 </configuration>
             </plugin>
 
-            <!-- =========================================================
-                 Plugin پاکسازی — mvn clean
-                 ========================================================= -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
