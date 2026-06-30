@@ -7,15 +7,29 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
+/**
+ * پنل HUD بازی — نمایش همیشه‌نمایان اطلاعات امپراتوری.
+ *
+ * اصلاح گام ۶:
+ * - updateHUD از getCapacity(type) استفاده می‌کند (per-resource)
+ * - onBuildingConstructed: به جای فقط repaint، ابتدا
+ *   updateFogOfWar را صدا می‌زند تا شعاع دید ساختمان جدید
+ *   بلافاصله در رندر بعدی منعکس شود
+ * - showStarvationAlert یک‌بار نمایش داده می‌شود نه در هر Turn
+ * - هشدار قحطی در HUDPanel ثابت می‌ماند تا وضعیت برطرف شود
+ */
 public class HUDPanel extends JPanel implements GameEventListener {
+
     private final MainController mainController;
     private final GamePanel gamePanel;
     private final JPanel infoContainer;
     private final JButton endTurnBtn;
-    private boolean confirmIdleMode = false;
 
-    // وضعیت Starvation از رویداد دریافت می‌شود — نه هر بار محاسبه می‌شود
+    private boolean confirmIdleMode = false;
     private boolean isStarving = false;
+
+    // اصلاح گام ۶: نمایش alert قحطی فقط یک بار
+    private boolean starvationAlertShown = false;
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
@@ -23,7 +37,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         setLayout(new BorderLayout());
         setBackground(new Color(25, 28, 33));
-
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)),
                 BorderFactory.createEmptyBorder(8, 15, 8, 15)
@@ -33,39 +46,44 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.setOpaque(false);
         add(infoContainer, BorderLayout.CENTER);
 
-        endTurnBtn = new JButton("END TURN");
-        endTurnBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        endTurnBtn.setBackground(new Color(192, 57, 43));
-        endTurnBtn.setForeground(Color.WHITE);
-        endTurnBtn.setFocusPainted(false);
-        endTurnBtn.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
-        endTurnBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        endTurnBtn.setOpaque(true);
-
-        endTurnBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                endTurnBtn.setBackground(endTurnBtn.getBackground().brighter());
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                updateButtonColor();
-            }
-        });
-
-        endTurnBtn.addActionListener(e -> handleEndTurn());
+        endTurnBtn = buildEndTurnButton();
         add(endTurnBtn, BorderLayout.EAST);
 
         GameEventDispatcher.addListener(this);
         updateHUD();
     }
 
+    // =========================================================
+    // ساخت دکمه End Turn
+    // =========================================================
+
+    private JButton buildEndTurnButton() {
+        JButton btn = new JButton("END TURN");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btn.setBackground(new Color(192, 57, 43));
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) {
+                btn.setBackground(btn.getBackground().brighter());
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                updateButtonColor();
+            }
+        });
+
+        btn.addActionListener(e -> handleEndTurn());
+        return btn;
+    }
+
     private void updateButtonColor() {
-        if (confirmIdleMode) {
-            endTurnBtn.setBackground(new Color(230, 126, 34));
-        } else {
-            endTurnBtn.setBackground(new Color(192, 57, 43));
-        }
+        endTurnBtn.setBackground(confirmIdleMode
+                ? new Color(230, 126, 34)
+                : new Color(192, 57, 43));
     }
 
     // =========================================================
@@ -91,7 +109,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
     public void onProductionCompleted(String itemName) {
         SwingUtilities.invokeLater(() -> {
             updateHUD();
-            // نمایش اعلان تکمیل تولید به بازیکن
             showProductionNotification(itemName);
         });
     }
@@ -110,38 +127,64 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onStarvationChanged(boolean starving) {
         SwingUtilities.invokeLater(() -> {
+            boolean wasStarving = this.isStarving;
             this.isStarving = starving;
             updateHUD();
 
-            // نمایش هشدار چشمگیر قحطی به صورت یه بار (اولین ورود به Starvation)
-            if (starving) {
+            // اصلاح گام ۶: alert فقط در اولین ورود به Starvation نشان داده می‌شود
+            if (starving && !wasStarving && !starvationAlertShown) {
+                starvationAlertShown = true;
                 showStarvationAlert();
+            }
+
+            // اگر از Starvation خارج شدیم، flag را ریست کن
+            // تا اگر دوباره وارد شدند، alert دوباره نشان داده شود
+            if (!starving) {
+                starvationAlertShown = false;
             }
         });
     }
 
-    /**
-     * پیاده‌سازی رویداد گام ۵: اطلاع از تغییر وضعیت یونیت (Idle/Stationed)
-     * با این متد، گرافیک بلافاصله به تغییرات واکنش نشان می‌دهد.
-     */
     @Override
     public void onUnitStateChanged(Unit unit) {
         SwingUtilities.invokeLater(() -> {
             updateHUD();
-            gamePanel.repaint(); // رفرش کردن نقشه برای آپدیت آیکون/وضعیت استقرار
+            gamePanel.repaint();
+        });
+    }
+
+    /**
+     * اصلاح گام ۶ (حیاتی):
+     * وقتی ساختمان جدیدی ساخته می‌شود، Fog of War در BuildController
+     * قبلاً آپدیت شده. اینجا فقط UI را رفرش می‌کنیم.
+     *
+     * توجه: updateFogOfWar() را اینجا صدا نمی‌زنیم چون:
+     * ۱. قبلاً در BuildController.buildStructure صدا زده شده
+     * ۲. صدا زدن دوباره آن از لایه View نقض اصل MVC است
+     */
+    @Override
+    public void onBuildingConstructed(Hex hex) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            gamePanel.repaint();
         });
     }
 
     // =========================================================
-    // رندر HUD
+    // رندر HUD — اصلاح گام ۶: per-resource capacity
     // =========================================================
 
     private void updateHUD() {
         infoContainer.removeAll();
 
-        GameMap map = mainController.getGameMap();
+        GameMap   map = mainController.getGameMap();
         Inventory inv = map.getTownHall().getInventory();
-        int max = inv.getMaxCapacity();
+
+        // اصلاح گام ۶: هر منبع ظرفیت جداگانه دارد
+        int maxFood  = inv.getCapacity(ResourceType.FOOD);
+        int maxWood  = inv.getCapacity(ResourceType.WOOD);
+        int maxStone = inv.getCapacity(ResourceType.STONE);
+        int maxIron  = inv.getCapacity(ResourceType.IRON);
 
         int netFood  = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
         int netWood  = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
@@ -150,55 +193,70 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         // کارت‌های منابع
         infoContainer.add(createResourceCard(
-                "🍔 Food",  inv.getResourceAmount(ResourceType.FOOD),  max, netFood,  new Color(46, 204, 113)));
+                "🍔 Food",
+                inv.getResourceAmount(ResourceType.FOOD), maxFood,  netFood,
+                new Color(46, 204, 113)));
         infoContainer.add(createResourceCard(
-                "🪵 Wood",  inv.getResourceAmount(ResourceType.WOOD),  max, netWood,  new Color(211, 84, 0)));
+                "🪵 Wood",
+                inv.getResourceAmount(ResourceType.WOOD), maxWood,  netWood,
+                new Color(211, 84, 0)));
         infoContainer.add(createResourceCard(
-                "🪨 Stone", inv.getResourceAmount(ResourceType.STONE), max, netStone, new Color(149, 165, 166)));
+                "🪨 Stone",
+                inv.getResourceAmount(ResourceType.STONE), maxStone, netStone,
+                new Color(149, 165, 166)));
         infoContainer.add(createResourceCard(
-                "⚙️ Iron",  inv.getResourceAmount(ResourceType.IRON),  max, netIron,  new Color(243, 156, 18)));
+                "⚙️ Iron",
+                inv.getResourceAmount(ResourceType.IRON), maxIron,  netIron,
+                new Color(243, 156, 18)));
 
         // کارت صف تولید
-        TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
+        TownHall.ProductionTask currentTask =
+                map.getTownHall().getProductionQueue().peek();
         String queueText;
-        Color queueColor;
+        Color  queueColor;
 
         if (currentTask != null) {
             if (isStarving) {
-                queueText = currentTask.getName()
+                queueText  = currentTask.getName()
                         + " (" + currentTask.getTurnsRemaining() + "T)"
                         + " <span style='color:#e74c3c;'>❄️ FROZEN</span>";
                 queueColor = new Color(231, 76, 60);
             } else {
-                queueText = currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)";
+                queueText  = currentTask.getName()
+                        + " (" + currentTask.getTurnsRemaining() + "T)";
                 queueColor = new Color(241, 196, 15);
             }
         } else {
-            queueText = "<span style='color:#7f8c8d;'>Idle</span>";
+            queueText  = "<span style='color:#7f8c8d;'>Idle</span>";
             queueColor = new Color(127, 140, 141);
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        // کارت جمعیت + تفکیک نوع یونیت‌ها
+        // کارت جمعیت + تفکیک نوع
         int expCount = 0, buildCount = 0, workCount = 0, expndCount = 0;
         for (Unit u : map.getUnits()) {
             if (!u.isAlive()) continue;
-            if (u instanceof Explorer)      expCount++;
-            else if (u instanceof Builder)  buildCount++;
-            else if (u instanceof Worker)   workCount++;
+            if      (u instanceof Explorer)       expCount++;
+            else if (u instanceof Builder)        buildCount++;
+            else if (u instanceof Worker)         workCount++;
             else if (u instanceof BorderExpander) expndCount++;
         }
         String unitText = map.getAliveUnitsCount() + "/" + map.getUnitCap()
                 + " <span style='font-size:10px; color:#bdc3c7;'>"
-                + "(E:" + expCount + " B:" + buildCount
-                + " W:" + workCount + " X:" + expndCount + ")</span>";
-        infoContainer.add(createCard("👥 Pop", unitText, new Color(52, 152, 219), false));
-
-        // کارت شماره نوبت
+                + "(E:" + expCount
+                + " B:" + buildCount
+                + " W:" + workCount
+                + " X:" + expndCount + ")</span>";
         infoContainer.add(createCard(
-                "⏳ Turn", String.valueOf(map.getCurrentTurn()), new Color(155, 89, 182), false));
+                "👥 Pop", unitText, new Color(52, 152, 219), false));
 
-        // هشدار قحطی
+        // کارت نوبت
+        infoContainer.add(createCard(
+                "⏳ Turn",
+                String.valueOf(map.getCurrentTurn()),
+                new Color(155, 89, 182), false));
+
+        // هشدار قحطی — نمایش ثابت در HUD تا وضعیت برطرف شود
         if (isStarving) {
             infoContainer.add(createStarvationCard());
         }
@@ -211,18 +269,23 @@ public class HUDPanel extends JPanel implements GameEventListener {
     // متدهای کمکی ساخت کارت‌ها
     // =========================================================
 
-    private JPanel createResourceCard(String title, int amount, int max, int net, Color accentColor) {
+    private JPanel createResourceCard(String title, int amount, int max,
+                                      int net, Color accentColor) {
         String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
-        String sign = net > 0 ? "+" : "";
+        String sign     = net > 0 ? "+" : "";
         String valueText = amount
                 + "<span style='color:#7f8c8d'>/" + max + "</span> "
-                + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
+                + "(<span style='color:" + netColor + "'>"
+                + sign + net + "</span>)";
         return createCard(title, valueText, accentColor, false);
     }
 
-    private JPanel createCard(String title, String valueText, Color accentColor, boolean isAlert) {
+    private JPanel createCard(String title, String valueText,
+                              Color accentColor, boolean isAlert) {
         JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52));
+        card.setBackground(isAlert
+                ? new Color(192, 57, 43)
+                : new Color(40, 44, 52));
         card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 4, 0, 0, accentColor),
@@ -231,8 +294,10 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         String titleStyle = isAlert ? "color:white;" : "color:#bdc3c7;";
         JLabel label = new JLabel(
-                "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
-                        + "<span style='" + titleStyle + "'>" + title + ":</span> " + valueText
+                "<html><body style='color:white; "
+                        + "font-family:Segoe UI; font-size:13px;'>"
+                        + "<span style='" + titleStyle + "'>"
+                        + title + ":</span> " + valueText
                         + "</body></html>"
         );
         card.add(label, BorderLayout.CENTER);
@@ -244,32 +309,44 @@ public class HUDPanel extends JPanel implements GameEventListener {
         card.setBackground(new Color(180, 20, 20));
         card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
+                BorderFactory.createMatteBorder(0, 4, 0, 0,
+                        new Color(255, 50, 50)),
                 BorderFactory.createEmptyBorder(6, 12, 6, 12)
         ));
 
         JLabel label = new JLabel(
-                "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
+                "<html><body style='color:white; "
+                        + "font-family:Segoe UI; font-size:13px;'>"
                         + "<b>⚠️ STARVATION!</b>"
-                        + "<span style='color:#ffaaaa; font-size:11px;'> Queue frozen | -1 AP/unit</span>"
+                        + "<span style='color:#ffaaaa; font-size:11px;'>"
+                        + " Queue frozen | -1 AP/unit</span>"
                         + "</body></html>"
         );
         card.add(label, BorderLayout.CENTER);
         return card;
     }
 
+    // =========================================================
+    // Notification Dialogs
+    // =========================================================
+
     private void showStarvationAlert() {
-        JDialog alert = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
+        JDialog alert = new JDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this), false);
         alert.setUndecorated(true);
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(180, 20, 20));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
+        panel.setBorder(BorderFactory.createLineBorder(
+                new Color(255, 80, 80), 2));
 
         JLabel msg = new JLabel(
-                "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION CRISIS!</b><br/>"
+                "<html><center>"
+                        + "<b style='color:white; font-size:16px;'>"
+                        + "⚠️ STARVATION CRISIS!</b><br/>"
                         + "<span style='color:#ffcccc; font-size:12px;'>"
-                        + "Your people are starving!<br/>Production queue frozen. Units lose 1 AP per turn."
+                        + "Your people are starving!<br/>"
+                        + "Production queue frozen. Units lose 1 AP per turn."
                         + "</span></center></html>",
                 SwingConstants.CENTER
         );
@@ -287,15 +364,19 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void showProductionNotification(String itemName) {
-        JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
+        JDialog notif = new JDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this), false);
         notif.setUndecorated(true);
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(39, 174, 96));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(46, 204, 113), 2));
+        panel.setBorder(BorderFactory.createLineBorder(
+                new Color(46, 204, 113), 2));
 
         JLabel msg = new JLabel(
-                "<html><center><b style='color:white; font-size:14px;'>✅ Production Complete!</b><br/>"
+                "<html><center>"
+                        + "<b style='color:white; font-size:14px;'>"
+                        + "✅ Production Complete!</b><br/>"
                         + "<span style='color:#d5f5e3; font-size:12px;'>"
                         + itemName + " is ready."
                         + "</span></center></html>",
@@ -307,7 +388,9 @@ public class HUDPanel extends JPanel implements GameEventListener {
         notif.setContentPane(panel);
         notif.pack();
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-        notif.setLocation(screen.width - notif.getWidth() - 20, screen.height - notif.getHeight() - 60);
+        notif.setLocation(
+                screen.width  - notif.getWidth()  - 20,
+                screen.height - notif.getHeight() - 60);
         notif.setVisible(true);
 
         Timer closeTimer = new Timer(2500, e -> notif.dispose());
@@ -320,25 +403,16 @@ public class HUDPanel extends JPanel implements GameEventListener {
     // =========================================================
 
     private void handleEndTurn() {
-        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+        if (!confirmIdleMode
+                && mainController.getTurnController().hasIdleUnits()) {
+            // اولین کلیک با یونیت‌های idle: هشدار نشان بده
             confirmIdleMode = true;
             endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
             updateButtonColor();
         } else {
+            // کلیک دوم یا بدون یونیت idle: پایان نوبت
             confirmIdleMode = false;
             mainController.getTurnController().forceEndTurn();
         }
-    }
-
-    /**
-     * پیاده‌سازی رویداد گام ۶: اطلاع از احداث ساختمان جدید
-     * با این متد، گرافیک بلافاصله نقشه را آپدیت می‌کند تا شعاع دید (Fog of War) جدید اعمال شود.
-     */
-    @Override
-    public void onBuildingConstructed(Hex hex) {
-        SwingUtilities.invokeLater(() -> {
-            updateHUD();
-            gamePanel.repaint(); // رفرش کردن نقشه برای نمایش ساختمان و رفع تاریکی اطرافش
-        });
     }
 }

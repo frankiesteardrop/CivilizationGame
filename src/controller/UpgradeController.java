@@ -5,6 +5,11 @@ import model.*;
 /**
  * کنترلر مدیریت آپگریدها، تکنولوژی‌ها و تولید یونیت در Town Hall.
  *
+ * اصلاح گام ۶:
+ * - trainUnit از خروجی boolean متد queueProduction استفاده می‌کند
+ * - اگر صف پر باشد، منابع کسر نمی‌شوند
+ * - canTrainUnit از isProductionQueueEmpty() استفاده می‌کند
+ *
  * ترتیب آپگریدها طبق داک:
  * ۱. ارتقا انبار ۱ (چوب + سنگ)
  * ۲. ارتقا انبار ۲ (چوب + سنگ بیشتر)
@@ -14,6 +19,7 @@ import model.*;
  * ۶. تکنولوژی ساخت شهرک (چوب + سنگ + آهن) — پس از معدن آهن
  */
 public class UpgradeController {
+
     private final GameMap gameMap;
 
     public UpgradeController(GameMap gameMap) {
@@ -33,7 +39,7 @@ public class UpgradeController {
         if (th.getWarehouseUpgradeLevel() >= 2) return false;
 
         Inventory inv = th.getInventory();
-        return inv.hasEnough(ResourceType.WOOD, 100)
+        return inv.hasEnough(ResourceType.WOOD,  100)
                 && inv.hasEnough(ResourceType.STONE, 50);
     }
 
@@ -44,13 +50,13 @@ public class UpgradeController {
     /**
      * بررسی امکان آنلاک تکنولوژی مشخص.
      *
-     * ترتیب پیش‌نیازها دقیقاً طبق داک رعایت شده:
+     * ترتیب پیش‌نیازها دقیقاً طبق داک:
      * - IRON_MINE: نیاز به STONE_MINE
      * - PROF_TOOLS: نیاز به هر دو معدن
-     * - SETTLEMENT: نیاز به معدن آهن (چون آهن می‌خواهد)
+     * - SETTLEMENT: نیاز به معدن آهن + هزینه آهن
      */
     public boolean canUnlockTech(String techType) {
-        TownHall th = gameMap.getTownHall();
+        TownHall th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
         switch (techType) {
@@ -60,28 +66,25 @@ public class UpgradeController {
                         && inv.hasEnough(ResourceType.WOOD, 50);
 
             case "IRON_MINE":
-                // پیش‌نیاز: تکنولوژی معدن سنگ باید آنلاک شده باشد
                 return th.isStoneMineUnlocked()
                         && !th.isIronMineUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD, 100)
-                        && inv.hasEnough(ResourceType.STONE, 50);
+                        && inv.hasEnough(ResourceType.WOOD,  100)
+                        && inv.hasEnough(ResourceType.STONE,  50);
 
             case "PROF_TOOLS":
-                // پیش‌نیاز: هر دو معدن باید آنلاک شده باشند
                 return th.isStoneMineUnlocked()
                         && th.isIronMineUnlocked()
                         && !th.isProfessionalToolsUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD, 100)
+                        && inv.hasEnough(ResourceType.WOOD,  100)
                         && inv.hasEnough(ResourceType.STONE, 100)
-                        && inv.hasEnough(ResourceType.IRON, 50);
+                        && inv.hasEnough(ResourceType.IRON,   50);
 
             case "SETTLEMENT":
-                // اصلاح گام ۳: پیش‌نیاز معدن آهن + هزینه آهن اضافه شد
                 return th.isIronMineUnlocked()
                         && !th.isSettlementUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD, 150)
+                        && inv.hasEnough(ResourceType.WOOD,  150)
                         && inv.hasEnough(ResourceType.STONE, 100)
-                        && inv.hasEnough(ResourceType.IRON, 50);
+                        && inv.hasEnough(ResourceType.IRON,   50);
 
             default:
                 return false;
@@ -95,15 +98,19 @@ public class UpgradeController {
     /**
      * بررسی امکان تولید یونیت جدید.
      *
-     * شرایط: Unit Cap رعایت شود + منابع کافی + صف تولید خالی باشد.
-     * توجه: منابع هنگام شروع تولید کسر می‌شوند، نه هنگام اتمام.
+     * شرایط لازم:
+     * ۱. Unit Cap رعایت شود
+     * ۲. صف تولید Town Hall خالی باشد (تک‌آیتمی — اصلاح گام ۶)
+     * ۳. منابع کافی وجود داشته باشد
+     *
+     * اصلاح گام ۶: از isProductionQueueEmpty() به جای
+     * دسترسی مستقیم به productionQueue استفاده می‌شود.
      */
     public boolean canTrainUnit(String unitType) {
-        // بررسی Unit Cap
         if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return false;
 
-        // بررسی اینکه صف تولید خالی باشد (از هم‌زمانی چند آیتم جلوگیری می‌کند)
-        if (!gameMap.getTownHall().getProductionQueue().isEmpty()) return false;
+        // اصلاح گام ۶: استفاده از متد رسمی TownHall به جای دسترسی مستقیم
+        if (!gameMap.getTownHall().isProductionQueueEmpty()) return false;
 
         Inventory inv = gameMap.getTownHall().getInventory();
 
@@ -117,11 +124,11 @@ public class UpgradeController {
 
             case "EXPLORER":
                 return inv.hasEnough(ResourceType.FOOD, 40)
-                        && inv.hasEnough(ResourceType.WOOD, 5);
+                        && inv.hasEnough(ResourceType.WOOD,  5);
 
             case "BORDER_EXPANDER":
-                return inv.hasEnough(ResourceType.FOOD, 30)
-                        && inv.hasEnough(ResourceType.WOOD, 20)
+                return inv.hasEnough(ResourceType.FOOD,  30)
+                        && inv.hasEnough(ResourceType.WOOD,  20)
                         && inv.hasEnough(ResourceType.STONE, 10);
 
             default:
@@ -136,11 +143,11 @@ public class UpgradeController {
     public void handleWarehouseUpgrade() {
         if (!canAffordWarehouseUpgrade()) return;
 
-        TownHall th = gameMap.getTownHall();
+        TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        inv.consumeResource(ResourceType.WOOD, 100);
-        inv.consumeResource(ResourceType.STONE, 50);
+        inv.consumeResource(ResourceType.WOOD,  100);
+        inv.consumeResource(ResourceType.STONE,  50);
         th.upgradeWarehouse();
     }
 
@@ -151,7 +158,7 @@ public class UpgradeController {
     public void unlockTech(String techType) {
         if (!canUnlockTech(techType)) return;
 
-        TownHall th = gameMap.getTownHall();
+        TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
         switch (techType) {
@@ -162,23 +169,22 @@ public class UpgradeController {
                 break;
 
             case "IRON_MINE":
-                inv.consumeResource(ResourceType.WOOD, 100);
-                inv.consumeResource(ResourceType.STONE, 50);
+                inv.consumeResource(ResourceType.WOOD,  100);
+                inv.consumeResource(ResourceType.STONE,  50);
                 th.setIronMineUnlocked(true);
                 break;
 
             case "PROF_TOOLS":
-                inv.consumeResource(ResourceType.WOOD, 100);
+                inv.consumeResource(ResourceType.WOOD,  100);
                 inv.consumeResource(ResourceType.STONE, 100);
-                inv.consumeResource(ResourceType.IRON, 50);
+                inv.consumeResource(ResourceType.IRON,   50);
                 th.setProfessionalToolsUnlocked(true);
                 break;
 
             case "SETTLEMENT":
-                // اصلاح گام ۳: آهن هم کسر می‌شود
-                inv.consumeResource(ResourceType.WOOD, 150);
+                inv.consumeResource(ResourceType.WOOD,  150);
                 inv.consumeResource(ResourceType.STONE, 100);
-                inv.consumeResource(ResourceType.IRON, 50);
+                inv.consumeResource(ResourceType.IRON,   50);
                 th.setSettlementUnlocked(true);
                 break;
         }
@@ -191,46 +197,67 @@ public class UpgradeController {
     /**
      * شروع تولید یونیت جدید در صف Town Hall.
      *
+     * اصلاح گام ۶ (حیاتی):
+     * منابع فقط در صورتی کسر می‌شوند که queueProduction موفق باشد.
+     * اگر صف پر باشد (boolean=false)، هیچ منبعی کسر نمی‌شود.
+     *
      * طبق داک: منابع هنگام شروع تولید کسر می‌شوند.
      * یونیت پس از اتمام Turn های مورد نیاز روی هکس TownHall ظاهر می‌شود.
      */
     public void trainUnit(String unitType) {
         if (!canTrainUnit(unitType)) return;
 
-        TownHall th = gameMap.getTownHall();
+        TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
         int q = th.getQ();
         int r = th.getR();
 
         switch (unitType) {
 
-            case "WORKER":
-                inv.consumeResource(ResourceType.FOOD, 20);
-                th.queueProduction("Worker", 1,
+            case "WORKER": {
+                // اصلاح گام ۶: ابتدا در صف قرار می‌گیرد، سپس منابع کسر می‌شوند
+                boolean queued = th.queueProduction(
+                        "Worker", 1,
                         () -> gameMap.getUnits().add(new Worker(q, r)));
+                if (queued) {
+                    inv.consumeResource(ResourceType.FOOD, 20);
+                }
                 break;
+            }
 
-            case "BUILDER":
-                inv.consumeResource(ResourceType.FOOD, 30);
-                inv.consumeResource(ResourceType.WOOD, 10);
-                th.queueProduction("Builder", 2,
+            case "BUILDER": {
+                boolean queued = th.queueProduction(
+                        "Builder", 2,
                         () -> gameMap.getUnits().add(new Builder(q, r)));
+                if (queued) {
+                    inv.consumeResource(ResourceType.FOOD, 30);
+                    inv.consumeResource(ResourceType.WOOD, 10);
+                }
                 break;
+            }
 
-            case "EXPLORER":
-                inv.consumeResource(ResourceType.FOOD, 40);
-                inv.consumeResource(ResourceType.WOOD, 5);
-                th.queueProduction("Explorer", 3,
+            case "EXPLORER": {
+                boolean queued = th.queueProduction(
+                        "Explorer", 3,
                         () -> gameMap.getUnits().add(new Explorer(q, r)));
+                if (queued) {
+                    inv.consumeResource(ResourceType.FOOD, 40);
+                    inv.consumeResource(ResourceType.WOOD,  5);
+                }
                 break;
+            }
 
-            case "BORDER_EXPANDER":
-                inv.consumeResource(ResourceType.FOOD, 30);
-                inv.consumeResource(ResourceType.WOOD, 20);
-                inv.consumeResource(ResourceType.STONE, 10);
-                th.queueProduction("Border Expander", 3,
+            case "BORDER_EXPANDER": {
+                boolean queued = th.queueProduction(
+                        "Border Expander", 3,
                         () -> gameMap.getUnits().add(new BorderExpander(q, r)));
+                if (queued) {
+                    inv.consumeResource(ResourceType.FOOD,  30);
+                    inv.consumeResource(ResourceType.WOOD,  20);
+                    inv.consumeResource(ResourceType.STONE, 10);
+                }
                 break;
+            }
         }
     }
 }
