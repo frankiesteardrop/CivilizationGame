@@ -8,6 +8,7 @@ import model.Building;
 import model.BuildingType;
 import model.BorderExpander;
 import model.GameConfig;
+import model.GameEventDispatcher; // ایمپورت ضروری اضافه شد
 
 /**
  * کنترلر مدیریت اقدامات یونیت‌ها.
@@ -15,15 +16,12 @@ import model.GameConfig;
  */
 public class UnitController {
 
-    // انتقال وضعیت‌های انتخاب یونیت از لایه گرافیک به لایه کنترلر
     private Hex lastClickedHex = null;
     private int unitCycleIndex = 0;
 
     public boolean canMove(Unit unit, Hex targetHex) {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
-
-        // هات‌فیکس: خط محدودکننده کاوش پاک شد تا یونیت‌ها بتوانند در تاریکی قدم بگذارند و نقشه کشف شود.
 
         int dq = targetHex.getQ() - unit.getQ();
         int dr = targetHex.getR() - unit.getR();
@@ -36,10 +34,6 @@ public class UnitController {
         return unit.getCurrentAP() >= cost;
     }
 
-    /**
-     * اجرای قطعی حرکت یونیت پس از اتمام انیمیشن گرافیکی.
-     * اصلاح گام چهارم: انتقال کنترل مه‌جنگ به لایه Controller برای حفظ یکپارچگی MVC
-     */
     public void executeMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || targetHex == null || map == null) return;
 
@@ -78,26 +72,31 @@ public class UnitController {
         return worker != null && worker.isAlive() && worker.isStationed();
     }
 
-    // اصلاح گام ۳ (باگ ۷): اضافه شدن هندلر BorderExpander جهت حفظ کامل الگوی MVC
+    // [اصلاح گام ۶]: شلیک رویداد بلافاصله پس از تغییر مرز در مدل
     public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
         if (!expander.canExpand(map)) return false;
+
+        int q = expander.getQ();
+        int r = expander.getR();
+
         expander.consumeAP(GameConfig.EXPAND_AP_COST);
-        map.expandBorderAt(expander.getQ(), expander.getR());
+        map.expandBorderAt(q, r);
         map.updateFogOfWar();
         expander.kill();
+
+        // شلیک رویداد به شبکه عصبی بازی
+        GameEventDispatcher.fireBorderExpanded(q, r);
+
         return true;
     }
 
-    /**
-     * منطق هوشمند چرخش و انتخاب یونیت (انتقال یافته از لایه View جهت رعایت MVC).
-     */
     public Unit selectUnitAt(Hex hex, GameMap map) {
         java.util.List<Unit> unitsOnHex = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
                 .collect(java.util.stream.Collectors.toList());
 
         if (unitsOnHex.isEmpty()) {
-            lastClickedHex = null; // ریست کردن وضعیت در صورت کلیک روی جای خالی
+            lastClickedHex = null;
             return null;
         }
 

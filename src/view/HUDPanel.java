@@ -148,6 +148,15 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
+    // [اصلاح گام ۶]: واکنش نشان دادن به توسعه مرز و ری‌پینت کردن نقشه
+    @Override
+    public void onBorderExpanded(int centerQ, int centerR) {
+        SwingUtilities.invokeLater(() -> {
+            updateHUD();
+            gamePanel.repaint();
+        });
+    }
+
     private void updateHUD() {
         infoContainer.removeAll();
 
@@ -203,7 +212,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
         infoContainer.add(createCard("🏗️ Queue", queueText, queueColor, false));
 
-        // اصلاح گام ۴: استفاده از Streams برای شمارش یونیت‌ها
         long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
         long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
         long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
@@ -356,7 +364,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.start();
     }
 
-    // اصلاح گام ۴: جلوگیری از پایان نوبت حین انیمیشن (رفع باگ ۱۲)
     private void handleEndTurn() {
         if (gamePanel.isAnimating()) return;
 

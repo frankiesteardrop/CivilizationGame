@@ -5,7 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameEventListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventListener.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

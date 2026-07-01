@@ -48,13 +48,16 @@ public class GameEventDispatcher {
         for (GameEventListener l : listeners) l.onUnitStateChanged(unit);
     }
 
-    // [اضافه شده برای گام ۶]
     public static void fireBuildingConstructed(Hex hex) {
         for (GameEventListener l : listeners) l.onBuildingConstructed(hex);
     }
 
-    // اصلاح گام دوم: شلیک رویداد تخریب
     public static void fireBuildingDestroyed(Hex hex) {
         for (GameEventListener l : listeners) l.onBuildingDestroyed(hex);
+    }
+
+    // [اصلاح گام ۶]: متد پخش پیام گسترش مرز به تمام شنوندگان
+    public static void fireBorderExpanded(int centerQ, int centerR) {
+        for (GameEventListener l : listeners) l.onBorderExpanded(centerQ, centerR);
     }
 }
