@@ -4,13 +4,6 @@ import model.*;
 
 /**
  * کنترلر مدیریت ساخت‌وساز.
- *
- * اصلاح گام ۶:
- * - canBuild اصلاح شد: بررسی‌های null-safe تر
- * - buildStructure: updateFogOfWar قبل از fireBuildingConstructed
- * صدا زده می‌شود تا HUDPanel و GamePanel بلافاصله شعاع دید
- * جدید ساختمان را ببینند
- * - کامنت‌های دقیق برای هر مرحله ساخت اضافه شد
  */
 public class BuildController {
 
@@ -20,32 +13,12 @@ public class BuildController {
         this.gameMap = gameMap;
     }
 
-    // =========================================================
-    // بررسی امکان ساخت
-    // =========================================================
-
-    /**
-     * بررسی تمام شرایط لازم برای ساخت یک سازه.
-     *
-     * شرایط عمومی:
-     * - هکس داخل مرز باشد
-     * - هکس ساختمان نداشته باشد (یا ساختمان قبلی کاملاً تخریب شده باشد)
-     * - Builder زنده، شارژ داشته باشد
-     * - Builder AP کافی داشته باشد
-     * - منابع انبار کافی باشد
-     *
-     * شرایط اختصاصی هر نوع سازه:
-     * - تناسب با نوع زمین و منبع هکس
-     * - تکنولوژی لازم آنلاک شده باشد (برای معادن و Settlement)
-     */
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
         if (hex == null || builder == null) return false;
         if (!builder.isAlive()) return false;
 
-        // شرایط عمومی
         if (!hex.isInsideBorder()) return false;
 
-        // اصلاح گام ۳ (باگ ۲): امکان ساخت مجدد روی هکس‌های دارای ساختمانِ تخریب‌شده (ویرانه)
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
 
         if (builder.getCharges() <= 0)     return false;
@@ -54,77 +27,54 @@ public class BuildController {
         TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        // بررسی تناسب با زمین و پیش‌نیازهای تکنولوژی
         boolean validTerrain = isValidTerrainForBuilding(type, hex, th);
         if (!validTerrain) return false;
 
-        // بررسی موجودی انبار برای هزینه ساخت
         return inv.hasEnough(ResourceType.WOOD,  type.getWoodCost())
                 && inv.hasEnough(ResourceType.STONE, type.getStoneCost())
                 && inv.hasEnough(ResourceType.IRON,  type.getIronCost());
     }
 
-    /**
-     * بررسی تناسب نوع زمین با سازه درخواستی.
-     * این منطق از canBuild جدا شده تا خوانایی و قابلیت تست را افزایش دهد.
-     */
     private boolean isValidTerrainForBuilding(BuildingType type, Hex hex, TownHall th) {
         switch (type) {
-
             case LUMBER_MILL:
-                // فقط روی جنگل — جنگل همیشه WOOD دارد
                 return hex.getTerrainType() == TerrainType.FOREST
                         && hex.hasResource(ResourceType.WOOD);
-
             case FARM:
-                // روی سبزه‌زار دارای گندم/برنج
                 return hex.getTerrainType() == TerrainType.MEADOW
                         && hex.hasResource(ResourceType.FOOD);
-
             case STABLE:
-                // روی دشت دارای حیوانات اهلی
                 return hex.getTerrainType() == TerrainType.PLAINS
                         && hex.hasResource(ResourceType.FOOD);
-
             case STONE_MINE:
-                // روی کوهستان دارای سنگ + تکنولوژی آنلاک شده باشد
                 return th.isStoneMineUnlocked()
                         && hex.getTerrainType() == TerrainType.MOUNTAIN
                         && hex.hasResource(ResourceType.STONE);
-
             case IRON_MINE:
-                // روی کوهستان دارای آهن + تکنولوژی آنلاک شده باشد
                 return th.isIronMineUnlocked()
                         && hex.getTerrainType() == TerrainType.MOUNTAIN
                         && hex.hasResource(ResourceType.IRON);
-
             case SETTLEMENT:
-                // روی زمین‌های فاقد منبع — طبق داک
-                // سبزه‌زار بدون گندم/برنج، دشت بدون حیوان،
-                // کوهستان بدون معدن، جنگل بدون چوب (جنگل تخلیه‌شده)
                 boolean hasAnyResource =
                         hex.hasResource(ResourceType.WOOD)  ||
                                 hex.hasResource(ResourceType.STONE) ||
                                 hex.hasResource(ResourceType.IRON)  ||
                                 hex.hasResource(ResourceType.FOOD);
                 return th.isSettlementUnlocked() && !hasAnyResource;
-
             default:
                 return false;
         }
     }
 
-    // =========================================================
-    // اجرای ساخت
-    // =========================================================
-
-    /**
-     * اجرای ساخت سازه روی هکس مشخص.
-     */
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
 
         Inventory inv = gameMap.getTownHall().getInventory();
+
+        // مرحله ۱: پاکسازی صریح ویرانه‌های احتمالی (جلوگیری از Memory Leak و تداخل state)
+        if (hex.getBuilding() != null && hex.getBuilding().isDestroyed()) {
+            hex.setBuilding(null);
+        }
 
         // مرحله ۲: کسر منابع
         inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
@@ -148,9 +98,6 @@ public class BuildController {
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
-    /**
-     * Factory متد برای ساخت نمونه ساختمان بر اساس نوع آن.
-     */
     private Building createBuilding(BuildingType type) {
         switch (type) {
             case LUMBER_MILL: return new LumberMill();

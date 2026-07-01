@@ -7,37 +7,6 @@ import model.*;
  */
 public class UpgradeController {
 
-    public static final int WAREHOUSE_WOOD_COST = 100;
-    public static final int WAREHOUSE_STONE_COST = 50;
-
-    public static final int TECH_STONE_MINE_WOOD = 50;
-    public static final int TECH_IRON_MINE_WOOD = 100;
-    public static final int TECH_IRON_MINE_STONE = 50;
-
-    public static final int TECH_PROF_TOOLS_WOOD = 100;
-    public static final int TECH_PROF_TOOLS_STONE = 100;
-    public static final int TECH_PROF_TOOLS_IRON = 50;
-
-    public static final int TECH_SETTLEMENT_WOOD = 150;
-    public static final int TECH_SETTLEMENT_STONE = 100;
-    public static final int TECH_SETTLEMENT_IRON = 50;
-
-    public static final int WORKER_FOOD_COST = 20;
-    public static final int WORKER_TURN_COST = 1;
-
-    public static final int BUILDER_FOOD_COST = 30;
-    public static final int BUILDER_WOOD_COST = 10;
-    public static final int BUILDER_TURN_COST = 2;
-
-    public static final int EXPLORER_FOOD_COST = 40;
-    public static final int EXPLORER_WOOD_COST = 5;
-    public static final int EXPLORER_TURN_COST = 3;
-
-    public static final int BORDER_EXPANDER_FOOD_COST = 30;
-    public static final int BORDER_EXPANDER_WOOD_COST = 20;
-    public static final int BORDER_EXPANDER_STONE_COST = 10;
-    public static final int BORDER_EXPANDER_TURN_COST = 3;
-
     private final GameMap gameMap;
 
     public UpgradeController(GameMap gameMap) {
@@ -62,22 +31,22 @@ public class UpgradeController {
 
         switch (techType) {
             case "STONE_MINE":
-                return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, TECH_STONE_MINE_WOOD);
+                return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD);
             case "IRON_MINE":
                 return th.isStoneMineUnlocked() && !th.isIronMineUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  TECH_IRON_MINE_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, TECH_IRON_MINE_STONE);
+                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_IRON_MINE_WOOD)
+                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE);
             case "PROF_TOOLS":
                 return th.isStoneMineUnlocked() && th.isIronMineUnlocked()
                         && !th.isProfessionalToolsUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  TECH_PROF_TOOLS_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, TECH_PROF_TOOLS_STONE)
-                        && inv.hasEnough(ResourceType.IRON,  TECH_PROF_TOOLS_IRON);
+                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_PROF_TOOLS_WOOD)
+                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE)
+                        && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
             case "SETTLEMENT":
                 return th.isIronMineUnlocked() && !th.isSettlementUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  TECH_SETTLEMENT_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, TECH_SETTLEMENT_STONE)
-                        && inv.hasEnough(ResourceType.IRON,  TECH_SETTLEMENT_IRON);
+                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD)
+                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE)
+                        && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_SETTLEMENT_IRON);
             default:
                 return false;
         }
@@ -93,13 +62,13 @@ public class UpgradeController {
 
         switch (unitType) {
             case "WORKER":
-                return inv.hasEnough(ResourceType.FOOD, WORKER_FOOD_COST);
+                return inv.hasEnough(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
             case "BUILDER":
-                return inv.hasEnough(ResourceType.FOOD, BUILDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, BUILDER_WOOD_COST);
+                return inv.hasEnough(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
             case "EXPLORER":
-                return inv.hasEnough(ResourceType.FOOD, EXPLORER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, EXPLORER_WOOD_COST);
+                return inv.hasEnough(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
             case "BORDER_EXPANDER":
-                return inv.hasEnough(ResourceType.FOOD,  BORDER_EXPANDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD,  BORDER_EXPANDER_WOOD_COST) && inv.hasEnough(ResourceType.STONE, BORDER_EXPANDER_STONE_COST);
+                return inv.hasEnough(ResourceType.FOOD,  GameConfig.BORDER_EXPANDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD,  GameConfig.BORDER_EXPANDER_WOOD_COST) && inv.hasEnough(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
             default:
                 return false;
         }
@@ -125,24 +94,24 @@ public class UpgradeController {
 
         switch (techType) {
             case "STONE_MINE":
-                inv.consumeResource(ResourceType.WOOD, TECH_STONE_MINE_WOOD);
+                inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD);
                 th.setStoneMineUnlocked(true);
                 break;
             case "IRON_MINE":
-                inv.consumeResource(ResourceType.WOOD,  TECH_IRON_MINE_WOOD);
-                inv.consumeResource(ResourceType.STONE, TECH_IRON_MINE_STONE);
+                inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_IRON_MINE_WOOD);
+                inv.consumeResource(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE);
                 th.setIronMineUnlocked(true);
                 break;
             case "PROF_TOOLS":
-                inv.consumeResource(ResourceType.WOOD,  TECH_PROF_TOOLS_WOOD);
-                inv.consumeResource(ResourceType.STONE, TECH_PROF_TOOLS_STONE);
-                inv.consumeResource(ResourceType.IRON,  TECH_PROF_TOOLS_IRON);
+                inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_PROF_TOOLS_WOOD);
+                inv.consumeResource(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE);
+                inv.consumeResource(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
                 th.setProfessionalToolsUnlocked(true);
                 break;
             case "SETTLEMENT":
-                inv.consumeResource(ResourceType.WOOD,  TECH_SETTLEMENT_WOOD);
-                inv.consumeResource(ResourceType.STONE, TECH_SETTLEMENT_STONE);
-                inv.consumeResource(ResourceType.IRON,  TECH_SETTLEMENT_IRON);
+                inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD);
+                inv.consumeResource(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE);
+                inv.consumeResource(ResourceType.IRON,  GameConfig.TECH_SETTLEMENT_IRON);
                 th.setSettlementUnlocked(true);
                 break;
         }
@@ -156,27 +125,27 @@ public class UpgradeController {
 
         switch (unitType) {
             case "WORKER":
-                if (th.queueProduction("Worker", WORKER_TURN_COST, () -> spawnSpecificUnit("WORKER"))) {
-                    inv.consumeResource(ResourceType.FOOD, WORKER_FOOD_COST);
+                if (th.queueProduction("Worker", GameConfig.WORKER_TURN_COST, () -> spawnSpecificUnit("WORKER"))) {
+                    inv.consumeResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
                 }
                 break;
             case "BUILDER":
-                if (th.queueProduction("Builder", BUILDER_TURN_COST, () -> spawnSpecificUnit("BUILDER"))) {
-                    inv.consumeResource(ResourceType.FOOD, BUILDER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD, BUILDER_WOOD_COST);
+                if (th.queueProduction("Builder", GameConfig.BUILDER_TURN_COST, () -> spawnSpecificUnit("BUILDER"))) {
+                    inv.consumeResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST);
+                    inv.consumeResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
                 }
                 break;
             case "EXPLORER":
-                if (th.queueProduction("Explorer", EXPLORER_TURN_COST, () -> spawnSpecificUnit("EXPLORER"))) {
-                    inv.consumeResource(ResourceType.FOOD, EXPLORER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD, EXPLORER_WOOD_COST);
+                if (th.queueProduction("Explorer", GameConfig.EXPLORER_TURN_COST, () -> spawnSpecificUnit("EXPLORER"))) {
+                    inv.consumeResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST);
+                    inv.consumeResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
                 }
                 break;
             case "BORDER_EXPANDER":
-                if (th.queueProduction("Border Expander", BORDER_EXPANDER_TURN_COST, () -> spawnSpecificUnit("BORDER_EXPANDER"))) {
-                    inv.consumeResource(ResourceType.FOOD,  BORDER_EXPANDER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD,  BORDER_EXPANDER_WOOD_COST);
-                    inv.consumeResource(ResourceType.STONE, BORDER_EXPANDER_STONE_COST);
+                if (th.queueProduction("Border Expander", GameConfig.BORDER_EXPANDER_TURN_COST, () -> spawnSpecificUnit("BORDER_EXPANDER"))) {
+                    inv.consumeResource(ResourceType.FOOD,  GameConfig.BORDER_EXPANDER_FOOD_COST);
+                    inv.consumeResource(ResourceType.WOOD,  GameConfig.BORDER_EXPANDER_WOOD_COST);
+                    inv.consumeResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
                 }
                 break;
         }
