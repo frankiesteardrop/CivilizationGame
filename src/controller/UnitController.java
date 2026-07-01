@@ -11,9 +11,13 @@ import model.GameConfig;
 
 /**
  * کنترلر مدیریت اقدامات یونیت‌ها.
- * مسئول اعتبارسنجی و اجرای حرکت، استقرار و خروج یونیت‌ها.
+ * مسئول اعتبارسنجی و اجرای حرکت، استقرار، خروج یونیت‌ها و منطق انتخاب.
  */
 public class UnitController {
+
+    // انتقال وضعیت‌های انتخاب یونیت از لایه گرافیک به لایه کنترلر
+    private Hex lastClickedHex = null;
+    private int unitCycleIndex = 0;
 
     public boolean canMove(Unit unit, Hex targetHex) {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
@@ -82,5 +86,27 @@ public class UnitController {
         map.updateFogOfWar();
         expander.kill();
         return true;
+    }
+
+    /**
+     * منطق هوشمند چرخش و انتخاب یونیت (انتقال یافته از لایه View جهت رعایت MVC).
+     */
+    public Unit selectUnitAt(Hex hex, GameMap map) {
+        java.util.List<Unit> unitsOnHex = map.getUnits().stream()
+                .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
+                .collect(java.util.stream.Collectors.toList());
+
+        if (unitsOnHex.isEmpty()) {
+            lastClickedHex = null; // ریست کردن وضعیت در صورت کلیک روی جای خالی
+            return null;
+        }
+
+        if (hex == lastClickedHex) {
+            unitCycleIndex = (unitCycleIndex + 1) % unitsOnHex.size();
+        } else {
+            unitCycleIndex = 0;
+            lastClickedHex = hex;
+        }
+        return unitsOnHex.get(unitCycleIndex);
     }
 }

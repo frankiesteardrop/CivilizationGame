@@ -37,16 +37,10 @@ public class GamePanel extends JPanel {
 
     private final Timer animationTimer;
 
-    // اصلاح گام ۴: فیلدهای لازم برای چرخش بین یونیت‌های هم‌پوشان
-    private Hex lastClickedHex = null;
-    private int unitCycleIndex = 0;
-
     public GamePanel(MainController mainController) {
         this.mainController = mainController;
         setBackground(new Color(15, 18, 22));
         setFocusable(true);
-
-        // تول‌تیپ‌ها در اصلاح گام ۴ کاملاً و بی‌رحمانه ریشه‌کن شدند
 
         animationTimer = new Timer(16, e -> {
             updateAnimation();
@@ -59,7 +53,6 @@ public class GamePanel extends JPanel {
         setupMouseWheelListener();
     }
 
-    // اصلاح گام ۴: متد کمکی تشخیص انیمیشن
     public boolean isAnimating() {
         return animatingUnit != null;
     }
@@ -144,7 +137,6 @@ public class GamePanel extends JPanel {
     // =========================================================
 
     private void handleRightClick(MouseEvent e, Hex clickedHex) {
-        // اصلاح گام ۴: لغو انتخاب خودکار برای راحتی کلیک روی TownHall
         if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
             if (selectedUnit == null || !(selectedUnit instanceof Worker)) {
                 selectedUnit = null; // Deselect خودکار
@@ -189,7 +181,6 @@ public class GamePanel extends JPanel {
         stylePopupMenu(popup);
         TownHall th = mainController.getGameMap().getTownHall();
 
-        // محاسبه هوشمند قیمت ارتقای انبار با اتصال مستقیم به مدل بازی
         int whWoodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
         int whStoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
 
@@ -382,23 +373,11 @@ public class GamePanel extends JPanel {
     // متدهای کمکی حرکت و انتخاب
     // =========================================================
 
+    /**
+     * واگذاری منطق کامل انتخاب و چرخش بین یونیت‌ها به لایه کنترلر (رعایت اصول MVC).
+     */
     private void selectUnitAt(Hex hex) {
-        java.util.List<Unit> unitsOnHex = mainController.getGameMap().getUnits().stream()
-                .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
-                .collect(java.util.stream.Collectors.toList());
-
-        if (unitsOnHex.isEmpty()) {
-            selectedUnit = null;
-            return;
-        }
-
-        if (hex == lastClickedHex) {
-            unitCycleIndex = (unitCycleIndex + 1) % unitsOnHex.size();
-        } else {
-            unitCycleIndex = 0;
-            lastClickedHex = hex;
-        }
-        selectedUnit = unitsOnHex.get(unitCycleIndex);
+        selectedUnit = mainController.getUnitController().selectUnitAt(hex, mainController.getGameMap());
     }
 
     private void handleMovementCommand(Hex targetHex) {
