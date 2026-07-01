@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Random;
 
 public class GameMap {
-    // اصلاح گام ۲: استفاده از ساختار Generic (Repository)
     private final Repository<Hex> hexes;
     private final Repository<Unit> units;
     private final int radius;
@@ -24,7 +23,6 @@ public class GameMap {
         generateMap();
         spawnInitialUnits();
 
-        // هات‌فیکس: فراخوانی مجدد مه‌جنگ برای جلوگیری از نامرئی شدن یونیت‌ها در ابتدای بازی
         updateFogOfWar();
     }
 
@@ -37,7 +35,6 @@ public class GameMap {
             int r2 = Math.min(radius, -q + radius);
             for (int r = r1; r <= r2; r++) {
 
-                // اصلاح گام ۲: فقط مرکز اکتشاف شده و دارای مرز است
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
@@ -79,10 +76,6 @@ public class GameMap {
         ensureStartingResources();
     }
 
-    /**
-     * تضمین وجود حداقل یک هکس جنگلی در شعاع ۲ هکسی از TownHall.
-     * طبق داک: فاصله هکس جنگل از TownHall نباید بیشتر از ۲ باشد.
-     */
     private void ensureStartingResources() {
         boolean hasForestNear = false;
         List<Hex> availableCandidates = new ArrayList<>();
@@ -106,7 +99,6 @@ public class GameMap {
                     random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
 
-            // پاک کردن منابع قبلی (مثلاً FOOD از دشت)
             if (targetHex.hasResource(ResourceType.FOOD)) {
                 targetHex.extractResource(ResourceType.FOOD, Integer.MAX_VALUE);
             }
@@ -124,21 +116,18 @@ public class GameMap {
     }
 
     // =========================================================
-    // چرخه نوبت — ترتیب صحیح طبق داک
+    // چرخه نوبت
     // =========================================================
 
     public void nextTurn() {
-        // مرحله ۱: تجدید AP همه یونیت‌های زنده
         for (Unit unit : units.getAll()) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
-        // مراحل ۲ تا ۴: چرخه اقتصادی (ترتیب داخلی در EconomyManager)
         isStarving = EconomyManager.processEndTurn(this);
 
-        // مرحله ۵: اعمال پنالتی Starvation روی AP یونیت‌ها
         if (isStarving) {
             for (Unit unit : units.getAll()) {
                 if (unit.isAlive()) {
@@ -147,10 +136,7 @@ public class GameMap {
             }
         }
 
-        // مرحله ۶: پاکسازی یونیت‌های مرده از لیست فعال (با استفاده از متد Repository)
         units.removeIf(u -> !u.isAlive());
-
-        // مرحله ۷: پیشرفت شمارنده نوبت
         currentTurn++;
     }
 
@@ -159,7 +145,6 @@ public class GameMap {
     // =========================================================
 
     public void updateFogOfWar() {
-        // هات‌فیکس: دید TownHall — شعاع ۱ (طبق صورت‌سوال: هکس‌های اطراف Town Hall)
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(townHall.getQ(), townHall.getR(),
                     hex.getQ(), hex.getR()) <= 1) {
@@ -167,7 +152,6 @@ public class GameMap {
             }
         }
 
-        // دید یونیت‌های زنده
         for (Unit unit : units.getAll()) {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
@@ -179,7 +163,6 @@ public class GameMap {
             }
         }
 
-        // دید ساختمان‌های فعال (شعاع ۱ هکس)
         for (Hex hex : hexes.getAll()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed()) {
@@ -216,6 +199,23 @@ public class GameMap {
     // متدهای کمکی
     // =========================================================
 
+    public Hex findEmptySpawnHex(int startQ, int startR) {
+        for (int d = 0; d <= radius; d++) {
+            for (Hex hex : hexes.getAll()) {
+                if (getHexDistance(startQ, startR, hex.getQ(), hex.getR()) == d) {
+                    if (hex.isExplored() && !hasUnitAt(hex.getQ(), hex.getR())) {
+                        return hex;
+                    }
+                }
+            }
+        }
+        return getHexAt(startQ, startR);
+    }
+
+    public boolean hasUnitAt(int q, int r) {
+        return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
+    }
+
     public int getUnitCap() {
         int cap = 10;
         for (Hex h : hexes.getAll()) {
@@ -238,7 +238,6 @@ public class GameMap {
         return terrains[random.nextInt(terrains.length)];
     }
 
-    // اصلاح گام ۲: استفاده از مفهوم قدرتمند Streams برای فیلتر و شمارش
     public int getAliveUnitsCount() {
         return (int) units.stream().filter(Unit::isAlive).count();
     }

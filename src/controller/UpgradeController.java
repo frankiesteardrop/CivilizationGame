@@ -4,24 +4,13 @@ import model.*;
 
 /**
  * کنترلر مدیریت آپگریدها، تکنولوژی‌ها و تولید یونیت در Town Hall.
- * * [اصلاح حیاتی گام ۸]:
- * - بررسی Unit Cap حالا با احتساب یونیت‌هایی که در صف تولید (Queue) هستند انجام می‌شود
- * تا بازیکن نتواند از باگ Overpopulation سوءاستفاده کند.
  */
 public class UpgradeController {
 
-    // =========================================================
-    // ثابت‌های اقتصادی بازی (Centralized Game Balance Values)
-    // =========================================================
-
-    // هزینه‌های ارتقای انبار (موقتاً برای سازگاری با HUD حفظ شده‌اند،
-    // اما منطق اصلی از GameConfig خوانده می‌شود)
     public static final int WAREHOUSE_WOOD_COST = 100;
     public static final int WAREHOUSE_STONE_COST = 50;
 
-    // هزینه‌های تکنولوژی‌ها
     public static final int TECH_STONE_MINE_WOOD = 50;
-
     public static final int TECH_IRON_MINE_WOOD = 100;
     public static final int TECH_IRON_MINE_STONE = 50;
 
@@ -33,7 +22,6 @@ public class UpgradeController {
     public static final int TECH_SETTLEMENT_STONE = 100;
     public static final int TECH_SETTLEMENT_IRON = 50;
 
-    // هزینه‌های ساخت و تولید یونیت‌ها
     public static final int WORKER_FOOD_COST = 20;
     public static final int WORKER_TURN_COST = 1;
 
@@ -60,7 +48,6 @@ public class UpgradeController {
         TownHall th = gameMap.getTownHall();
         if (th.getWarehouseUpgradeLevel() >= 2) return false;
 
-        // اصلاح گام ۳ (باگ ۱۹): خواندن داینامیک هزینه ارتقا بسته به سطح انبار از روی GameConfig
         int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
         int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
 
@@ -99,7 +86,6 @@ public class UpgradeController {
     public boolean canTrainUnit(String unitType) {
         TownHall th = gameMap.getTownHall();
 
-        // اصلاح گام ۳ (باگ ۱۷): پاکسازی کدهای مرده و اعمال دقیق منطق چک کردن جمعیت و صف تک‌آیتمی
         if (!th.isProductionQueueEmpty()) return false;
         if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return false;
 
@@ -124,7 +110,6 @@ public class UpgradeController {
         TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        // اصلاح گام ۳ (باگ ۱۹): خواندن داینامیک هزینه ارتقا بسته به سطح انبار از روی GameConfig
         int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
         int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
 
@@ -168,40 +153,46 @@ public class UpgradeController {
 
         TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
-        int q = th.getQ();
-        int r = th.getR();
 
         switch (unitType) {
-            case "WORKER": {
-                boolean queued = th.queueProduction("Worker", WORKER_TURN_COST, () -> gameMap.getUnits().add(new Worker(q, r)));
-                if (queued) inv.consumeResource(ResourceType.FOOD, WORKER_FOOD_COST);
+            case "WORKER":
+                if (th.queueProduction("Worker", WORKER_TURN_COST, () -> spawnSpecificUnit("WORKER"))) {
+                    inv.consumeResource(ResourceType.FOOD, WORKER_FOOD_COST);
+                }
                 break;
-            }
-            case "BUILDER": {
-                boolean queued = th.queueProduction("Builder", BUILDER_TURN_COST, () -> gameMap.getUnits().add(new Builder(q, r)));
-                if (queued) {
+            case "BUILDER":
+                if (th.queueProduction("Builder", BUILDER_TURN_COST, () -> spawnSpecificUnit("BUILDER"))) {
                     inv.consumeResource(ResourceType.FOOD, BUILDER_FOOD_COST);
                     inv.consumeResource(ResourceType.WOOD, BUILDER_WOOD_COST);
                 }
                 break;
-            }
-            case "EXPLORER": {
-                boolean queued = th.queueProduction("Explorer", EXPLORER_TURN_COST, () -> gameMap.getUnits().add(new Explorer(q, r)));
-                if (queued) {
+            case "EXPLORER":
+                if (th.queueProduction("Explorer", EXPLORER_TURN_COST, () -> spawnSpecificUnit("EXPLORER"))) {
                     inv.consumeResource(ResourceType.FOOD, EXPLORER_FOOD_COST);
                     inv.consumeResource(ResourceType.WOOD, EXPLORER_WOOD_COST);
                 }
                 break;
-            }
-            case "BORDER_EXPANDER": {
-                boolean queued = th.queueProduction("Border Expander", BORDER_EXPANDER_TURN_COST, () -> gameMap.getUnits().add(new BorderExpander(q, r)));
-                if (queued) {
+            case "BORDER_EXPANDER":
+                if (th.queueProduction("Border Expander", BORDER_EXPANDER_TURN_COST, () -> spawnSpecificUnit("BORDER_EXPANDER"))) {
                     inv.consumeResource(ResourceType.FOOD,  BORDER_EXPANDER_FOOD_COST);
                     inv.consumeResource(ResourceType.WOOD,  BORDER_EXPANDER_WOOD_COST);
                     inv.consumeResource(ResourceType.STONE, BORDER_EXPANDER_STONE_COST);
                 }
                 break;
-            }
+        }
+    }
+
+    private void spawnSpecificUnit(String unitType) {
+        TownHall th = gameMap.getTownHall();
+        Hex spawnHex = gameMap.findEmptySpawnHex(th.getQ(), th.getR());
+        int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();
+        int targetR = spawnHex != null ? spawnHex.getR() : th.getR();
+
+        switch(unitType) {
+            case "WORKER": gameMap.getUnits().add(new Worker(targetQ, targetR)); break;
+            case "BUILDER": gameMap.getUnits().add(new Builder(targetQ, targetR)); break;
+            case "EXPLORER": gameMap.getUnits().add(new Explorer(targetQ, targetR)); break;
+            case "BORDER_EXPANDER": gameMap.getUnits().add(new BorderExpander(targetQ, targetR)); break;
         }
     }
 }
