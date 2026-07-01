@@ -1,7 +1,6 @@
 package view;
 
 import controller.MainController;
-import controller.UpgradeController;
 import model.*;
 import javax.swing.*;
 import java.awt.*;
@@ -190,11 +189,15 @@ public class GamePanel extends JPanel {
         stylePopupMenu(popup);
         TownHall th = mainController.getGameMap().getTownHall();
 
+        // محاسبه هوشمند قیمت ارتقای انبار با اتصال مستقیم به مدل بازی
+        int whWoodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
+        int whStoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
+
         String whLabel = th.getWarehouseUpgradeLevel() >= 2
                 ? "✅ Warehouse MAXED"
                 : String.format("📦 Upgrade Warehouse (%dW, %dS) — Level %d",
-                UpgradeController.WAREHOUSE_WOOD_COST,
-                UpgradeController.WAREHOUSE_STONE_COST,
+                whWoodCost,
+                whStoneCost,
                 th.getWarehouseUpgradeLevel() + 1);
 
         JMenuItem whItem = new JMenuItem(whLabel);
@@ -210,37 +213,37 @@ public class GamePanel extends JPanel {
 
         addTechMenuItem(popup, th.isStoneMineUnlocked(),
                 "STONE_MINE", String.format("⛏️ Tech: Stone Mine (%dW)",
-                        UpgradeController.TECH_STONE_MINE_WOOD));
+                        GameConfig.TECH_STONE_MINE_WOOD));
 
         addTechMenuItem(popup, th.isIronMineUnlocked(),
                 "IRON_MINE", String.format("🔩 Tech: Iron Mine (%dW, %dS)",
-                        UpgradeController.TECH_IRON_MINE_WOOD,
-                        UpgradeController.TECH_IRON_MINE_STONE));
+                        GameConfig.TECH_IRON_MINE_WOOD,
+                        GameConfig.TECH_IRON_MINE_STONE));
 
         addTechMenuItem(popup, th.isProfessionalToolsUnlocked(),
                 "PROF_TOOLS", String.format("🔧 Tech: Prof. Tools (%dW, %dS, %dI)",
-                        UpgradeController.TECH_PROF_TOOLS_WOOD,
-                        UpgradeController.TECH_PROF_TOOLS_STONE,
-                        UpgradeController.TECH_PROF_TOOLS_IRON));
+                        GameConfig.TECH_PROF_TOOLS_WOOD,
+                        GameConfig.TECH_PROF_TOOLS_STONE,
+                        GameConfig.TECH_PROF_TOOLS_IRON));
 
         addTechMenuItem(popup, th.isSettlementUnlocked(),
                 "SETTLEMENT", String.format("🏘️ Tech: Settlement (%dW, %dS, %dI)",
-                        UpgradeController.TECH_SETTLEMENT_WOOD,
-                        UpgradeController.TECH_SETTLEMENT_STONE,
-                        UpgradeController.TECH_SETTLEMENT_IRON));
+                        GameConfig.TECH_SETTLEMENT_WOOD,
+                        GameConfig.TECH_SETTLEMENT_STONE,
+                        GameConfig.TECH_SETTLEMENT_IRON));
         popup.addSeparator();
 
         addTrainMenuItem(popup, "WORKER", String.format("👷 Train Worker (%dF) — %d Turn",
-                UpgradeController.WORKER_FOOD_COST, UpgradeController.WORKER_TURN_COST));
+                GameConfig.WORKER_FOOD_COST, GameConfig.WORKER_TURN_COST));
 
         addTrainMenuItem(popup, "BUILDER", String.format("🔨 Train Builder (%dF, %dW) — %d Turns",
-                UpgradeController.BUILDER_FOOD_COST, UpgradeController.BUILDER_WOOD_COST, UpgradeController.BUILDER_TURN_COST));
+                GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST, GameConfig.BUILDER_TURN_COST));
 
         addTrainMenuItem(popup, "EXPLORER", String.format("🧭 Train Explorer (%dF, %dW) — %d Turns",
-                UpgradeController.EXPLORER_FOOD_COST, UpgradeController.EXPLORER_WOOD_COST, UpgradeController.EXPLORER_TURN_COST));
+                GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST, GameConfig.EXPLORER_TURN_COST));
 
         addTrainMenuItem(popup, "BORDER_EXPANDER", String.format("🗺️ Train Border Expander (%dF, %dW, %dS) — %d Turns",
-                UpgradeController.BORDER_EXPANDER_FOOD_COST, UpgradeController.BORDER_EXPANDER_WOOD_COST, UpgradeController.BORDER_EXPANDER_STONE_COST, UpgradeController.BORDER_EXPANDER_TURN_COST));
+                GameConfig.BORDER_EXPANDER_FOOD_COST, GameConfig.BORDER_EXPANDER_WOOD_COST, GameConfig.BORDER_EXPANDER_STONE_COST, GameConfig.BORDER_EXPANDER_TURN_COST));
 
         popup.show(this, e.getX(), e.getY());
     }
@@ -347,7 +350,6 @@ public class GamePanel extends JPanel {
         styleMenuItem(expandItem);
         if (!canExpand) expandItem.setEnabled(false);
 
-        // اصلاح گام ۴ (و رفع باگ ۷): واگذاری هندل کردن مرزگشا به UnitController در لایه Controller
         expandItem.addActionListener(ev -> {
             if (mainController.getUnitController().handleExpandBorder(expander, mainController.getGameMap())) {
                 selectedUnit = null;
@@ -380,7 +382,6 @@ public class GamePanel extends JPanel {
     // متدهای کمکی حرکت و انتخاب
     // =========================================================
 
-    // اصلاح گام ۴: پیاده‌سازی سیستم هوشمند Cycle Selection
     private void selectUnitAt(Hex hex) {
         java.util.List<Unit> unitsOnHex = mainController.getGameMap().getUnits().stream()
                 .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
@@ -531,7 +532,6 @@ public class GamePanel extends JPanel {
             return;
         }
 
-        // اصلاح گام ۴: تطبیق رندر زمین با تغییرات چندمنبعی Hex در فاز ۲
         boolean hasActiveResource = !hex.getResources().isEmpty() && !hex.isResourceDepleted();
         boolean hasDepletedResource = !hex.getResources().isEmpty() && hex.isResourceDepleted();
 
@@ -626,7 +626,6 @@ public class GamePanel extends JPanel {
     private void drawHexDetails(Graphics2D g2d, Hex hex) {
         Point pt = getHexPixelCoords(hex.getQ(), hex.getR());
 
-        // اصلاح گام ۴: رندر همزمان تمام منابع یک هکس (مثلاً آهن و سنگ کنار هم)
         int offset = 0;
         for (ResourceType rt : hex.getResources().keySet()) {
             if (rt == ResourceType.NONE) continue;
@@ -639,7 +638,6 @@ public class GamePanel extends JPanel {
         }
     }
 
-    // اصلاح گام ۴: دریافت ResourceType خاص به عنوان ورودی برای تفکیک رندر
     private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt, ResourceType rt) {
         if (rt == ResourceType.NONE) return;
 
@@ -647,7 +645,6 @@ public class GamePanel extends JPanel {
         int iconX = pt.x - (int)(HEX_SIZE * 0.55 * zoomFactor);
         int iconY = pt.y - (int)(HEX_SIZE * 0.70 * zoomFactor);
 
-        // بررسی Deplete بودن مختص همین منبع
         if (hex.getResources().getOrDefault(rt, 0) <= 0) {
             g2d.setColor(new Color(50, 50, 50, 210));
             g2d.fillOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
