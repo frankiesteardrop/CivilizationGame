@@ -49,22 +49,22 @@ public class GameMap {
 
                 switch (terrain) {
                     case FOREST:
-                        newHex.addResource(ResourceType.WOOD, 500);
+                        newHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
                         break;
                     case MOUNTAIN:
-                        newHex.addResource(ResourceType.STONE, 400);
+                        newHex.addResource(ResourceType.STONE, GameConfig.SEED_MOUNTAIN_STONE);
                         if (random.nextDouble() < 0.3) {
-                            newHex.addResource(ResourceType.IRON, 200);
+                            newHex.addResource(ResourceType.IRON, GameConfig.SEED_MOUNTAIN_IRON);
                         }
                         break;
                     case MEADOW:
                         if (random.nextDouble() < 0.5) {
-                            newHex.addResource(ResourceType.FOOD, 300);
+                            newHex.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
                         }
                         break;
                     case PLAINS:
                         if (random.nextDouble() < 0.3) {
-                            newHex.addResource(ResourceType.FOOD, 300);
+                            newHex.addResource(ResourceType.FOOD, GameConfig.SEED_PLAINS_FOOD);
                         }
                         break;
                 }
@@ -103,7 +103,7 @@ public class GameMap {
                 targetHex.extractResource(ResourceType.FOOD, Integer.MAX_VALUE);
             }
 
-            targetHex.addResource(ResourceType.WOOD, 500);
+            targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
         }
     }
 
@@ -145,9 +145,10 @@ public class GameMap {
     // =========================================================
 
     public void updateFogOfWar() {
+        // شعاع دید TownHall در ابتدا
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(townHall.getQ(), townHall.getR(),
-                    hex.getQ(), hex.getR()) <= 1) {
+                    hex.getQ(), hex.getR()) <= GameConfig.BUILDING_VISION_RADIUS) {
                 hex.setExplored(true);
             }
         }
@@ -168,7 +169,7 @@ public class GameMap {
             if (b != null && !b.isDestroyed()) {
                 for (Hex other : hexes.getAll()) {
                     if (getHexDistance(hex.getQ(), hex.getR(),
-                            other.getQ(), other.getR()) <= 1) {
+                            other.getQ(), other.getR()) <= GameConfig.BUILDING_VISION_RADIUS) {
                         other.setExplored(true);
                     }
                 }
@@ -217,11 +218,11 @@ public class GameMap {
     }
 
     public int getUnitCap() {
-        int cap = 10;
+        int cap = GameConfig.UNIT_CAP_BASE;
         for (Hex h : hexes.getAll()) {
             Building b = h.getBuilding();
             if (b != null && b.getType() == BuildingType.SETTLEMENT && !b.isDestroyed()) {
-                cap += 5;
+                cap += GameConfig.UNIT_CAP_SETTLEMENT_BONUS;
             }
         }
         return cap;

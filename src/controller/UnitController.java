@@ -45,6 +45,13 @@ public class UnitController {
     public boolean canStation(Worker worker, Hex hex) {
         if (worker == null || !worker.isAlive()) return false;
         if (worker.isStationed()) return false;
+
+        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت — Worker باید واقعاً روی
+        // همین هکس ایستاده باشد تا بتواند در ساختمانِ روی آن مستقر شود.
+        // بدون این چک، از نظر منطق Controller/Model هر Worker ای،
+        // فارغ از موقعیتش روی نقشه، می‌توانست در هر ساختمانی مستقر شود.
+        if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
+
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;
 
         Building building = hex.getBuilding();
@@ -54,11 +61,17 @@ public class UnitController {
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
+    /**
+     * [گام ۳ - اصلاح]: این متد اکنون از canStation() به‌عنوان guard
+     * استفاده می‌کند. پیش‌تر، handleStation() مستقیماً worker.stationIn()
+     * را صدا می‌زد بدون عبور از تمام اعتبارسنجی‌های canStation() (از جمله
+     * چک موقعیت تازه‌اضافه‌شده) — یعنی حتی اگر UI به‌درستی دکمه را غیرفعال
+     * می‌کرد، این متد در سطح منطقی همچنان بدون محافظت بود.
+     */
     public boolean handleStation(Worker worker, Hex hex) {
-        Building building = hex.getBuilding();
-        if (building == null || building.isDestroyed()) return false;
-        if (worker.isStationed()) return false;
+        if (!canStation(worker, hex)) return false;
 
+        Building building = hex.getBuilding();
         return worker.stationIn(building);
     }
 

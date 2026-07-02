@@ -17,6 +17,12 @@ public class BuildController {
         if (hex == null || builder == null) return false;
         if (!builder.isAlive()) return false;
 
+        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت — Builder باید واقعاً روی
+        // همین هکس ایستاده باشد تا بتواند در آن بسازد. بدون این چک،
+        // از نظر منطق Controller/Model هر Builder ای، فارغ از موقعیتش
+        // روی نقشه، می‌توانست روی هر هکسی بسازد.
+        if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
+
         if (!hex.isInsideBorder()) return false;
 
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;

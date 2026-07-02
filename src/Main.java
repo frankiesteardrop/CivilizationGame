@@ -1,4 +1,3 @@
-package controller;
 
 import view.MainFrame;
 import javax.swing.SwingUtilities;

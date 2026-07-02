@@ -2,9 +2,18 @@ package model;
 
 /**
  * مدیریت چرخه اقتصادی بازی.
- * * [اصلاح حیاتی QA]:
- * ترتیب فازها به گونه‌ای تغییر یافت که قبل از پیشرفت صف تولید، وضعیت قحطی بررسی شود.
- * اگر قحطی (Starvation) برقرار باشد، صف تولید متوقف می‌ماند.
+ *
+ * [گام ۲ - اصلاح]: ترتیب اجرای فازهای پایان نوبت مطابق متن دقیق صورت
+ * سوال اصلاح شد. طبق داک (بخش «ساختار هر نوبت»): «تولید منابع:
+ * ساختمان‌های فعال منابع خود را تولید کرده و به انبار اضافه می‌کنند.
+ * همزمان، صف تولید Town Hall... یک مرحله به جلو پیش می‌رود.» —
+ * یعنی پیشرفت صف تولید بخشی از فاز «تولید منابع» است و باید *قبل* از
+ * کسر Upkeep و بررسی قحطی انجام شود، نه بعد از آن.
+ *
+ * قانون قبلی («صف در قحطی متوقف می‌شود») حذف شد چون هیچ سند صریحی در
+ * صورت سوال ندارد و باعث نقض ترتیب ثابت فازها می‌شد. صف تولید اکنون
+ * صرفاً بر اساس تعداد نوبت باقی‌مانده پیش می‌رود، مستقل از وضعیت غذا —
+ * دقیقاً مانند تولید منابع در ساختمان‌ها.
  */
 public class EconomyManager {
 
@@ -13,14 +22,18 @@ public class EconomyManager {
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
 
-        if (!isStarving) {
-            map.getTownHall().advanceProductionQueue();
-        }
-
         GameEventDispatcher.fireStarvationChanged(isStarving);
         return isStarving;
     }
 
+    /**
+     * فاز تولید منابع (طبق داک، فاز ۲ از چرخه پایان نوبت).
+     *
+     * [گام ۲ - اصلاح]: پیشرفت صف تولید Town Hall به این متد منتقل شد
+     * تا هم‌زمان و در همان فاز «تولید منابع» اجرا شود — دقیقاً طبق
+     * جمله‌ی صریح داک: «همزمان، صف تولید Town Hall... پیش می‌رود.»
+     * این پیشرفت دیگر منوط به وضعیت قحطی نیست.
+     */
     private static void produceResources(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
@@ -46,6 +59,10 @@ public class EconomyManager {
                 }
             }
         }
+
+        // [گام ۲ - اصلاح]: پیشرفت صف تولید — بخشی از فاز تولید منابع،
+        // بدون هیچ وابستگی به وضعیت قحطی.
+        townHall.advanceProductionQueue();
     }
 
     private static void processUpkeep(GameMap map) {

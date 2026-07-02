@@ -6,7 +6,7 @@ public class Builder extends Unit {
     public Builder(int q, int r) {
         // maxAP=4, foodConsumption=2, visionRadius=2
         super(q, r, 4, 2, 2);
-        this.charges = 3;
+        this.charges = GameConfig.BUILDER_INITIAL_CHARGES;
     }
 
     public int getCharges() { return charges; }

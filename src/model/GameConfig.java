@@ -43,4 +43,46 @@ public class GameConfig {
     public static final int BORDER_EXPANDER_TURN_COST = 3;
 
     public static final int EXPAND_AP_COST = 2;
+
+    // =========================================================
+    // زمان‌بندی صف تولید (تعداد نوبت‌ها)
+    // =========================================================
+    public static final int WAREHOUSE_UPGRADE_TURN_COST = 2;
+    public static final int TECH_STONE_MINE_TURN_COST = 2;
+    public static final int TECH_IRON_MINE_TURN_COST = 2;
+    public static final int TECH_PROF_TOOLS_TURN_COST = 3;
+    public static final int TECH_SETTLEMENT_TURN_COST = 3;
+
+    // =========================================================
+    // مقادیر بالانس موجودیت‌ها و مکانیک‌ها (رفع باگ پراکندگی تنظیمات)
+    // =========================================================
+    public static final int BUILDER_INITIAL_CHARGES = 3;
+    public static final int WORKER_STATION_AP_COST = 1;
+    public static final int BUILDING_UNPAID_TURNS_TO_DESTROY = 3;
+    public static final int BUILDING_VISION_RADIUS = 1;
+
+    // تولید منابع اولیه روی نقشه (Seed)
+    public static final int SEED_FOREST_WOOD = 500;
+    public static final int SEED_MOUNTAIN_STONE = 400;
+    public static final int SEED_MOUNTAIN_IRON = 200;
+    public static final int SEED_MEADOW_FOOD = 300;
+    public static final int SEED_PLAINS_FOOD = 300;
+
+    // ظرفیت‌های پیش‌فرض و ارتقای انبار
+    public static final int DEFAULT_FOOD_CAPACITY  = 200;
+    public static final int DEFAULT_WOOD_CAPACITY  = 200;
+    public static final int DEFAULT_STONE_CAPACITY = 200;
+    public static final int DEFAULT_IRON_CAPACITY  = 200;
+    public static final int WAREHOUSE_UPGRADE1_CAPACITY = 500;
+    public static final int WAREHOUSE_UPGRADE2_CAPACITY = 1000;
+
+    // منابع اولیه بازیکن در شروع بازی
+    public static final int STARTING_FOOD = 60;
+    public static final int STARTING_WOOD = 50;
+    public static final int STARTING_STONE = 30;
+    public static final int STARTING_IRON = 0;
+
+    // سقف جمعیت (Unit Cap)
+    public static final int UNIT_CAP_BASE = 10;
+    public static final int UNIT_CAP_SETTLEMENT_BONUS = 5;
 }

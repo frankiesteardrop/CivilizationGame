@@ -5,7 +5,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/model/GameEventListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/BuildController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/BuildController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/Main.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UnitController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UnitController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UpgradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UpgradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Builder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Builder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Building.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Building.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/EconomyManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/EconomyManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Inventory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TownHall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TownHall.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Worker.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Worker.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

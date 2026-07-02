@@ -5,12 +5,6 @@ import java.util.Queue;
 
 /**
  * ساختمان اصلی بازی — Town Hall.
- *
- * مسئولیت‌ها:
- * - نگهداری انبار منابع (Inventory)
- * - مدیریت صف تولید یونیت‌ها و آپگریدها (تک‌آیتمی — طبق داک)
- * - نگهداری وضعیت تکنولوژی‌های آنلاک‌شده
- * - تولید Safeguard (حداقل +۱ چوب و +۱ غذا در هر Turn)
  */
 public class TownHall extends Building {
 
@@ -24,11 +18,6 @@ public class TownHall extends Building {
     private boolean professionalToolsUnlocked;
     private boolean settlementUnlocked;
 
-    /**
-     * اصلاح گام ۵: صف تولید فقط یک آیتم همزمان نگه می‌دارد.
-     * از Queue استفاده می‌کنیم ولی در queueProduction اطمینان می‌دهیم
-     * که فقط یک آیتم در صف باشد.
-     */
     private final Queue<ProductionTask> productionQueue;
 
     public TownHall(int q, int r) {
@@ -38,11 +27,10 @@ public class TownHall extends Building {
         this.inventory = new Inventory();
         this.productionQueue = new LinkedList<>();
 
-        // منابع اولیه بازی — مقادیر منطقی برای شروع
-        this.inventory.addResource(ResourceType.FOOD,  60);
-        this.inventory.addResource(ResourceType.WOOD,  50);
-        this.inventory.addResource(ResourceType.STONE, 30);
-        this.inventory.addResource(ResourceType.IRON,   0);
+        this.inventory.addResource(ResourceType.FOOD,  GameConfig.STARTING_FOOD);
+        this.inventory.addResource(ResourceType.WOOD,  GameConfig.STARTING_WOOD);
+        this.inventory.addResource(ResourceType.STONE, GameConfig.STARTING_STONE);
+        this.inventory.addResource(ResourceType.IRON,  GameConfig.STARTING_IRON);
 
         this.warehouseUpgradeLevel     = 0;
         this.stoneMineUnlocked         = false;
@@ -56,23 +44,11 @@ public class TownHall extends Building {
         return BuildingType.TOWN_HALL;
     }
 
-    // =========================================================
-    // تولید Safeguard
-    // =========================================================
-
     public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, 1);
         this.inventory.addResource(ResourceType.FOOD, 1);
     }
 
-    // =========================================================
-    // صف تولید — تک‌آیتمی
-    // =========================================================
-
-    /**
-     * پیشرفت صف تولید در هر Turn.
-     * اگر Task فعلی تکمیل شد، آن را از صف خارج کرده و اجرا می‌کند.
-     */
     public void advanceProductionQueue() {
         if (productionQueue.isEmpty()) return;
 
@@ -86,35 +62,17 @@ public class TownHall extends Building {
         }
     }
 
-    /**
-     * افزودن یک Task جدید به صف تولید.
-     *
-     * اصلاح گام ۵: اگر صف پر باشد (یک آیتم در حال تولید است)،
-     * آیتم جدید رد می‌شود. این جلوگیری می‌کند از اینکه بازیکن
-     * با چند کلیک سریع چندین آیتم به صف اضافه کند.
-     *
-     * @return true اگر آیتم با موفقیت به صف اضافه شد
-     */
     public boolean queueProduction(String itemName, int turnCost, Runnable onComplete) {
         if (!productionQueue.isEmpty()) {
-            // صف پر است — آیتم جدید پذیرفته نمی‌شود
             return false;
         }
         productionQueue.add(new ProductionTask(itemName, turnCost, onComplete));
         return true;
     }
 
-    /**
-     * بررسی اینکه آیا صف تولید خالی است.
-     * برای استفاده در UpgradeController.canTrainUnit
-     */
     public boolean isProductionQueueEmpty() {
         return productionQueue.isEmpty();
     }
-
-    // =========================================================
-    // ارتقای انبار
-    // =========================================================
 
     public void upgradeWarehouse() {
         if (warehouseUpgradeLevel == 0) {
@@ -125,10 +83,6 @@ public class TownHall extends Building {
             inventory.upgradeToLevel2();
         }
     }
-
-    // =========================================================
-    // Getters & Setters
-    // =========================================================
 
     public int getQ()                     { return q; }
     public int getR()                     { return r; }
@@ -144,10 +98,6 @@ public class TownHall extends Building {
     public void setProfessionalToolsUnlocked(boolean v){ this.professionalToolsUnlocked = v; }
     public boolean isSettlementUnlocked()             { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean v)      { this.settlementUnlocked = v; }
-
-    // =========================================================
-    // کلاس داخلی: Task صف تولید
-    // =========================================================
 
     public static class ProductionTask {
         private final String name;

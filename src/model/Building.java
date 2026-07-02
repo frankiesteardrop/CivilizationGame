@@ -39,21 +39,17 @@ public abstract class Building {
         if (stationedWorkers > 0) stationedWorkers--;
     }
 
-    /**
-     * محاسبه نرخ تولید بر اساس تعداد کارگران مستقر و نرخ پایه ساختمان
-     * اصلاح گام اول: دریافت شئ TownHall برای واگذاری بررسی تکنولوژی‌ها به کلاس‌های فرزند
-     */
     public int calculateProduction(TownHall townHall) {
         if (isDestroyed) return 0;
         return stationedWorkers * getType().getBaseProduction();
     }
 
     /**
-     * ثبت ترن بدون پرداخت هزینه نگهداری و بررسی تخریب پس از ۳ نوبت متوالی
+     * ثبت ترن بدون پرداخت هزینه نگهداری و بررسی تخریب
      */
     public void registerFailedUpkeep() {
         consecutiveUnpaidTurns++;
-        if (consecutiveUnpaidTurns >= 3) {
+        if (consecutiveUnpaidTurns >= GameConfig.BUILDING_UNPAID_TURNS_TO_DESTROY) {
             isDestroyed = true;
         }
     }
