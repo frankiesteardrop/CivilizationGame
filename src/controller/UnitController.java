@@ -8,7 +8,8 @@ import model.Building;
 import model.BuildingType;
 import model.BorderExpander;
 import model.GameConfig;
-import model.GameEventDispatcher; // ایمپورت ضروری اضافه شد
+import model.GameEventDispatcher;
+import model.ResourceType;
 
 /**
  * کنترلر مدیریت اقدامات یونیت‌ها.
@@ -46,10 +47,7 @@ public class UnitController {
         if (worker == null || !worker.isAlive()) return false;
         if (worker.isStationed()) return false;
 
-        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت — Worker باید واقعاً روی
-        // همین هکس ایستاده باشد تا بتواند در ساختمانِ روی آن مستقر شود.
-        // بدون این چک، از نظر منطق Controller/Model هر Worker ای،
-        // فارغ از موقعیتش روی نقشه، می‌توانست در هر ساختمانی مستقر شود.
+        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
 
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;
@@ -58,15 +56,17 @@ public class UnitController {
         if (building == null || building.isDestroyed()) return false;
         if (building.getType() == BuildingType.TOWN_HALL) return false;
 
+        // [گام ۵ - اصلاح]: جلوگیری از استقرار کارگر در هکسی که منبع آن تمام شده است
+        ResourceType producedRes = building.getType().getProducedResource();
+        if (producedRes != ResourceType.NONE && !hex.hasResource(producedRes)) {
+            return false;
+        }
+
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
     /**
-     * [گام ۳ - اصلاح]: این متد اکنون از canStation() به‌عنوان guard
-     * استفاده می‌کند. پیش‌تر، handleStation() مستقیماً worker.stationIn()
-     * را صدا می‌زد بدون عبور از تمام اعتبارسنجی‌های canStation() (از جمله
-     * چک موقعیت تازه‌اضافه‌شده) — یعنی حتی اگر UI به‌درستی دکمه را غیرفعال
-     * می‌کرد، این متد در سطح منطقی همچنان بدون محافظت بود.
+     * اجرای استقرار با استفاده از Guard امنیتی canStation
      */
     public boolean handleStation(Worker worker, Hex hex) {
         if (!canStation(worker, hex)) return false;
@@ -85,7 +85,6 @@ public class UnitController {
         return worker != null && worker.isAlive() && worker.isStationed();
     }
 
-    // [اصلاح گام ۶]: شلیک رویداد بلافاصله پس از تغییر مرز در مدل
     public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
         if (!expander.canExpand(map)) return false;
 
@@ -97,7 +96,6 @@ public class UnitController {
         map.updateFogOfWar();
         expander.kill();
 
-        // شلیک رویداد به شبکه عصبی بازی
         GameEventDispatcher.fireBorderExpanded(q, r);
 
         return true;
