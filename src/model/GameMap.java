@@ -134,10 +134,6 @@ public class GameMap {
         currentTurn++;
     }
 
-    /**
-     * [گام حل باگ ۱۱ و ۱۲]: تفکیک دقیق دید زنده (Visible) و کشف دائمی (Explored).
-     * تنها یونیت Explorer توانایی کشف دائمی نقشه را داراست.
-     */
     public void updateFogOfWar() {
         for (Hex hex : hexes.getAll()) {
             hex.setVisible(false);
@@ -183,6 +179,27 @@ public class GameMap {
                 neighbor.setInsideBorder(true);
             }
         }
+    }
+
+    /**
+     * [گام حل باگ ۱۹ - اعتبارسنجی پیوستگی مرز]:
+     * بررسی می‌کند که آیا هکس مورد نظر یا حداقل یکی از ۶ همسایه‌ی آن،
+     * درون مرز فعلی امپراتوری قرار دارند یا خیر.
+     */
+    public boolean isContiguousToBorder(int q, int r) {
+        Hex centerHex = getHexAt(q, r);
+        if (centerHex != null && centerHex.isInsideBorder()) {
+            return true;
+        }
+
+        int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
+        for (int[] d : directions) {
+            Hex neighbor = getHexAt(q + d[0], r + d[1]);
+            if (neighbor != null && neighbor.isInsideBorder()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Hex findEmptySpawnHex(int startQ, int startR) {

@@ -3,7 +3,6 @@ package model;
 public class BorderExpander extends Unit {
 
     public BorderExpander(int q, int r) {
-        // [گام حل باگ ۱۳]: حذف اعداد هاردکد شده و ارسال نوع یونیت
         super(q, r, UnitType.BORDER_EXPANDER);
     }
 
@@ -13,7 +12,11 @@ public class BorderExpander extends Unit {
         if (this.getCurrentAP() < GameConfig.EXPAND_AP_COST) return false;
 
         Hex currentHex = map.getHexAt(this.getQ(), this.getR());
-        return currentHex != null && currentHex.isExplored();
+        if (currentHex == null || !currentHex.isExplored()) return false;
+
+        // [گام حل باگ ۱۹]: جلوگیری از ایجاد جزیره‌های مرزی جداافتاده
+        // گسترش مرز تنها در صورتی ممکن است که هکس فعلی یا حداقل یکی از همسایگانش متصل به مرز باشند.
+        return map.isContiguousToBorder(this.getQ(), this.getR());
     }
 
     public static int getExpandApCost() {
