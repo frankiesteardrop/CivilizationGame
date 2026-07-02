@@ -2,20 +2,19 @@ package model;
 
 public enum BuildingType {
 
-    TOWN_HALL(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0),
+    TOWN_HALL(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2),
 
-    LUMBER_MILL(1, 15, 0, 0, ResourceType.WOOD, 2, 5, ResourceType.WOOD, 1),
+    LUMBER_MILL(1, 15, 0, 0, ResourceType.WOOD, 2, 5, ResourceType.WOOD, 1, 1),
 
-    STONE_MINE(2, 30, 0, 0, ResourceType.STONE, 2, 4, ResourceType.WOOD, 1),
+    STONE_MINE(2, 30, 0, 0, ResourceType.STONE, 2, 4, ResourceType.WOOD, 1, 1),
 
-    IRON_MINE(2, 40, 15, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2),
+    IRON_MINE(2, 40, 15, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2, 1),
 
-    // اصلاح گام ۲: هزینه نگهداری Farm به جای غذا، به چوب (WOOD) تغییر یافت
-    FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.WOOD, 1),
+    FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.WOOD, 1, 1),
 
-    STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1),
+    STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),
 
-    SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3);
+    SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1);
 
     private final int apCost;
     private final int woodCost;
@@ -26,10 +25,11 @@ public enum BuildingType {
     private final int baseProduction;
     private final ResourceType upkeepResource;
     private final int upkeepCost;
+    private final int visionRadius; // [گام حل باگ ۱۲]: کپسوله‌سازی شعاع دید هر سازه
 
     BuildingType(int apCost, int woodCost, int stoneCost, int ironCost,
                  ResourceType producedResource, int maxWorkers, int baseProduction,
-                 ResourceType upkeepResource, int upkeepCost) {
+                 ResourceType upkeepResource, int upkeepCost, int visionRadius) {
         this.apCost = apCost;
         this.woodCost = woodCost;
         this.stoneCost = stoneCost;
@@ -39,6 +39,7 @@ public enum BuildingType {
         this.baseProduction = baseProduction;
         this.upkeepResource = upkeepResource;
         this.upkeepCost = upkeepCost;
+        this.visionRadius = visionRadius;
     }
 
     public int getApCost()                  { return apCost; }
@@ -50,4 +51,5 @@ public enum BuildingType {
     public int getBaseProduction()          { return baseProduction; }
     public ResourceType getUpkeepResource() { return upkeepResource; }
     public int getUpkeepCost()              { return upkeepCost; }
+    public int getVisionRadius()            { return visionRadius; }
 }

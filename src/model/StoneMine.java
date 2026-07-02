@@ -6,12 +6,12 @@ public class StoneMine extends Building {
     @Override
     public BuildingType getType() { return BuildingType.STONE_MINE; }
 
-    // اصلاح گام اول: اعمال اصل کپسوله‌سازی و Information Expert
     @Override
     public int calculateProduction(TownHall townHall) {
         int baseProduction = super.calculateProduction(townHall);
         if (townHall != null && townHall.isProfessionalToolsUnlocked()) {
-            return (int) (baseProduction * 1.5);
+            // [گام حل باگ ۱۶]: استفاده از Math.round برای جلوگیری از خطای خاموش Truncation
+            return (int) Math.round(baseProduction * 1.5);
         }
         return baseProduction;
     }

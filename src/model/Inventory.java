@@ -51,7 +51,7 @@ public class Inventory {
     }
 
     public void forceDecreaseResource(ResourceType type, int amount) {
-        if (type == ResourceType.NONE || amount <= 0) return;
+        if (type == ResourceType.NONE || amount <= 0) return true;
         int current = resources.getOrDefault(type, 0);
         int updated = Math.max(0, current - amount);
         resources.put(type, updated);

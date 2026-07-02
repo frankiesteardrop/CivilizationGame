@@ -61,7 +61,6 @@ public class GameConfig {
     public static final int BUILDING_UNPAID_TURNS_TO_DESTROY = 3;
     public static final int BUILDING_VISION_RADIUS = 1;
 
-    // [گام حل باگ ۹]: متمرکزسازی مقادیر Safeguard تولیدی TownHall
     public static final int SAFEGUARD_WOOD_AMOUNT = 1;
     public static final int SAFEGUARD_FOOD_AMOUNT = 1;
 
@@ -80,10 +79,11 @@ public class GameConfig {
     public static final int WAREHOUSE_UPGRADE1_CAPACITY = 500;
     public static final int WAREHOUSE_UPGRADE2_CAPACITY = 1000;
 
-    // منابع اولیه بازیکن در شروع بازی
-    public static final int STARTING_FOOD = 60;
-    public static final int STARTING_WOOD = 50;
-    public static final int STARTING_STONE = 30;
+    // [گام حل باگ ۱۵ - اصلاح بالانس اقتصاد اولیه]:
+    // افزایش منابع شروع بازی جهت جلوگیری از قفل شدن بازی (Soft-lock) و قحطی زودهنگام
+    public static final int STARTING_FOOD = 100;
+    public static final int STARTING_WOOD = 80;
+    public static final int STARTING_STONE = 40;
     public static final int STARTING_IRON = 0;
 
     // سقف جمعیت (Unit Cap)

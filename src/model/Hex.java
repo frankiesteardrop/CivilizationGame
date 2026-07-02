@@ -8,11 +8,10 @@ public class Hex {
     private final int r;
     private TerrainType terrainType;
 
-    // سیستم جدید چندمنبعی (Multi-Resource System)
     private final Map<ResourceType, Integer> resources;
-    // کدهای مرده ظرفیت (capacities) پاکسازی شد
 
     private boolean isExplored;
+    private boolean isVisible; // وضعیت دید زنده در نوبت جاری
     private boolean isInsideBorder;
     private Building building;
 
@@ -22,6 +21,7 @@ public class Hex {
         this.terrainType = terrainType;
         this.resources = new HashMap<>();
         this.isExplored = false;
+        this.isVisible = false;
         this.isInsideBorder = false;
         this.building = null;
     }
@@ -32,14 +32,18 @@ public class Hex {
     public void setTerrainType(TerrainType type) { this.terrainType = type; }
     public boolean isExplored() { return isExplored; }
     public void setExplored(boolean explored) { this.isExplored = explored; }
+    public boolean isVisible() { return isVisible; }
+    public void setVisible(boolean visible) { this.isVisible = visible; }
     public boolean isInsideBorder() { return isInsideBorder; }
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
 
-    // متدهای مدیریت منابع
     public void addResource(ResourceType type, int amount) {
-        resources.put(type, amount);
+        // [گام حل باگ ۱۴]: به جای جایگزین کردن مقدار، به موجودی فعلی اضافه می‌کنیم
+        if (type != ResourceType.NONE && amount > 0) {
+            resources.put(type, resources.getOrDefault(type, 0) + amount);
+        }
     }
 
     public boolean hasResource(ResourceType type) {
@@ -62,7 +66,6 @@ public class Hex {
         return true;
     }
 
-    // اصلاح گام ۲: متد جدید برای بازگرداندن کل ساختار منابع جهت نمایش حرفه‌ای در لایه View
     public Map<ResourceType, Integer> getResources() {
         return resources;
     }

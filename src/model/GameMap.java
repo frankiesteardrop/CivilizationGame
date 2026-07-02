@@ -26,9 +26,6 @@ public class GameMap {
         updateFogOfWar();
     }
 
-    // =========================================================
-    // تولید نقشه
-    // =========================================================
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
             int r1 = Math.max(-radius, -q - radius);
@@ -38,6 +35,7 @@ public class GameMap {
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setExplored(true);
+                    centerHex.setVisible(true);
                     centerHex.setInsideBorder(true);
                     centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
@@ -115,10 +113,6 @@ public class GameMap {
         units.add(new Worker(-1, 0));
     }
 
-    // =========================================================
-    // چرخه نوبت
-    // =========================================================
-
     public void nextTurn() {
         for (Unit unit : units.getAll()) {
             if (unit.isAlive()) {
@@ -140,16 +134,25 @@ public class GameMap {
         currentTurn++;
     }
 
-    // =========================================================
-    // سیستم مه‌جنگ (Fog of War)
-    // =========================================================
-
+    /**
+     * [گام حل باگ ۱۱ و ۱۲]: تفکیک دقیق دید زنده (Visible) و کشف دائمی (Explored).
+     * تنها یونیت Explorer توانایی کشف دائمی نقشه را داراست.
+     */
     public void updateFogOfWar() {
-        // شعاع دید TownHall در ابتدا
         for (Hex hex : hexes.getAll()) {
-            if (getHexDistance(townHall.getQ(), townHall.getR(),
-                    hex.getQ(), hex.getR()) <= GameConfig.BUILDING_VISION_RADIUS) {
-                hex.setExplored(true);
+            hex.setVisible(false);
+        }
+
+        for (Hex hex : hexes.getAll()) {
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed()) {
+                int bVision = b.getVisionRadius();
+                for (Hex other : hexes.getAll()) {
+                    if (getHexDistance(hex.getQ(), hex.getR(), other.getQ(), other.getR()) <= bVision) {
+                        other.setVisible(true);
+                        other.setExplored(true);
+                    }
+                }
             }
         }
 
@@ -157,54 +160,36 @@ public class GameMap {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
             for (Hex hex : hexes.getAll()) {
-                if (getHexDistance(unit.getQ(), unit.getR(),
-                        hex.getQ(), hex.getR()) <= visionRadius) {
-                    hex.setExplored(true);
-                }
-            }
-        }
-
-        for (Hex hex : hexes.getAll()) {
-            Building b = hex.getBuilding();
-            if (b != null && !b.isDestroyed()) {
-                for (Hex other : hexes.getAll()) {
-                    if (getHexDistance(hex.getQ(), hex.getR(),
-                            other.getQ(), other.getR()) <= GameConfig.BUILDING_VISION_RADIUS) {
-                        other.setExplored(true);
+                if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
+                    hex.setVisible(true);
+                    if (unit instanceof Explorer) {
+                        hex.setExplored(true);
                     }
                 }
             }
         }
     }
 
-    // =========================================================
-    // توسعه مرز
-    // =========================================================
-
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null && centerHex.isExplored()) {
+        if (centerHex != null && (centerHex.isExplored() || centerHex.isVisible())) {
             centerHex.setInsideBorder(true);
         }
 
         int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            if (neighbor != null && neighbor.isExplored()) {
+            if (neighbor != null && (neighbor.isExplored() || neighbor.isVisible())) {
                 neighbor.setInsideBorder(true);
             }
         }
     }
 
-    // =========================================================
-    // متدهای کمکی
-    // =========================================================
-
     public Hex findEmptySpawnHex(int startQ, int startR) {
         for (int d = 0; d <= radius; d++) {
             for (Hex hex : hexes.getAll()) {
                 if (getHexDistance(startQ, startR, hex.getQ(), hex.getR()) == d) {
-                    if (hex.isExplored() && !hasUnitAt(hex.getQ(), hex.getR())) {
+                    if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR())) {
                         return hex;
                     }
                 }
@@ -242,10 +227,6 @@ public class GameMap {
     public int getAliveUnitsCount() {
         return (int) units.stream().filter(Unit::isAlive).count();
     }
-
-    // =========================================================
-    // Getters
-    // =========================================================
 
     public List<Hex> getHexes() { return hexes.getAll(); }
     public List<Unit> getUnits() { return units.getAll(); }

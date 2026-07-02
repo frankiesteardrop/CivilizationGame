@@ -31,6 +31,10 @@ public abstract class Building {
     public int getMaxWorkers() { return baseWorkerCapacity; }
     public boolean isDestroyed() { return isDestroyed; }
 
+    public int getVisionRadius() {
+        return getType().getVisionRadius();
+    }
+
     public void addWorker() {
         if (stationedWorkers < baseWorkerCapacity) stationedWorkers++;
     }
@@ -44,9 +48,6 @@ public abstract class Building {
         return stationedWorkers * getType().getBaseProduction();
     }
 
-    /**
-     * ثبت ترن بدون پرداخت هزینه نگهداری و بررسی تخریب
-     */
     public void registerFailedUpkeep() {
         consecutiveUnpaidTurns++;
         if (consecutiveUnpaidTurns >= GameConfig.BUILDING_UNPAID_TURNS_TO_DESTROY) {

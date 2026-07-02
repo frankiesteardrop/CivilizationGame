@@ -4,15 +4,6 @@ import model.*;
 
 /**
  * کنترلر مدیریت آپگریدها، تکنولوژی‌ها و تولید یونیت در Town Hall.
- *
- * [گام ۱ - اصلاح]: آپگرید انبار و آنلاک تکنولوژی‌ها دیگر Instant نیستند.
- * طبق داک (بخش HUD): «صف تولید Town Hall (یونیت یا آپگرید در حال ساخت)» —
- * پس این دو دسته هم مانند تولید یونیت باید از صف تک‌آیتمی TownHall
- * (queueProduction) عبور کنند و چند نوبت طول بکشند. الگوی دقیقاً مشابه
- * trainUnit() اینجا برای handleWarehouseUpgrade() و unlockTech() تکرار
- * شده است: هزینه فقط زمانی که آیتم با موفقیت وارد صف شود کسر می‌شود،
- * و اثر واقعی (upgradeWarehouse / setXUnlocked) در Runnable مربوطه،
- * پس از اتمام صف، اجرا می‌شود.
  */
 public class UpgradeController {
 
@@ -25,8 +16,6 @@ public class UpgradeController {
     public boolean canAffordWarehouseUpgrade() {
         TownHall th = gameMap.getTownHall();
         if (th.getWarehouseUpgradeLevel() >= 2) return false;
-        // [گام ۱ - اصلاح]: تا وقتی صف تولید خالی نباشد (چه یونیت، چه آپگرید دیگر)
-        // نمی‌توان آپگرید جدیدی را صف کرد — دقیقاً هم‌راستا با canTrainUnit().
         if (!th.isProductionQueueEmpty()) return false;
 
         int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
@@ -41,7 +30,6 @@ public class UpgradeController {
         TownHall th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        // [گام ۱ - اصلاح]: همان محدودیت صف تک‌آیتمی برای تمام تکنولوژی‌ها.
         if (!th.isProductionQueueEmpty()) return false;
 
         switch (techType) {
@@ -58,6 +46,9 @@ public class UpgradeController {
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE)
                         && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
             case "SETTLEMENT":
+                // [گام حل باگ ۲۱ - مستندسازی درخت تکنولوژی]:
+                // آنلاک شهرک‌سازی نیاز به ۵۰ آهن دارد. از آنجا که آهن تنها از طریق معدن آهن به دست می‌آید،
+                // قرار داشتن isIronMineUnlocked() به عنوان پیش‌نیاز، کاملاً منطبق بر اقتصاد بازی است.
                 return th.isIronMineUnlocked() && !th.isSettlementUnlocked()
                         && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD)
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE)
@@ -89,13 +80,6 @@ public class UpgradeController {
         }
     }
 
-    /**
-     * [گام ۱ - اصلاح]: آپگرید انبار اکنون Instant نیست.
-     * هزینه (بر اساس سطح فعلی، پیش از صف‌شدن) محاسبه و فقط در صورت
-     * پذیرفته‌شدن در صف کسر می‌شود. اثر واقعی (upgradeWarehouse) در
-     * Runnable، پس از اتمام نوبت‌های لازم، توسط
-     * TownHall.advanceProductionQueue() اجرا خواهد شد.
-     */
     public void handleWarehouseUpgrade() {
         if (!canAffordWarehouseUpgrade()) return;
         TownHall  th  = gameMap.getTownHall();
@@ -110,12 +94,6 @@ public class UpgradeController {
         }
     }
 
-    /**
-     * [گام ۱ - اصلاح]: آنلاک تکنولوژی‌ها اکنون Instant نیست.
-     * برای هر تکنولوژی، هزینه فقط در صورت پذیرفته‌شدن در صف کسر می‌شود
-     * و اثر واقعی (setXUnlocked(true)) در Runnable مربوطه، پس از اتمام
-     * نوبت‌های لازم، اجرا می‌شود.
-     */
     public void unlockTech(String techType) {
         if (!canUnlockTech(techType)) return;
         TownHall  th  = gameMap.getTownHall();
@@ -182,4 +160,23 @@ public class UpgradeController {
                 if (th.queueProduction("Border Expander", GameConfig.BORDER_EXPANDER_TURN_COST, () -> spawnSpecificUnit("BORDER_EXPANDER"))) {
                     inv.consumeResource(ResourceType.FOOD,  GameConfig.BORDER_EXPANDER_FOOD_COST);
                     inv.consumeResource(ResourceType.WOOD,  GameConfig.BORDER_EXPANDER_WOOD_COST);
-                    inv.consumeResource(ResourceType.STONE,
+                    inv.consumeResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
+                }
+                break;
+        }
+    }
+
+    private void spawnSpecificUnit(String unitType) {
+        TownHall th = gameMap.getTownHall();
+        Hex spawnHex = gameMap.findEmptySpawnHex(th.getQ(), th.getR());
+        int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();
+        int targetR = spawnHex != null ? spawnHex.getR() : th.getR();
+
+        switch(unitType) {
+            case "WORKER": gameMap.getUnits().add(new Worker(targetQ, targetR)); break;
+            case "BUILDER": gameMap.getUnits().add(new Builder(targetQ, targetR)); break;
+            case "EXPLORER": gameMap.getUnits().add(new Explorer(targetQ, targetR)); break;
+            case "BORDER_EXPANDER": gameMap.getUnits().add(new BorderExpander(targetQ, targetR)); break;
+        }
+    }
+}

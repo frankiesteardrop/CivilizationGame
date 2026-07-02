@@ -1,6 +1,6 @@
 package view;
 
-import controller.AudioManager;
+import controller.MainController; // [گام حل باگ ۲۳]: استفاده از Facade به جای AudioManager مستقیم
 import javax.swing.*;
 import java.awt.*;
 
@@ -40,15 +40,14 @@ public class MainMenuPanel extends JPanel {
         JButton exitButton = new JButton("Exit");
         exitButton.setFont(new Font("Arial", Font.BOLD, 20));
         exitButton.setFocusPainted(false);
-        // اصلاح گام ۴: استفاده مستقیم از متد MainFrame برای رعایت اصل DRY
         exitButton.addActionListener(e -> mainFrame.exitGameSafely());
         gbc.gridy = 3;
         add(exitButton, gbc);
     }
 
     private void openSettings() {
-        // خواندن هوشمند آخرین وضعیت صدا از کلاس AudioManager
-        int savedVolume = AudioManager.getCurrentVolume();
+        // [گام حل باگ ۲۳]: دریافت میزان صدا از طریق درگاه Facade
+        int savedVolume = MainController.getMusicVolume();
         JSlider volumeSlider = new JSlider(0, 100, savedVolume);
 
         volumeSlider.setMajorTickSpacing(20);
@@ -56,7 +55,8 @@ public class MainMenuPanel extends JPanel {
         volumeSlider.setPaintTicks(true);
         volumeSlider.setPaintLabels(true);
 
-        volumeSlider.addChangeListener(e -> AudioManager.setVolume(volumeSlider.getValue()));
+        // [گام حل باگ ۲۳]: ارسال تغییرات صدا به درگاه Facade
+        volumeSlider.addChangeListener(e -> MainController.setMusicVolume(volumeSlider.getValue()));
 
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.add(new JLabel("Music Volume:", SwingConstants.CENTER), BorderLayout.NORTH);

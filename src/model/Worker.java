@@ -5,8 +5,8 @@ public class Worker extends Unit {
     private Building stationedBuilding;
 
     public Worker(int q, int r) {
-        // maxAP=2 (کمترین), foodConsumption=1 (کمترین), visionRadius=1
-        super(q, r, 2, 1, 1);
+        // [گام حل باگ ۱۳]: حذف اعداد هاردکد شده و ارسال نوع یونیت
+        super(q, r, UnitType.WORKER);
         this.isStationed = false;
         this.stationedBuilding = null;
     }

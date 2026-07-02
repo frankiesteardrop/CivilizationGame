@@ -4,7 +4,6 @@ import controller.UnitController;
 import model.*;
 
 import java.awt.*;
-import java.util.Map;
 
 public class HexRenderer {
 
@@ -12,13 +11,13 @@ public class HexRenderer {
         for (Hex hex : map.getHexes()) drawHexTerrain(g2d, hex, panel);
 
         for (Hex hex : map.getHexes())
-            if (hex.isInsideBorder() && hex.isExplored())
+            if (hex.isInsideBorder() && (hex.isExplored() || hex.isVisible()))
                 drawHexBorder(g2d, hex, panel);
 
         drawMovementHighlights(g2d, panel, map, unitController);
 
         for (Hex hex : map.getHexes())
-            if (hex.isExplored()) drawHexDetails(g2d, hex, panel);
+            if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
     }
 
     private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
@@ -45,7 +44,8 @@ public class HexRenderer {
         int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
         Polygon polygon = createHexPolygon(pt, sz);
 
-        if (!hex.isExplored()) {
+        // اگر نه قبلاً کشف شده و نه الان در دید است -> کاملاً تاریک
+        if (!hex.isExplored() && !hex.isVisible()) {
             g2d.setColor(new Color(15, 18, 22));
             g2d.fillPolygon(polygon);
             g2d.setStroke(new BasicStroke(1f));
@@ -90,6 +90,12 @@ public class HexRenderer {
 
         if (hasDepletedResource) {
             g2d.setColor(new Color(40, 40, 40, 100));
+            g2d.fillPolygon(polygon);
+        }
+
+        // [گام حل باگ ۱۱ - افکت بصری مه‌جنگ]: اگر کشف‌شده است اما الان در دید نیست، سایه تاریک می‌گیرد
+        if (!hex.isVisible() && hex.isExplored()) {
+            g2d.setColor(new Color(10, 15, 20, 155));
             g2d.fillPolygon(polygon);
         }
 
@@ -244,7 +250,7 @@ public class HexRenderer {
                 g2d.setColor(new Color(190, 150, 80));
                 g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
                 g2d.drawRect(x - size/2, y - size/4, size, size/2);
-                g2d.setColor(new Color(80, 50, 20));
+                g2d.setColor(80, 50, 20);
                 g2d.fillRect(x - size/6, y, size/3, size/4);
                 g2d.setStroke(new BasicStroke(1f));
                 break;
