@@ -54,12 +54,16 @@ public class GameConfig {
     public static final int TECH_SETTLEMENT_TURN_COST = 3;
 
     // =========================================================
-    // مقادیر بالانس موجودیت‌ها و مکانیک‌ها (رفع باگ پراکندگی تنظیمات)
+    // مقادیر بالانس موجودیت‌ها و مکانیک‌ها
     // =========================================================
     public static final int BUILDER_INITIAL_CHARGES = 3;
     public static final int WORKER_STATION_AP_COST = 1;
     public static final int BUILDING_UNPAID_TURNS_TO_DESTROY = 3;
     public static final int BUILDING_VISION_RADIUS = 1;
+
+    // [گام حل باگ ۹]: متمرکزسازی مقادیر Safeguard تولیدی TownHall
+    public static final int SAFEGUARD_WOOD_AMOUNT = 1;
+    public static final int SAFEGUARD_FOOD_AMOUNT = 1;
 
     // تولید منابع اولیه روی نقشه (Seed)
     public static final int SEED_FOREST_WOOD = 500;

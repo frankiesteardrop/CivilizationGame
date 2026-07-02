@@ -1,7 +1,6 @@
 package model;
 
 public class BorderExpander extends Unit {
-    private static final int EXPAND_AP_COST = 2;
 
     public BorderExpander(int q, int r) {
         // maxAP=5 (سرعت بالا برای رسیدن به مرزها), foodConsumption=2, visionRadius=2
@@ -10,20 +9,17 @@ public class BorderExpander extends Unit {
 
     public boolean canExpand(GameMap map) {
         if (!this.isAlive()) return false;
-        if (this.getCurrentAP() < EXPAND_AP_COST) return false;
+
+        // استفاده مستقیم از تنها منبع حقیقت برای رفع باگ ۸
+        if (this.getCurrentAP() < GameConfig.EXPAND_AP_COST) return false;
 
         Hex currentHex = map.getHexAt(this.getQ(), this.getR());
         return currentHex != null && currentHex.isExplored();
     }
 
-    public boolean expandBorder(GameMap map) {
-        if (!canExpand(map)) return false;
-        this.consumeAP(EXPAND_AP_COST);
-        map.expandBorderAt(this.getQ(), this.getR());
-        map.updateFogOfWar();
-        this.kill();
-        return true;
-    }
+    // متد expandBorder که یک Dead Code خطرناک بود کاملاً پاکسازی شد (رفع باگ ۷)
 
-    public static int getExpandApCost() { return EXPAND_AP_COST; }
+    public static int getExpandApCost() {
+        return GameConfig.EXPAND_AP_COST;
+    }
 }

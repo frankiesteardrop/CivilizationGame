@@ -44,9 +44,12 @@ public class TownHall extends Building {
         return BuildingType.TOWN_HALL;
     }
 
+    /**
+     * [گام حل باگ ۹]: استفاده از ثابت‌های کانفیگ به جای اعداد هاردکد شده
+     */
     public void produceSafeguardResources() {
-        this.inventory.addResource(ResourceType.WOOD, 1);
-        this.inventory.addResource(ResourceType.FOOD, 1);
+        this.inventory.addResource(ResourceType.WOOD, GameConfig.SAFEGUARD_WOOD_AMOUNT);
+        this.inventory.addResource(ResourceType.FOOD, GameConfig.SAFEGUARD_FOOD_AMOUNT);
     }
 
     public void advanceProductionQueue() {

@@ -87,24 +87,34 @@ public class GameInputHandler extends MouseAdapter {
         }
     }
 
+    /**
+     * [گام حل باگ ۶ - اصلاح UX]: بازنویسی بر اساس اولویت‌بندی اصولی.
+     * اولویت ۱: یونیت انتخاب‌شده -> روی خودش کلیک کرد؟ -> باز شدن منوی یونیت
+     * اولویت ۲: یونیت انتخاب‌شده -> روی جای دیگری کلیک کرد؟ -> حرکت
+     * اولویت ۳: یونیت انتخاب‌نشده -> روی TownHall کلیک کرد؟ -> باز شدن منوی شهر
+     */
     private void handleRightClick(MouseEvent e, Hex clickedHex) {
-        if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
-            if (panel.getSelectedUnit() == null || !(panel.getSelectedUnit() instanceof Worker)) {
-                panel.setSelectedUnit(null);
-                showTownHallMenu(e);
-                return;
+        Unit selectedUnit = panel.getSelectedUnit();
+
+        // اگر یونیتی در حالت انتخاب است، فقط منطق مربوط به یونیت اجرا می‌شود
+        if (selectedUnit != null) {
+            // آیا کلیک دقیقاً روی هکسِ خود یونیت بوده است؟ (منوی اکشن یونیت)
+            if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
+                showUnitContextMenu(e, clickedHex);
             }
+            // در غیر این صورت، منظور حرکت به هکس کلیک‌شده است
+            else if (!panel.isAnimating()) {
+                // کارگرِ مستقر حق حرکت ندارد
+                if (!(selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed())) {
+                    handleMovementCommand(clickedHex);
+                }
+            }
+            return; // خروج فوری: تا زمانی که یونیت انتخاب شده، منوی TownHall نباید باز شود
         }
 
-        Unit selectedUnit = panel.getSelectedUnit();
-        if (selectedUnit != null && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
-            showUnitContextMenu(e, clickedHex);
-            return;
-        }
-        if (selectedUnit != null && !panel.isAnimating()) {
-            if (!(selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed())) {
-                handleMovementCommand(clickedHex);
-            }
+        // اگر هیچ یونیتی انتخاب نشده است، بررسی می‌کنیم که آیا روی Town Hall کلیک شده؟
+        if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
+            showTownHallMenu(e);
         }
     }
 

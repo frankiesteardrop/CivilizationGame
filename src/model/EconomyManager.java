@@ -27,8 +27,6 @@ public class EconomyManager {
             ResourceType targetRes = b.getType().getProducedResource();
             if (targetRes == ResourceType.NONE) continue;
 
-            // [گام ۵ - اصلاح]: برنامه‌نویسی تدافعی. اگر هکس قبل از شروع استخراج خالی است،
-            // باید فوراً کارگران را بیرون بیندازیم تا برای همیشه گیر نیفتند.
             if (!hex.hasResource(targetRes)) {
                 ejectWorkersFromHex(map, hex);
                 continue;
@@ -40,7 +38,6 @@ public class EconomyManager {
             int extracted = hex.extractResource(targetRes, production);
             inventory.addResource(targetRes, extracted);
 
-            // [گام ۵ - حفظ منطق درست]: بررسی مجدد پس از استخراج برای خالی شدن هکس در همین نوبت
             if (!hex.hasResource(targetRes)) {
                 ejectWorkersFromHex(map, hex);
             }
@@ -108,14 +105,15 @@ public class EconomyManager {
         int net = 0;
         TownHall townHall = map.getTownHall();
 
-        if (type == ResourceType.WOOD || type == ResourceType.FOOD) net += 1;
+        // [گام حل باگ ۹]: خواندن مقادیر Safeguard از GameConfig جهت هماهنگی کامل با تولید واقعی
+        if (type == ResourceType.WOOD) net += GameConfig.SAFEGUARD_WOOD_AMOUNT;
+        if (type == ResourceType.FOOD) net += GameConfig.SAFEGUARD_FOOD_AMOUNT;
 
         for (Hex h : map.getHexes()) {
             Building b = h.getBuilding();
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
             if (b.getType().getProducedResource() == type) {
-                // [گام ۵ - اصلاح]: جلوگیری از نمایش نرخ تولید دروغین در HUD
                 if (h.hasResource(type)) {
                     int prod = b.calculateProduction(townHall);
                     net += prod;
