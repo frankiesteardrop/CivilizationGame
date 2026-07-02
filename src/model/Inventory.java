@@ -51,7 +51,8 @@ public class Inventory {
     }
 
     public void forceDecreaseResource(ResourceType type, int amount) {
-        if (type == ResourceType.NONE || amount <= 0) return true;
+        // [اصلاح باگ سینتکس]: متد void است، بنابراین فقط از return استفاده می‌شود
+        if (type == ResourceType.NONE || amount <= 0) return;
         int current = resources.getOrDefault(type, 0);
         int updated = Math.max(0, current - amount);
         resources.put(type, updated);

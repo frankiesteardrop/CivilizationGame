@@ -44,7 +44,6 @@ public class HexRenderer {
         int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
         Polygon polygon = createHexPolygon(pt, sz);
 
-        // اگر نه قبلاً کشف شده و نه الان در دید است -> کاملاً تاریک
         if (!hex.isExplored() && !hex.isVisible()) {
             g2d.setColor(new Color(15, 18, 22));
             g2d.fillPolygon(polygon);
@@ -93,7 +92,6 @@ public class HexRenderer {
             g2d.fillPolygon(polygon);
         }
 
-        // [گام حل باگ ۱۱ - افکت بصری مه‌جنگ]: اگر کشف‌شده است اما الان در دید نیست، سایه تاریک می‌گیرد
         if (!hex.isVisible() && hex.isExplored()) {
             g2d.setColor(new Color(10, 15, 20, 155));
             g2d.fillPolygon(polygon);
@@ -250,7 +248,8 @@ public class HexRenderer {
                 g2d.setColor(new Color(190, 150, 80));
                 g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
                 g2d.drawRect(x - size/2, y - size/4, size, size/2);
-                g2d.setColor(80, 50, 20);
+                // [اصلاح باگ سینتکس]: استفاده از شیء جدید Color
+                g2d.setColor(new Color(80, 50, 20));
                 g2d.fillRect(x - size/6, y, size/3, size/4);
                 g2d.setStroke(new BasicStroke(1f));
                 break;
