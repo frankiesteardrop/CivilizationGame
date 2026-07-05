@@ -9,37 +9,57 @@ public class AudioManager {
     private static Clip clip;
     private static FloatControl volumeControl;
     private static int currentVolume = 50;
+    private static boolean isAudioAvailable = false;
 
     public static void playMusic(String resourcePath) {
+        // اگر قبلاً صدایی در حال پخش بوده، آن را متوقف و آزادسازی می‌کنیم
+        stopMusic();
+
+        String cleanPath = resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
+
         try {
+            InputStream audioSrc = AudioManager.class.getClassLoader().getResourceAsStream(cleanPath);
 
-            InputStream audioSrc = AudioManager.class.getClassLoader().getResourceAsStream(
+            if (audioSrc == null) {
+                System.err.println("⚠️ [Audio Fallback] Music file '" + resourcePath + "' not found. Running game in mute mode.");
+                isAudioAvailable = false;
+                return;
+            }
 
-                    resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath
-            );
+            // استفاده از Try-with-Resources برای جلوگیری از نشت حافظه (Memory Leak)
+            try (InputStream bufferedIn = new BufferedInputStream(audioSrc);
+                 AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn)) {
 
-            if (audioSrc != null) {
-                InputStream bufferedIn = new BufferedInputStream(audioSrc);
-                AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn);
                 clip = AudioSystem.getClip();
                 clip.open(audioInput);
 
                 volumeControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                isAudioAvailable = true;
+
                 setVolume(currentVolume);
 
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
                 clip.start();
-            } else {
-                System.err.println("Error: Music file '" + resourcePath + "' not found in classpath!");
             }
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
-            System.err.println("Error playing music: " + e.getMessage());
+
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException e) {
+            // مکانیزم Fallback ایمن: جلوگیری از کرش کردن بازی در سیستم‌های بدون درایور صوتی
+            System.err.println("⚠️ [Audio Fallback] Could not initialize audio system: " + e.getMessage() + ". Running game silently.");
+            clip = null;
+            volumeControl = null;
+            isAudioAvailable = false;
+        } catch (Throwable t) {
+            // گرفتن هرگونه خطای سطح پایین JVM (مثل نبود سخت‌افزار صوتی)
+            System.err.println("⚠️ [Audio Fallback] Critical audio hardware failure. Running game gracefully without audio.");
+            clip = null;
+            volumeControl = null;
+            isAudioAvailable = false;
         }
     }
 
     public static void setVolume(int volumePercent) {
         currentVolume = volumePercent;
-        if (volumeControl != null) {
+        if (isAudioAvailable && volumeControl != null) {
             float min = volumeControl.getMinimum();
             float max = volumeControl.getMaximum();
             float range = max - min;
@@ -53,8 +73,18 @@ public class AudioManager {
     }
 
     public static void stopMusic() {
-        if (clip != null && clip.isRunning()) {
-            clip.stop();
+        if (clip != null) {
+            if (clip.isRunning()) {
+                clip.stop();
+            }
+            clip.close();
+            clip = null;
+            volumeControl = null;
+            isAudioAvailable = false;
         }
+    }
+
+    public static boolean isAudioSystemWorking() {
+        return isAudioAvailable;
     }
 }
