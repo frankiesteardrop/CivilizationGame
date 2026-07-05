@@ -72,6 +72,17 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 : new Color(192, 57, 43));
     }
 
+    /**
+     * [گام ۳ - اصلاح باگ UI]: ریست کردن وضعیت دکمه پایان نوبت به حالت عادی.
+     */
+    private void resetEndTurnButton() {
+        if (confirmIdleMode) {
+            confirmIdleMode = false;
+            endTurnBtn.setText("END TURN");
+            updateButtonColor();
+        }
+    }
+
     @Override
     public void onResourceChanged(ResourceType type, int newAmount) {
         SwingUtilities.invokeLater(this::updateHUD);
@@ -79,12 +90,19 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
     @Override
     public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {
-        SwingUtilities.invokeLater(this::updateHUD);
+        SwingUtilities.invokeLater(() -> {
+            // [گام ۳]: هرگونه حرکت یونیت اخطار بی‌کاری را ریست می‌کند
+            resetEndTurnButton();
+            updateHUD();
+        });
     }
 
     @Override
     public void onUnitKilled(Unit unit) {
-        SwingUtilities.invokeLater(this::updateHUD);
+        SwingUtilities.invokeLater(() -> {
+            resetEndTurnButton();
+            updateHUD();
+        });
     }
 
     @Override
@@ -98,9 +116,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onTurnEnded(int newTurn) {
         SwingUtilities.invokeLater(() -> {
-            confirmIdleMode = false;
-            endTurnBtn.setText("END TURN");
-            updateButtonColor();
+            resetEndTurnButton();
             updateHUD();
             gamePanel.repaint();
         });
@@ -127,6 +143,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onUnitStateChanged(Unit unit) {
         SwingUtilities.invokeLater(() -> {
+            // [گام ۳]: استقرار یا خروج کارگر، اخطار بی‌کاری را ریست می‌کند
+            resetEndTurnButton();
             updateHUD();
             gamePanel.repaint();
         });
@@ -152,12 +170,18 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onBorderExpanded(int centerQ, int centerR) {
         SwingUtilities.invokeLater(() -> {
+            resetEndTurnButton();
             updateHUD();
             gamePanel.repaint();
         });
     }
 
     private void updateHUD() {
+        // [گام ۳]: اگر دکمه در حالت تایید است اما دیگر هیچ یونیت بی‌کاری وجود ندارد، خودکار ریست شود
+        if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
+            resetEndTurnButton();
+        }
+
         infoContainer.removeAll();
 
         GameMap   map = mainController.getGameMap();
