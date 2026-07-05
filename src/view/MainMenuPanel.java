@@ -45,23 +45,12 @@ public class MainMenuPanel extends JPanel {
         add(exitButton, gbc);
     }
 
+    /**
+     * [گام ۴ - اصلاح طراحی گرافیکی]:
+     * جایگزینی JOptionPane ساده با پنجره دیالوگ اختصاصی و چشم‌نواز SettingsDialog.
+     */
     private void openSettings() {
-        // [گام حل باگ ۲۳]: دریافت میزان صدا از طریق درگاه Facade
-        int savedVolume = MainController.getMusicVolume();
-        JSlider volumeSlider = new JSlider(0, 100, savedVolume);
-
-        volumeSlider.setMajorTickSpacing(20);
-        volumeSlider.setMinorTickSpacing(5);
-        volumeSlider.setPaintTicks(true);
-        volumeSlider.setPaintLabels(true);
-
-        // [گام حل باگ ۲۳]: ارسال تغییرات صدا به درگاه Facade
-        volumeSlider.addChangeListener(e -> MainController.setMusicVolume(volumeSlider.getValue()));
-
-        JPanel panel = new JPanel(new BorderLayout(0, 10));
-        panel.add(new JLabel("Music Volume:", SwingConstants.CENTER), BorderLayout.NORTH);
-        panel.add(volumeSlider, BorderLayout.CENTER);
-
-        JOptionPane.showMessageDialog(this, panel, "Settings", JOptionPane.PLAIN_MESSAGE);
+        SettingsDialog settingsDialog = new SettingsDialog(mainFrame);
+        settingsDialog.setVisible(true);
     }
 }
