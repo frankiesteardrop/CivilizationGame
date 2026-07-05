@@ -155,10 +155,30 @@ public class HexRenderer {
         String symbol;
 
         switch (rt) {
-            case WOOD: bgColor = new Color(90, 55, 20, 220); borderColor = new Color(180, 120, 60); textColor = new Color(255, 200, 120); symbol = "W"; break;
-            case STONE: bgColor = new Color(70, 70, 75, 220); borderColor = new Color(180, 180, 185); textColor = new Color(240, 240, 245); symbol = "S"; break;
-            case IRON: bgColor = new Color(80, 55, 30, 220); borderColor = new Color(200, 140, 60); textColor = new Color(255, 180, 80); symbol = "I"; break;
-            case FOOD: bgColor = new Color(30, 90, 30, 220); borderColor = new Color(100, 200, 80); textColor = new Color(180, 255, 130); symbol = "F"; break;
+            case WOOD:
+                bgColor = new Color(90, 55, 20, 220); borderColor = new Color(180, 120, 60); textColor = new Color(255, 200, 120); symbol = "W";
+                break;
+            case STONE:
+                bgColor = new Color(70, 70, 75, 220); borderColor = new Color(180, 180, 185); textColor = new Color(240, 240, 245); symbol = "S";
+                break;
+            case IRON:
+                bgColor = new Color(80, 55, 30, 220); borderColor = new Color(200, 140, 60); textColor = new Color(255, 180, 80); symbol = "I";
+                break;
+            case FOOD:
+                // [گام ۲]: رندرینگ تفکیک‌شده برای ۴ زیرنوع منبع غذایی
+                ResourceSubtype st = hex.getResourceSubtype();
+                if (st == ResourceSubtype.WHEAT) {
+                    bgColor = new Color(180, 140, 20, 220); borderColor = new Color(240, 200, 60); textColor = new Color(255, 245, 180); symbol = "Wh";
+                } else if (st == ResourceSubtype.RICE) {
+                    bgColor = new Color(40, 130, 110, 220); borderColor = new Color(80, 200, 170); textColor = new Color(200, 255, 240); symbol = "Ri";
+                } else if (st == ResourceSubtype.CATTLE) {
+                    bgColor = new Color(130, 60, 30, 220); borderColor = new Color(200, 100, 50); textColor = new Color(255, 200, 160); symbol = "Ca";
+                } else if (st == ResourceSubtype.SHEEP) {
+                    bgColor = new Color(140, 130, 110, 220); borderColor = new Color(210, 200, 180); textColor = new Color(255, 250, 240); symbol = "Sh";
+                } else {
+                    bgColor = new Color(30, 90, 30, 220); borderColor = new Color(100, 200, 80); textColor = new Color(180, 255, 130); symbol = "F";
+                }
+                break;
             default: return;
         }
 
@@ -169,7 +189,7 @@ public class HexRenderer {
         g2d.drawOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
         g2d.setStroke(new BasicStroke(1f));
 
-        int fontSize = Math.max(6, (int)(11 * zoomFactor));
+        int fontSize = Math.max(6, (int)(10 * zoomFactor));
         if (fontSize > 5) {
             g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
             g2d.setColor(textColor);
@@ -248,7 +268,6 @@ public class HexRenderer {
                 g2d.setColor(new Color(190, 150, 80));
                 g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
                 g2d.drawRect(x - size/2, y - size/4, size, size/2);
-                // [اصلاح باگ سینتکس]: استفاده از شیء جدید Color
                 g2d.setColor(new Color(80, 50, 20));
                 g2d.fillRect(x - size/6, y, size/3, size/4);
                 g2d.setStroke(new BasicStroke(1f));

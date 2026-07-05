@@ -9,6 +9,7 @@ public class Hex {
     private TerrainType terrainType;
 
     private final Map<ResourceType, Integer> resources;
+    private ResourceSubtype resourceSubtype; // [گام ۲]: افزودن زیرنوع منبع (جهت تفکیک منابع غذایی)
 
     private boolean isExplored;
     private boolean isVisible; // وضعیت دید زنده در نوبت جاری
@@ -20,6 +21,7 @@ public class Hex {
         this.r = r;
         this.terrainType = terrainType;
         this.resources = new HashMap<>();
+        this.resourceSubtype = ResourceSubtype.NONE;
         this.isExplored = false;
         this.isVisible = false;
         this.isInsideBorder = false;
@@ -38,6 +40,9 @@ public class Hex {
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
+
+    public ResourceSubtype getResourceSubtype() { return resourceSubtype; }
+    public void setResourceSubtype(ResourceSubtype resourceSubtype) { this.resourceSubtype = resourceSubtype; }
 
     public void addResource(ResourceType type, int amount) {
         // [گام حل باگ ۱۴]: به جای جایگزین کردن مقدار، به موجودی فعلی اضافه می‌کنیم

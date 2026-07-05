@@ -47,11 +47,15 @@ public class BuildController {
                 return hex.getTerrainType() == TerrainType.FOREST
                         && hex.hasResource(ResourceType.WOOD);
             case FARM:
+                // [گام ۲]: مزرعه فقط روی سبزه‌زارهای دارای گندم یا برنج احداث می‌شود
                 return hex.getTerrainType() == TerrainType.MEADOW
-                        && hex.hasResource(ResourceType.FOOD);
+                        && hex.hasResource(ResourceType.FOOD)
+                        && (hex.getResourceSubtype() == ResourceSubtype.WHEAT || hex.getResourceSubtype() == ResourceSubtype.RICE);
             case STABLE:
+                // [گام ۲]: طویله فقط روی دشت‌های دارای حیوانات اهلی (گاو یا گوسفند) احداث می‌شود
                 return hex.getTerrainType() == TerrainType.PLAINS
-                        && hex.hasResource(ResourceType.FOOD);
+                        && hex.hasResource(ResourceType.FOOD)
+                        && (hex.getResourceSubtype() == ResourceSubtype.CATTLE || hex.getResourceSubtype() == ResourceSubtype.SHEEP);
             case STONE_MINE:
                 return th.isStoneMineUnlocked()
                         && hex.getTerrainType() == TerrainType.MOUNTAIN
