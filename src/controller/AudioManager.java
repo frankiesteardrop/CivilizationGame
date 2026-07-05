@@ -12,9 +12,9 @@ public class AudioManager {
 
     public static void playMusic(String resourcePath) {
         try {
-            // استفاده از ClassLoader برای دسترسی ایمن و قطعی به فایل‌ها در محیط Maven/JAR
+
             InputStream audioSrc = AudioManager.class.getClassLoader().getResourceAsStream(
-                    // اگر مسیر با '/' شروع می‌شود، آن را حذف کن تا ClassLoader دچار اشتباه نشود
+
                     resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath
             );
 

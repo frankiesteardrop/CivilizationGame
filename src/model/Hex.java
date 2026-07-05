@@ -9,10 +9,10 @@ public class Hex {
     private TerrainType terrainType;
 
     private final Map<ResourceType, Integer> resources;
-    private ResourceSubtype resourceSubtype; // [گام ۲]: افزودن زیرنوع منبع (جهت تفکیک منابع غذایی)
+    private ResourceSubtype resourceSubtype;
 
     private boolean isExplored;
-    private boolean isVisible; // وضعیت دید زنده در نوبت جاری
+    private boolean isVisible;
     private boolean isInsideBorder;
     private Building building;
 
@@ -45,7 +45,7 @@ public class Hex {
     public void setResourceSubtype(ResourceSubtype resourceSubtype) { this.resourceSubtype = resourceSubtype; }
 
     public void addResource(ResourceType type, int amount) {
-        // [گام حل باگ ۱۴]: به جای جایگزین کردن مقدار، به موجودی فعلی اضافه می‌کنیم
+
         if (type != ResourceType.NONE && amount > 0) {
             resources.put(type, resources.getOrDefault(type, 0) + amount);
         }

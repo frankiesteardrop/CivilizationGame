@@ -1,9 +1,6 @@
 package model;
 
-/**
- * کلاس انتزاعی پایه برای تمامی ساختمان‌های بازی.
- * پیاده‌سازی اصول کپسوله‌سازی و مدیریت حالت سازه.
- */
+
 public abstract class Building {
     protected int baseWorkerCapacity;
     protected int stationedWorkers;

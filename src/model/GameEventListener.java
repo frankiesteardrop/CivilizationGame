@@ -12,6 +12,5 @@ public interface GameEventListener {
     void onBuildingConstructed(Hex hex);
     void onBuildingDestroyed(Hex hex);
 
-    // [اصلاح گام ۶]: قرارداد جدید برای اطلاع‌رسانی از توسعه مرزها
     void onBorderExpanded(int centerQ, int centerR);
 }

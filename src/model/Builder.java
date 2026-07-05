@@ -4,7 +4,7 @@ public class Builder extends Unit {
     private int charges;
 
     public Builder(int q, int r) {
-        // [گام حل باگ ۱۳]: حذف اعداد هاردکد شده و ارسال نوع یونیت
+
         super(q, r, UnitType.BUILDER);
         this.charges = GameConfig.BUILDER_INITIAL_CHARGES;
     }

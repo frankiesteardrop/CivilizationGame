@@ -25,7 +25,7 @@ public enum BuildingType {
     private final int baseProduction;
     private final ResourceType upkeepResource;
     private final int upkeepCost;
-    private final int visionRadius; // [گام حل باگ ۱۲]: کپسوله‌سازی شعاع دید هر سازه
+    private final int visionRadius;
 
     BuildingType(int apCost, int woodCost, int stoneCost, int ironCost,
                  ResourceType producedResource, int maxWorkers, int baseProduction,

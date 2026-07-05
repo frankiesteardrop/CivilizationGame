@@ -58,14 +58,14 @@ public class GameMap {
                     case MEADOW:
                         if (random.nextDouble() < 0.5) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
-                            // [گام ۲]: سبزه‌زارها حاوی گندم یا برنج هستند
+
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.WHEAT : ResourceSubtype.RICE);
                         }
                         break;
                     case PLAINS:
                         if (random.nextDouble() < 0.3) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_PLAINS_FOOD);
-                            // [گام ۲]: دشت‌ها حاوی حیوانات اهلی (گاو یا گوسفند) هستند
+
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.CATTLE : ResourceSubtype.SHEEP);
                         }
                         break;

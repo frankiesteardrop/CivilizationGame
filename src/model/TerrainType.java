@@ -4,7 +4,7 @@ public enum TerrainType {
     PLAINS(1),
     FOREST(2),
     MOUNTAIN(4),
-    MEADOW(1); // هزینه حرکت سبزه زار تو داک مشخص نشده ولی منطقیش همون 1 هست
+    MEADOW(1);
 
     private final int movementCost;
 

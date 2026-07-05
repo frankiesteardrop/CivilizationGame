@@ -7,9 +7,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/**
- * پنل HUD بازی — نمایش همیشه‌نمایان اطلاعات امپراتوری.
- */
+
 public class HUDPanel extends JPanel implements GameEventListener {
 
     private final MainController mainController;

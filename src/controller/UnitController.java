@@ -11,10 +11,7 @@ import model.GameConfig;
 import model.GameEventDispatcher;
 import model.ResourceType;
 
-/**
- * کنترلر مدیریت اقدامات یونیت‌ها.
- * مسئول اعتبارسنجی و اجرای حرکت، استقرار، خروج یونیت‌ها و منطق انتخاب.
- */
+
 public class UnitController {
 
     private Hex lastClickedHex = null;

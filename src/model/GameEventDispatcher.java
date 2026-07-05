@@ -56,7 +56,6 @@ public class GameEventDispatcher {
         for (GameEventListener l : listeners) l.onBuildingDestroyed(hex);
     }
 
-    // [اصلاح گام ۶]: متد پخش پیام گسترش مرز به تمام شنوندگان
     public static void fireBorderExpanded(int centerQ, int centerR) {
         for (GameEventListener l : listeners) l.onBorderExpanded(centerQ, centerR);
     }

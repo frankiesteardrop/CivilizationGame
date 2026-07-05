@@ -2,9 +2,7 @@ package controller;
 
 import model.*;
 
-/**
- * کنترلر مدیریت آپگریدها، تکنولوژی‌ها و تولید یونیت در Town Hall.
- */
+
 public class UpgradeController {
 
     private final GameMap gameMap;
@@ -46,9 +44,7 @@ public class UpgradeController {
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE)
                         && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
             case "SETTLEMENT":
-                // [گام حل باگ ۲۱ - مستندسازی درخت تکنولوژی]:
-                // آنلاک شهرک‌سازی نیاز به ۵۰ آهن دارد. از آنجا که آهن تنها از طریق معدن آهن به دست می‌آید،
-                // قرار داشتن isIronMineUnlocked() به عنوان پیش‌نیاز، کاملاً منطبق بر اقتصاد بازی است.
+
                 return th.isIronMineUnlocked() && !th.isSettlementUnlocked()
                         && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD)
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE)

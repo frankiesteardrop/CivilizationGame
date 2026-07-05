@@ -2,9 +2,7 @@ package controller;
 
 import model.*;
 
-/**
- * کنترلر مدیریت ساخت‌وساز.
- */
+
 public class BuildController {
 
     private final GameMap gameMap;
@@ -17,10 +15,7 @@ public class BuildController {
         if (hex == null || builder == null) return false;
         if (!builder.isAlive()) return false;
 
-        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت — Builder باید واقعاً روی
-        // همین هکس ایستاده باشد تا بتواند در آن بسازد. بدون این چک،
-        // از نظر منطق Controller/Model هر Builder ای، فارغ از موقعیتش
-        // روی نقشه، می‌توانست روی هر هکسی بسازد.
+
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
 
         if (!hex.isInsideBorder()) return false;
@@ -47,12 +42,12 @@ public class BuildController {
                 return hex.getTerrainType() == TerrainType.FOREST
                         && hex.hasResource(ResourceType.WOOD);
             case FARM:
-                // [گام ۲]: مزرعه فقط روی سبزه‌زارهای دارای گندم یا برنج احداث می‌شود
+
                 return hex.getTerrainType() == TerrainType.MEADOW
                         && hex.hasResource(ResourceType.FOOD)
                         && (hex.getResourceSubtype() == ResourceSubtype.WHEAT || hex.getResourceSubtype() == ResourceSubtype.RICE);
             case STABLE:
-                // [گام ۲]: طویله فقط روی دشت‌های دارای حیوانات اهلی (گاو یا گوسفند) احداث می‌شود
+
                 return hex.getTerrainType() == TerrainType.PLAINS
                         && hex.hasResource(ResourceType.FOOD)
                         && (hex.getResourceSubtype() == ResourceSubtype.CATTLE || hex.getResourceSubtype() == ResourceSubtype.SHEEP);
@@ -81,30 +76,30 @@ public class BuildController {
 
         Inventory inv = gameMap.getTownHall().getInventory();
 
-        // مرحله ۱: پاکسازی صریح ویرانه‌های احتمالی (جلوگیری از Memory Leak و تداخل state)
+
         if (hex.getBuilding() != null && hex.getBuilding().isDestroyed()) {
             hex.setBuilding(null);
         }
 
-        // مرحله ۲: کسر منابع
+
         inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
         inv.consumeResource(ResourceType.STONE, type.getStoneCost());
         inv.consumeResource(ResourceType.IRON,  type.getIronCost());
 
-        // مرحله ۳: کسر AP
+
         builder.consumeAP(type.getApCost());
 
-        // مرحله ۴: کاهش شارژ (و احتمالاً حذف Builder)
+
         builder.useCharge();
 
-        // مرحله ۵: نصب ساختمان روی هکس
+
         Building newBuilding = createBuilding(type);
         hex.setBuilding(newBuilding);
 
-        // مرحله ۶: آپدیت فوری Fog of War
+
         gameMap.updateFogOfWar();
 
-        // مرحله ۷: اطلاع به لایه View
+
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 

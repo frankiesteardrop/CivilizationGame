@@ -3,9 +3,7 @@ package model;
 import java.util.LinkedList;
 import java.util.Queue;
 
-/**
- * ساختمان اصلی بازی — Town Hall.
- */
+
 public class TownHall extends Building {
 
     private final int q;

@@ -8,9 +8,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
-/**
- * بوم نقاشی و هماهنگ‌کننده اصلی رابط کاربری. (Refactored for SRP)
- */
 public class GamePanel extends JPanel {
 
     private final MainController mainController;
@@ -91,9 +88,6 @@ public class GamePanel extends JPanel {
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
     }
 
-    // =========================================================
-    // متدهای کمکی تبدیل مختصات
-    // =========================================================
 
     public Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
@@ -113,9 +107,6 @@ public class GamePanel extends JPanel {
         return closest;
     }
 
-    // =========================================================
-    // Getters and Setters for Sub-systems
-    // =========================================================
 
     public boolean isAnimating() { return animatingUnit != null; }
     public Unit getSelectedUnit() { return selectedUnit; }

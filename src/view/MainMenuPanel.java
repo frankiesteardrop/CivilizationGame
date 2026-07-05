@@ -45,10 +45,6 @@ public class MainMenuPanel extends JPanel {
         add(exitButton, gbc);
     }
 
-    /**
-     * [گام ۴ - اصلاح طراحی گرافیکی]:
-     * جایگزینی JOptionPane ساده با پنجره دیالوگ اختصاصی و چشم‌نواز SettingsDialog.
-     */
     private void openSettings() {
         SettingsDialog settingsDialog = new SettingsDialog(mainFrame);
         settingsDialog.setVisible(true);

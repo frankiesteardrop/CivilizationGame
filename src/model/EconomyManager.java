@@ -1,8 +1,6 @@
 package model;
 
-/**
- * مدیریت چرخه اقتصادی بازی.
- */
+
 public class EconomyManager {
 
     public static boolean processEndTurn(GameMap map) {
@@ -43,7 +41,7 @@ public class EconomyManager {
             }
         }
 
-        // [گام ۱ - اصلاح باگ قحطی]: ارسال وضعیت فعلی قحطی به ساختمان اصلی جهت توقف صف ساخت در شرایط بحران
+
         townHall.advanceProductionQueue(map.isStarving());
     }
 
@@ -85,7 +83,7 @@ public class EconomyManager {
             if (currentFood > 0) {
                 inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
             }
-            return true; // Starvation فعال شد
+            return true;
         }
 
         return false;
@@ -106,7 +104,7 @@ public class EconomyManager {
         int net = 0;
         TownHall townHall = map.getTownHall();
 
-        // [گام حل باگ ۹]: خواندن مقادیر Safeguard از GameConfig جهت هماهنگی کامل با تولید واقعی
+
         if (type == ResourceType.WOOD) net += GameConfig.SAFEGUARD_WOOD_AMOUNT;
         if (type == ResourceType.FOOD) net += GameConfig.SAFEGUARD_FOOD_AMOUNT;
 

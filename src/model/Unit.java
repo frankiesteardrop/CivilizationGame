@@ -3,14 +3,14 @@ package model;
 public abstract class Unit {
     protected int q;
     protected int r;
-    protected UnitType type; // افزوده شدن فیلد نوع یونیت
+    protected UnitType type;
     protected int maxAP;
     protected int currentAP;
     protected int foodConsumption;
     protected int visionRadius;
     protected boolean isAlive;
 
-    // [گام حل باگ ۱۳]: سازنده اکنون نوع یونیت را می‌گیرد و اطلاعات را از آن استخراج می‌کند
+
     public Unit(int q, int r, UnitType type) {
         this.q = q;
         this.r = r;
@@ -48,7 +48,7 @@ public abstract class Unit {
 
     public int getQ() { return q; }
     public int getR() { return r; }
-    public UnitType getType() { return type; } // متد جدید برای دریافت نوع
+    public UnitType getType() { return type; }
     public int getCurrentAP() { return currentAP; }
     public int getMaxAP() { return maxAP; }
     public int getFoodConsumption() { return foodConsumption; }

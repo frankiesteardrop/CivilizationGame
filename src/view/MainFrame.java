@@ -9,25 +9,17 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-/**
- * پنجره اصلی بازی — نقطه ورود UI.
- *
- * اصلاح گام ۴: هر بار که startGame() صدا زده می‌شود،
- * یک GameMap و MainController کاملاً جدید ساخته می‌شود
- * تا بازیکن یک بازی تازه داشته باشد.
- */
 public class MainFrame extends JFrame {
 
     private final CardLayout cardLayout;
     private final JPanel mainContainer;
 
-    // اصلاح گام ۴: این فیلدها دیگر final نیستند — در هر restart جدید ساخته می‌شوند
     private MainController mainController;
     private GamePanel gamePanel;
     private JPanel gameWrapper;
 
     public MainFrame() {
-        setTitle("Civilization VI - Sharif");
+        setTitle("Civilization VI");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setSize(1280, 800);
         setLocationRelativeTo(null);
@@ -37,10 +29,8 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        // پخش موزیک پس‌زمینه از همان ابتدا
         AudioManager.playMusic("/music.wav");
 
-        // نمایش منوی اصلی
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
         mainContainer.add(mainMenuPanel, "MENU");
 

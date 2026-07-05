@@ -3,9 +3,6 @@ package model;
 import java.util.EnumMap;
 import java.util.Map;
 
-/**
- * مدیریت ذخیره منابع Town Hall.
- */
 public class Inventory {
 
     private final Map<ResourceType, Integer> resources;
@@ -51,7 +48,7 @@ public class Inventory {
     }
 
     public void forceDecreaseResource(ResourceType type, int amount) {
-        // [اصلاح باگ سینتکس]: متد void است، بنابراین فقط از return استفاده می‌شود
+
         if (type == ResourceType.NONE || amount <= 0) return;
         int current = resources.getOrDefault(type, 0);
         int updated = Math.max(0, current - amount);

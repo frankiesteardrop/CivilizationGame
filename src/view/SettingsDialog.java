@@ -6,11 +6,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/**
- * پنجره تنظیمات اختصاصی بازی (لایه View).
- * جایگزین مدرن و چشم‌نواز برای JOptionPane های پیش‌فرض سیستم.
- * بر اساس الگوی Facade، تغییرات صدا مستقیماً به MainController منتقل می‌شود.
- */
+
 public class SettingsDialog extends JDialog {
 
     private final JSlider volumeSlider;
@@ -19,13 +15,13 @@ public class SettingsDialog extends JDialog {
     public SettingsDialog(JFrame parentFrame) {
         super(parentFrame, "Audio Settings", true);
 
-        // حذف حاشیه‌های پیش‌فرض سیستم برای یک دیزاین مدرن و بازی‌محور
+
         setUndecorated(true);
         setSize(420, 260);
         setLocationRelativeTo(parentFrame);
         setLayout(new BorderLayout());
 
-        // پنل اصلی با پس‌زمینه تیره و حاشیه آبی لاجوردی شیک
+
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(new Color(30, 33, 40));
         mainPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -33,7 +29,7 @@ public class SettingsDialog extends JDialog {
                 BorderFactory.createEmptyBorder(20, 25, 20, 25)
         ));
 
-        // عنوان پنجره
+
         JLabel titleLabel = new JLabel("🎵 AUDIO SETTINGS", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(new Color(236, 240, 241));

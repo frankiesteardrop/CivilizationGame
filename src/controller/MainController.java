@@ -2,9 +2,7 @@ package controller;
 
 import model.GameMap;
 
-/**
- * الگوی طراحی Facade: این کلاس دسترسی متمرکز به تمامی کنترلرهای تخصصی و زیرسیستم‌ها را برای لایه View فراهم می‌کند.
- */
+
 public class MainController {
     private final GameMap gameMap;
     private final TurnController turnController;
@@ -26,11 +24,7 @@ public class MainController {
     public BuildController getBuildController() { return buildController; }
     public UpgradeController getUpgradeController() { return upgradeController; }
 
-    // =========================================================
-    // [گام حل باگ ۲۳ - رعایت دقیق الگوی Facade]:
-    // تفویض اختیار (Delegation) مدیریت سیستم صوتی به لایه کنترلر
-    // تا لایه View هرگز مستقیماً با زیرسیستم AudioManager درگیر نشود.
-    // =========================================================
+
     public static void setMusicVolume(int volumePercent) {
         AudioManager.setVolume(volumePercent);
     }
