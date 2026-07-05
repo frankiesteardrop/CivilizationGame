@@ -22,7 +22,6 @@ public class GameMap {
 
         generateMap();
         spawnInitialUnits();
-
         updateFogOfWar();
     }
 
@@ -58,14 +57,12 @@ public class GameMap {
                     case MEADOW:
                         if (random.nextDouble() < 0.5) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
-
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.WHEAT : ResourceSubtype.RICE);
                         }
                         break;
                     case PLAINS:
                         if (random.nextDouble() < 0.3) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_PLAINS_FOOD);
-
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.CATTLE : ResourceSubtype.SHEEP);
                         }
                         break;
@@ -97,8 +94,7 @@ public class GameMap {
         }
 
         if (!hasForestNear && !availableCandidates.isEmpty()) {
-            Hex targetHex = availableCandidates.get(
-                    random.nextInt(availableCandidates.size()));
+            Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
 
             if (targetHex.hasResource(ResourceType.FOOD)) {
@@ -186,11 +182,6 @@ public class GameMap {
         }
     }
 
-    /**
-     * [گام حل باگ ۱۹ - اعتبارسنجی پیوستگی مرز]:
-     * بررسی می‌کند که آیا هکس مورد نظر یا حداقل یکی از ۶ همسایه‌ی آن،
-     * درون مرز فعلی امپراتوری قرار دارند یا خیر.
-     */
     public boolean isContiguousToBorder(int q, int r) {
         Hex centerHex = getHexAt(q, r);
         if (centerHex != null && centerHex.isInsideBorder()) {
@@ -224,7 +215,14 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
+    /**
+     * [گام ۲ - اصلاح حیاتی]: محاسبه سقف یونیت‌ها با در نظر گرفتن وضعیت قحطی.
+     * در صورتی که امپراتوری در قحطی باشد، تأثیر پاداش شهرک‌ها اعمال نمی‌شود و رشد جمعیت متوقف می‌ماند.
+     */
     public int getUnitCap() {
+        if (isStarving) {
+            return GameConfig.UNIT_CAP_BASE;
+        }
         int cap = GameConfig.UNIT_CAP_BASE;
         for (Hex h : hexes.getAll()) {
             Building b = h.getBuilding();
