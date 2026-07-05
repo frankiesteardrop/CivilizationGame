@@ -43,7 +43,8 @@ public class EconomyManager {
             }
         }
 
-        townHall.advanceProductionQueue();
+        // [گام ۱ - اصلاح باگ قحطی]: ارسال وضعیت فعلی قحطی به ساختمان اصلی جهت توقف صف ساخت در شرایط بحران
+        townHall.advanceProductionQueue(map.isStarving());
     }
 
     private static void processUpkeep(GameMap map) {

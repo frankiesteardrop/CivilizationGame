@@ -52,8 +52,12 @@ public class TownHall extends Building {
         this.inventory.addResource(ResourceType.FOOD, GameConfig.SAFEGUARD_FOOD_AMOUNT);
     }
 
-    public void advanceProductionQueue() {
-        if (productionQueue.isEmpty()) return;
+    /**
+     * [گام ۱ - اصلاح باگ قحطی]: پیشروی صف ساخت با در نظر گرفتن وضعیت قحطی.
+     * در زمان قحطی (Starvation)، رشد شهر و پیشروی صف کاملاً متوقف (Freeze) می‌شود.
+     */
+    public void advanceProductionQueue(boolean isStarving) {
+        if (isStarving || productionQueue.isEmpty()) return;
 
         ProductionTask currentTask = productionQueue.peek();
         currentTask.decrementTurn();

@@ -15,6 +15,11 @@ public class Worker extends Unit {
     public void resetAP() {
         if (!isAlive) return;
         super.resetAP();
+        // [گام ۱ - اصلاح باگ اکشن‌پوینت کارگر]: اگر کارگر در شروع نوبت همچنان در سازه مستقر باشد،
+        // هزینه حضور و کار در کارگاه در همان بدو نوبت از سقف AP او کسر می‌شود.
+        if (isStationed) {
+            consumeAP(GameConfig.WORKER_STATION_AP_COST);
+        }
     }
 
     public boolean stationIn(Building building) {
