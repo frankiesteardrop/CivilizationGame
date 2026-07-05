@@ -26,16 +26,28 @@ public class HexRenderer {
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
         for (Hex hex : map.getHexes()) {
-            if (!unitController.canMove(selectedUnit, hex)) continue;
+            int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
+            if (dist != 1) continue;
+
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
             Polygon polygon = createHexPolygon(pt, sz);
-            g2d.setColor(new Color(135, 206, 250, 70));
-            g2d.fillPolygon(polygon);
-            g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor())));
-            g2d.setColor(new Color(0, 255, 255, 200));
-            g2d.drawPolygon(polygon);
-            g2d.setStroke(new BasicStroke(1f));
+
+            if (unitController.canMove(selectedUnit, hex)) {
+                g2d.setColor(UIConfig.MOVE_VALID_FILL);
+                g2d.fillPolygon(polygon);
+                g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor())));
+                g2d.setColor(UIConfig.MOVE_VALID_BORDER);
+                g2d.drawPolygon(polygon);
+                g2d.setStroke(new BasicStroke(1f));
+            } else {
+                g2d.setColor(UIConfig.MOVE_INVALID_FILL);
+                g2d.fillPolygon(polygon);
+                g2d.setStroke(new BasicStroke((float)(2.0 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10.0f, new float[]{6.0f, 6.0f}, 0.0f));
+                g2d.setColor(UIConfig.MOVE_INVALID_BORDER);
+                g2d.drawPolygon(polygon);
+                g2d.setStroke(new BasicStroke(1f));
+            }
         }
     }
 
@@ -45,10 +57,10 @@ public class HexRenderer {
         Polygon polygon = createHexPolygon(pt, sz);
 
         if (!hex.isExplored() && !hex.isVisible()) {
-            g2d.setColor(new Color(15, 18, 22));
+            g2d.setColor(UIConfig.UNEXPLORED_FILL);
             g2d.fillPolygon(polygon);
             g2d.setStroke(new BasicStroke(1f));
-            g2d.setColor(new Color(35, 40, 48));
+            g2d.setColor(UIConfig.UNEXPLORED_BORDER);
             g2d.drawPolygon(polygon);
             return;
         }
@@ -60,24 +72,24 @@ public class HexRenderer {
 
         switch (hex.getTerrainType()) {
             case FOREST:
-                if (hasActiveResource) { topColor = new Color(60, 180, 60); baseColor = new Color(25, 100, 25); }
-                else if (hasDepletedResource) { topColor = new Color(90, 110, 80); baseColor = new Color(55, 70, 50); }
-                else { topColor = new Color(50, 130, 50); baseColor = new Color(30, 90, 30); }
+                if (hasActiveResource) { topColor = UIConfig.FOREST_TOP_ACTIVE; baseColor = UIConfig.FOREST_BASE_ACTIVE; }
+                else if (hasDepletedResource) { topColor = UIConfig.FOREST_TOP_DEPLETED; baseColor = UIConfig.FOREST_BASE_DEPLETED; }
+                else { topColor = UIConfig.FOREST_TOP_NORMAL; baseColor = UIConfig.FOREST_BASE_NORMAL; }
                 break;
             case PLAINS:
-                if (hasActiveResource) { topColor = new Color(255, 220, 80); baseColor = new Color(200, 170, 50); }
-                else { topColor = new Color(200, 190, 140); baseColor = new Color(160, 148, 100); }
+                if (hasActiveResource) { topColor = UIConfig.PLAINS_TOP_ACTIVE; baseColor = UIConfig.PLAINS_BASE_ACTIVE; }
+                else { topColor = UIConfig.PLAINS_TOP_NORMAL; baseColor = UIConfig.PLAINS_BASE_NORMAL; }
                 break;
             case MOUNTAIN:
                 if (hasActiveResource) {
-                    if (hex.hasResource(ResourceType.IRON)) { topColor = new Color(140, 120, 100); baseColor = new Color(80, 65, 55); }
-                    else { topColor = new Color(190, 190, 185); baseColor = new Color(120, 118, 115); }
-                } else if (hasDepletedResource) { topColor = new Color(130, 128, 125); baseColor = new Color(80, 78, 75); }
-                else { topColor = new Color(160, 158, 155); baseColor = new Color(100, 98, 95); }
+                    if (hex.hasResource(ResourceType.IRON)) { topColor = UIConfig.MOUNTAIN_TOP_IRON; baseColor = UIConfig.MOUNTAIN_BASE_IRON; }
+                    else { topColor = UIConfig.MOUNTAIN_TOP_STONE; baseColor = UIConfig.MOUNTAIN_BASE_STONE; }
+                } else if (hasDepletedResource) { topColor = UIConfig.MOUNTAIN_TOP_DEPLETED; baseColor = UIConfig.MOUNTAIN_BASE_DEPLETED; }
+                else { topColor = UIConfig.MOUNTAIN_TOP_NORMAL; baseColor = UIConfig.MOUNTAIN_BASE_NORMAL; }
                 break;
             case MEADOW:
-                if (hasActiveResource) { topColor = new Color(180, 220, 80); baseColor = new Color(120, 160, 40); }
-                else { topColor = new Color(130, 155, 90); baseColor = new Color(85, 110, 55); }
+                if (hasActiveResource) { topColor = UIConfig.MEADOW_TOP_ACTIVE; baseColor = UIConfig.MEADOW_BASE_ACTIVE; }
+                else { topColor = UIConfig.MEADOW_TOP_NORMAL; baseColor = UIConfig.MEADOW_BASE_NORMAL; }
                 break;
             default:
                 topColor = Color.GRAY; baseColor = Color.DARK_GRAY; break;
@@ -93,7 +105,7 @@ public class HexRenderer {
         }
 
         if (!hex.isVisible() && hex.isExplored()) {
-            g2d.setColor(new Color(10, 15, 20, 155));
+            g2d.setColor(UIConfig.FOG_SHADOW);
             g2d.fillPolygon(polygon);
         }
 
@@ -156,27 +168,26 @@ public class HexRenderer {
 
         switch (rt) {
             case WOOD:
-                bgColor = new Color(90, 55, 20, 220); borderColor = new Color(180, 120, 60); textColor = new Color(255, 200, 120); symbol = "W";
+                bgColor = UIConfig.RES_WOOD_BG; borderColor = UIConfig.RES_WOOD_BORDER; textColor = UIConfig.RES_WOOD_TEXT; symbol = "W";
                 break;
             case STONE:
-                bgColor = new Color(70, 70, 75, 220); borderColor = new Color(180, 180, 185); textColor = new Color(240, 240, 245); symbol = "S";
+                bgColor = UIConfig.RES_STONE_BG; borderColor = UIConfig.RES_STONE_BORDER; textColor = UIConfig.RES_STONE_TEXT; symbol = "S";
                 break;
             case IRON:
-                bgColor = new Color(80, 55, 30, 220); borderColor = new Color(200, 140, 60); textColor = new Color(255, 180, 80); symbol = "I";
+                bgColor = UIConfig.RES_IRON_BG; borderColor = UIConfig.RES_IRON_BORDER; textColor = UIConfig.RES_IRON_TEXT; symbol = "I";
                 break;
             case FOOD:
-                // [گام ۲]: رندرینگ تفکیک‌شده برای ۴ زیرنوع منبع غذایی
                 ResourceSubtype st = hex.getResourceSubtype();
                 if (st == ResourceSubtype.WHEAT) {
-                    bgColor = new Color(180, 140, 20, 220); borderColor = new Color(240, 200, 60); textColor = new Color(255, 245, 180); symbol = "Wh";
+                    bgColor = UIConfig.RES_WHEAT_BG; borderColor = UIConfig.RES_WHEAT_BORDER; textColor = UIConfig.RES_WHEAT_TEXT; symbol = "Wh";
                 } else if (st == ResourceSubtype.RICE) {
-                    bgColor = new Color(40, 130, 110, 220); borderColor = new Color(80, 200, 170); textColor = new Color(200, 255, 240); symbol = "Ri";
+                    bgColor = UIConfig.RES_RICE_BG; borderColor = UIConfig.RES_RICE_BORDER; textColor = UIConfig.RES_RICE_TEXT; symbol = "Ri";
                 } else if (st == ResourceSubtype.CATTLE) {
-                    bgColor = new Color(130, 60, 30, 220); borderColor = new Color(200, 100, 50); textColor = new Color(255, 200, 160); symbol = "Ca";
+                    bgColor = UIConfig.RES_CATTLE_BG; borderColor = UIConfig.RES_CATTLE_BORDER; textColor = UIConfig.RES_CATTLE_TEXT; symbol = "Ca";
                 } else if (st == ResourceSubtype.SHEEP) {
-                    bgColor = new Color(140, 130, 110, 220); borderColor = new Color(210, 200, 180); textColor = new Color(255, 250, 240); symbol = "Sh";
+                    bgColor = UIConfig.RES_SHEEP_BG; borderColor = UIConfig.RES_SHEEP_BORDER; textColor = UIConfig.RES_SHEEP_TEXT; symbol = "Sh";
                 } else {
-                    bgColor = new Color(30, 90, 30, 220); borderColor = new Color(100, 200, 80); textColor = new Color(180, 255, 130); symbol = "F";
+                    bgColor = UIConfig.RES_FOOD_GENERIC_BG; borderColor = UIConfig.RES_FOOD_GENERIC_BORDER; textColor = UIConfig.RES_FOOD_GENERIC_TEXT; symbol = "F";
                 }
                 break;
             default: return;
@@ -191,7 +202,7 @@ public class HexRenderer {
 
         int fontSize = Math.max(6, (int)(10 * zoomFactor));
         if (fontSize > 5) {
-            g2d.setFont(new Font("SansSerif", Font.BOLD, fontSize));
+            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fontSize));
             g2d.setColor(textColor);
             FontMetrics fm = g2d.getFontMetrics();
             g2d.drawString(symbol, iconX - fm.stringWidth(symbol) / 2, iconY + fm.getAscent() / 2 - 1);
@@ -217,7 +228,7 @@ public class HexRenderer {
 
             int fs = (int)(16 * zoomFactor);
             if (fs > 6) {
-                g2d.setFont(new Font("SansSerif", Font.BOLD, fs));
+                g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
                 g2d.setColor(new Color(255, 215, 0));
                 FontMetrics fm = g2d.getFontMetrics();
                 g2d.drawString("TH", pt.x - fm.stringWidth("TH") / 2, pt.y + fm.getAscent() / 2 - 2);
@@ -308,7 +319,7 @@ public class HexRenderer {
 
         int fs = (int)(11 * zoomFactor);
         if (fs > 5) {
-            g2d.setFont(new Font("SansSerif", Font.BOLD, fs));
+            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
             String wt = b.getStationedWorkers() + "/" + b.getMaxWorkers();
             FontMetrics fm = g2d.getFontMetrics();
             int labelW = fm.stringWidth(wt) + 6;

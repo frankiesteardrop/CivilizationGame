@@ -34,7 +34,8 @@ public class GameInputHandler extends MouseAdapter {
             if (clickedHex == null) return;
 
             if (SwingUtilities.isLeftMouseButton(e)) {
-                Unit selected = mainController.getUnitController().selectUnitAt(clickedHex, mainController.getGameMap());
+                // [گام ۴]: استفاده مستقیم از Facade به جای صحبت با UnitController
+                Unit selected = mainController.selectUnitAt(clickedHex);
                 panel.setSelectedUnit(selected);
                 panel.repaint();
             } else if (SwingUtilities.isRightMouseButton(e)) {
@@ -87,26 +88,19 @@ public class GameInputHandler extends MouseAdapter {
         }
     }
 
-
     private void handleRightClick(MouseEvent e, Hex clickedHex) {
         Unit selectedUnit = panel.getSelectedUnit();
 
-
         if (selectedUnit != null) {
-
             if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
                 showUnitContextMenu(e, clickedHex);
-            }
-
-            else if (!panel.isAnimating()) {
-
+            } else if (!panel.isAnimating()) {
                 if (!(selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed())) {
                     handleMovementCommand(clickedHex);
                 }
             }
             return;
         }
-
 
         if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
             showTownHallMenu(e);
@@ -116,7 +110,9 @@ public class GameInputHandler extends MouseAdapter {
     private void handleMovementCommand(Hex targetHex) {
         Unit selectedUnit = panel.getSelectedUnit();
         if (selectedUnit == null) return;
-        if (!mainController.getUnitController().canMove(selectedUnit, targetHex)) return;
+
+        // [گام ۴]: استفاده از Facade
+        if (!mainController.canMove(selectedUnit, targetHex)) return;
 
         Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
         Point targetPt = panel.getHexPixelCoords(targetHex.getQ(), targetHex.getR());
@@ -138,8 +134,10 @@ public class GameInputHandler extends MouseAdapter {
 
         JMenuItem whItem = new JMenuItem(whLabel);
         styleMenuItem(whItem);
-        if (!mainController.getUpgradeController().canAffordWarehouseUpgrade()) whItem.setEnabled(false);
-        whItem.addActionListener(ev -> { mainController.getUpgradeController().handleWarehouseUpgrade(); panel.repaint(); });
+
+        // [گام ۴]: استفاده از Facade
+        if (!mainController.canAffordWarehouseUpgrade()) whItem.setEnabled(false);
+        whItem.addActionListener(ev -> { mainController.handleWarehouseUpgrade(); panel.repaint(); });
         popup.add(whItem);
         popup.addSeparator();
 
@@ -160,16 +158,16 @@ public class GameInputHandler extends MouseAdapter {
     private void addTechMenuItem(JPopupMenu popup, boolean isUnlocked, String techKey, String label) {
         JMenuItem item = new JMenuItem(isUnlocked ? "✅ " + label : "🔬 " + label);
         styleMenuItem(item);
-        if (!mainController.getUpgradeController().canUnlockTech(techKey)) item.setEnabled(false);
-        item.addActionListener(ev -> { mainController.getUpgradeController().unlockTech(techKey); panel.repaint(); });
+        if (!mainController.canUnlockTech(techKey)) item.setEnabled(false);
+        item.addActionListener(ev -> { mainController.unlockTech(techKey); panel.repaint(); });
         popup.add(item);
     }
 
     private void addTrainMenuItem(JPopupMenu popup, String unitType, String label) {
         JMenuItem item = new JMenuItem(label);
         styleMenuItem(item);
-        if (!mainController.getUpgradeController().canTrainUnit(unitType)) item.setEnabled(false);
-        item.addActionListener(ev -> { mainController.getUpgradeController().trainUnit(unitType); panel.repaint(); });
+        if (!mainController.canTrainUnit(unitType)) item.setEnabled(false);
+        item.addActionListener(ev -> { mainController.trainUnit(unitType); panel.repaint(); });
         popup.add(item);
     }
 
@@ -207,18 +205,18 @@ public class GameInputHandler extends MouseAdapter {
         if (worker.isStationed()) {
             JMenuItem leaveItem = new JMenuItem("🚪 Leave Facility (free — AP not restored)");
             styleMenuItem(leaveItem);
-            leaveItem.setEnabled(mainController.getUnitController().canEject(worker));
-            leaveItem.addActionListener(ev -> { mainController.getUnitController().handleEject(worker); panel.repaint(); });
+            leaveItem.setEnabled(mainController.canEject(worker));
+            leaveItem.addActionListener(ev -> { mainController.handleEject(worker); panel.repaint(); });
             popup.add(leaveItem);
         } else {
             Building building = hex.getBuilding();
             if (building != null && !building.isDestroyed() && building.getType() != BuildingType.TOWN_HALL) {
-                boolean canStation = mainController.getUnitController().canStation(worker, hex);
+                boolean canStation = mainController.canStation(worker, hex);
                 String label = "⚙️ Station in " + building.getType().name() + " (-" + Worker.getStationApCost() + " AP) [" + building.getStationedWorkers() + "/" + building.getMaxWorkers() + "]";
                 JMenuItem stationItem = new JMenuItem(label);
                 styleMenuItem(stationItem);
                 if (!canStation) stationItem.setEnabled(false);
-                stationItem.addActionListener(ev -> { mainController.getUnitController().handleStation(worker, hex); panel.repaint(); });
+                stationItem.addActionListener(ev -> { mainController.handleStation(worker, hex); panel.repaint(); });
                 popup.add(stationItem);
             } else {
                 JMenuItem noBuilding = new JMenuItem("⛔ No workable facility on this hex");
@@ -234,7 +232,7 @@ public class GameInputHandler extends MouseAdapter {
         if (!canExpand) expandItem.setEnabled(false);
 
         expandItem.addActionListener(ev -> {
-            if (mainController.getUnitController().handleExpandBorder(expander, mainController.getGameMap())) {
+            if (mainController.handleExpandBorder(expander)) {
                 panel.setSelectedUnit(null);
             }
             panel.repaint();
@@ -250,8 +248,8 @@ public class GameInputHandler extends MouseAdapter {
         String fullLabel = label + " (-" + type.getApCost() + "AP" + (cost.isEmpty() ? "" : " | " + cost.trim()) + ")";
         JMenuItem item = new JMenuItem(fullLabel);
         styleMenuItem(item);
-        if (!mainController.getBuildController().canBuild(type, hex, builder)) item.setEnabled(false);
-        item.addActionListener(ev -> { mainController.getBuildController().buildStructure(builder, type, hex); panel.repaint(); });
+        if (!mainController.canBuild(type, hex, builder)) item.setEnabled(false);
+        item.addActionListener(ev -> { mainController.buildStructure(builder, type, hex); panel.repaint(); });
         return item;
     }
 
@@ -263,7 +261,7 @@ public class GameInputHandler extends MouseAdapter {
     private void styleMenuItem(JMenuItem item) {
         item.setBackground(new Color(30, 33, 40));
         item.setForeground(Color.WHITE);
-        item.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        item.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 13));
         item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
     }
 }

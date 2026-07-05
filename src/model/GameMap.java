@@ -1,6 +1,7 @@
 package model;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -198,16 +199,28 @@ public class GameMap {
         return false;
     }
 
+    /**
+     * [گام ۳ - اصلاح ضد انباشت یونیت‌ها (Anti-Stacking Spawn)]:
+     * جستجوی قطعی و شعاعی برای پیدا کردن اولین هکس خالی و قابل‌عبور.
+     * این متد تضمین می‌کند هرگز دو یونیت روی هم اسپاون نشوند.
+     */
     public Hex findEmptySpawnHex(int startQ, int startR) {
-        for (int d = 0; d <= radius; d++) {
-            for (Hex hex : hexes.getAll()) {
-                if (getHexDistance(startQ, startR, hex.getQ(), hex.getR()) == d) {
-                    if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR())) {
-                        return hex;
-                    }
-                }
+        List<Hex> sortedHexes = new ArrayList<>(hexes.getAll());
+        sortedHexes.sort(Comparator.comparingInt(h -> getHexDistance(startQ, startR, h.getQ(), h.getR())));
+
+        for (Hex hex : sortedHexes) {
+            if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR())) {
+                return hex;
             }
         }
+
+        // در صورت پر بودن تمام مناطق کشف‌شده، اولین هکس خالی نقشه را انتخاب می‌کنیم تا تداخل رخ ندهد
+        for (Hex hex : sortedHexes) {
+            if (!hasUnitAt(hex.getQ(), hex.getR())) {
+                return hex;
+            }
+        }
+
         return getHexAt(startQ, startR);
     }
 

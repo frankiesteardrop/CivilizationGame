@@ -34,17 +34,17 @@ public class UnitRenderer {
 
         String typeLetter;
         Color unitColor;
-        if      (u instanceof Explorer)       { unitColor = new Color(65, 105, 225); typeLetter = "E"; }
-        else if (u instanceof Builder)        { unitColor = new Color(255, 215, 0); typeLetter = "B"; }
-        else if (u instanceof Worker)         { unitColor = new Color(255, 140, 0); typeLetter = "W"; }
-        else if (u instanceof BorderExpander) { unitColor = new Color(218, 112, 214); typeLetter = "X"; }
+        if      (u instanceof Explorer)       { unitColor = UIConfig.UNIT_EXPLORER; typeLetter = "E"; }
+        else if (u instanceof Builder)        { unitColor = UIConfig.UNIT_BUILDER; typeLetter = "B"; }
+        else if (u instanceof Worker)         { unitColor = UIConfig.UNIT_WORKER; typeLetter = "W"; }
+        else if (u instanceof BorderExpander) { unitColor = UIConfig.UNIT_EXPANDER; typeLetter = "X"; }
         else                                  { unitColor = Color.GRAY; typeLetter = "U"; }
 
         if (isStationed) {
             radius = Math.max(4, (int)(10 * zoomFactor));
             px += (int)(18 * zoomFactor);
             py -= (int)(8 * zoomFactor);
-            g2d.setColor(new Color(255, 165, 0, 150));
+            g2d.setColor(UIConfig.UNIT_STATIONED_AURA);
             g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
             g2d.drawOval(px - radius - 3, py - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
             g2d.setStroke(new BasicStroke(1f));
@@ -64,7 +64,7 @@ public class UnitRenderer {
 
         int fs = (int)(13 * zoomFactor);
         if (fs > 6 && !isStationed) {
-            g2d.setFont(new Font("SansSerif", Font.BOLD, fs));
+            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
             String text = typeLetter + u.getCurrentAP();
             FontMetrics fm = g2d.getFontMetrics();
             int tx = px - fm.stringWidth(text) / 2;
@@ -76,7 +76,7 @@ public class UnitRenderer {
         }
 
         if (u == panel.getSelectedUnit()) {
-            g2d.setColor(new Color(0, 255, 255, 200));
+            g2d.setColor(UIConfig.UNIT_SELECTED_AURA);
             g2d.setStroke(new BasicStroke((float)(3.0 * zoomFactor)));
             g2d.drawOval(px - radius - 5, py - radius - 5, radius * 2 + 10, radius * 2 + 10);
             g2d.setStroke(new BasicStroke(1f));
