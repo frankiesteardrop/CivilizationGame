@@ -42,18 +42,13 @@ public class TownHall extends Building {
         return BuildingType.TOWN_HALL;
     }
 
-    /**
-     * [گام حل باگ ۹]: استفاده از ثابت‌های کانفیگ به جای اعداد هاردکد شده
-     */
+
     public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, GameConfig.SAFEGUARD_WOOD_AMOUNT);
         this.inventory.addResource(ResourceType.FOOD, GameConfig.SAFEGUARD_FOOD_AMOUNT);
     }
 
-    /**
-     * [گام ۱ - اصلاح باگ قحطی]: پیشروی صف ساخت با در نظر گرفتن وضعیت قحطی.
-     * در زمان قحطی (Starvation)، رشد شهر و پیشروی صف کاملاً متوقف (Freeze) می‌شود.
-     */
+
     public void advanceProductionQueue(boolean isStarving) {
         if (isStarving || productionQueue.isEmpty()) return;
 

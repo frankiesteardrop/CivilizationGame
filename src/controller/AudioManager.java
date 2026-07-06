@@ -12,7 +12,7 @@ public class AudioManager {
     private static boolean isAudioAvailable = false;
 
     public static void playMusic(String resourcePath) {
-        // اگر قبلاً صدایی در حال پخش بوده، آن را متوقف و آزادسازی می‌کنیم
+
         stopMusic();
 
         String cleanPath = resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
@@ -26,7 +26,7 @@ public class AudioManager {
                 return;
             }
 
-            // استفاده از Try-with-Resources برای جلوگیری از نشت حافظه (Memory Leak)
+
             try (InputStream bufferedIn = new BufferedInputStream(audioSrc);
                  AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn)) {
 
@@ -43,13 +43,13 @@ public class AudioManager {
             }
 
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException e) {
-            // مکانیزم Fallback ایمن: جلوگیری از کرش کردن بازی در سیستم‌های بدون درایور صوتی
+
             System.err.println("⚠️ [Audio Fallback] Could not initialize audio system: " + e.getMessage() + ". Running game silently.");
             clip = null;
             volumeControl = null;
             isAudioAvailable = false;
         } catch (Throwable t) {
-            // گرفتن هرگونه خطای سطح پایین JVM (مثل نبود سخت‌افزار صوتی)
+
             System.err.println("⚠️ [Audio Fallback] Critical audio hardware failure. Running game gracefully without audio.");
             clip = null;
             volumeControl = null;

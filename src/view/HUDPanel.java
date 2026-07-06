@@ -89,7 +89,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {
         SwingUtilities.invokeLater(() -> {
-            // [گام ۳]: هرگونه حرکت یونیت اخطار بی‌کاری را ریست می‌کند
+
             resetEndTurnButton();
             updateHUD();
         });
@@ -141,7 +141,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onUnitStateChanged(Unit unit) {
         SwingUtilities.invokeLater(() -> {
-            // [گام ۳]: استقرار یا خروج کارگر، اخطار بی‌کاری را ریست می‌کند
+
             resetEndTurnButton();
             updateHUD();
             gamePanel.repaint();
@@ -164,7 +164,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
-    // [اصلاح گام ۶]: واکنش نشان دادن به توسعه مرز و ری‌پینت کردن نقشه
+
     @Override
     public void onBorderExpanded(int centerQ, int centerR) {
         SwingUtilities.invokeLater(() -> {
@@ -175,7 +175,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     }
 
     private void updateHUD() {
-        // [گام ۳]: اگر دکمه در حالت تایید است اما دیگر هیچ یونیت بی‌کاری وجود ندارد، خودکار ریست شود
+
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
             resetEndTurnButton();
         }

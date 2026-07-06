@@ -14,19 +14,15 @@ public class BuildController {
         if (hex == null || builder == null) return false;
         if (!builder.isAlive()) return false;
 
-        // بررسی موقعیت مکانی بیلدر
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
 
-        // سازه حتماً باید داخل مرز بازیکن باشد
         if (!hex.isInsideBorder()) return false;
 
-        // جلوگیری از ساخت روی سازه موجود (مگر اینکه کاملاً تخریب شده باشد)
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
 
         if (builder.getCharges() <= 0) return false;
         if (builder.getCurrentAP() < type.getApCost()) return false;
 
-        // [گام ۲ - اصلاح حیاتی]: توقف کامل گسترش جمعیت (ساخت شهرک) در زمان قحطی
         if (type == BuildingType.SETTLEMENT && gameMap.isStarving()) {
             return false;
         }

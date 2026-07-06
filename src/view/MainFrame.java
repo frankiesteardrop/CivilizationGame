@@ -44,27 +44,20 @@ public class MainFrame extends JFrame {
         });
     }
 
-    /**
-     * شروع یک بازی جدید.
-     */
     public void startGame() {
-        // مرحله ۱: پاکسازی کامل listener‌های قدیمی
+
         GameEventDispatcher.clearAllListeners();
 
-        // مرحله ۲: پاک کردن پنل بازی قبلی از container
         if (gameWrapper != null) {
             mainContainer.remove(gameWrapper);
             gameWrapper = null;
         }
 
-        // مرحله ۳: ساخت GameMap و MainController جدید (بازی تازه)
         GameMap freshGameMap = new GameMap(5);
         this.mainController = new MainController(freshGameMap);
 
-        // مرحله ۴: ساخت GamePanel جدید روی controller جدید
         this.gamePanel = new GamePanel(mainController);
 
-        // مرحله ۵: چیدمان UI بازی
         gameWrapper = new JPanel(new BorderLayout());
         HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
 
@@ -74,22 +67,16 @@ public class MainFrame extends JFrame {
         mainContainer.add(gameWrapper, "GAME_UI");
         cardLayout.show(mainContainer, "GAME_UI");
 
-        // فوکوس به GamePanel برای دریافت keyboard events
         gamePanel.requestFocusInWindow();
     }
 
-    /**
-     * بازگشت به منوی اصلی بدون خروج از برنامه.
-     */
+
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();
         cardLayout.show(mainContainer, "MENU");
     }
 
-    /**
-     * خروج ایمن از بازی با Pop-up تأییدیه.
-     * اصلاح گام ۴: تبدیل به public برای استفاده در منوی اصلی (DRY Principle)
-     */
+
     public void exitGameSafely() {
         int confirm = JOptionPane.showConfirmDialog(
                 this,

@@ -199,11 +199,6 @@ public class GameMap {
         return false;
     }
 
-    /**
-     * [گام ۳ - اصلاح ضد انباشت یونیت‌ها (Anti-Stacking Spawn)]:
-     * جستجوی قطعی و شعاعی برای پیدا کردن اولین هکس خالی و قابل‌عبور.
-     * این متد تضمین می‌کند هرگز دو یونیت روی هم اسپاون نشوند.
-     */
     public Hex findEmptySpawnHex(int startQ, int startR) {
         List<Hex> sortedHexes = new ArrayList<>(hexes.getAll());
         sortedHexes.sort(Comparator.comparingInt(h -> getHexDistance(startQ, startR, h.getQ(), h.getR())));
@@ -228,10 +223,6 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
-    /**
-     * [گام ۲ - اصلاح حیاتی]: محاسبه سقف یونیت‌ها با در نظر گرفتن وضعیت قحطی.
-     * در صورتی که امپراتوری در قحطی باشد، تأثیر پاداش شهرک‌ها اعمال نمی‌شود و رشد جمعیت متوقف می‌ماند.
-     */
     public int getUnitCap() {
         if (isStarving) {
             return GameConfig.UNIT_CAP_BASE;

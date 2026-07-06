@@ -5,10 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/view/UIConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/AudioManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/AudioManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/BuildController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/BuildController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MainController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UnitController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UnitController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/HexRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/ResourceType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/ResourceType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TownHall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TownHall.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/MainFrame.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainFrame.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/UIConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/UIConfig.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

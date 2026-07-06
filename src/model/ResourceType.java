@@ -5,5 +5,5 @@ public enum ResourceType {
     WOOD,
     STONE,
     IRON,
-    NONE // برای هکس هایی که هیچ منبعی ندارند
+    NONE
 }

@@ -3,15 +3,11 @@ package view;
 import java.awt.Color;
 import java.awt.Font;
 
-/**
- * پالت متمرکز تنظیمات گرافیکی و رنگی بازی (UI Configuration Palette).
- * این کلاس تمامی Magic Numberها و رنگ‌های هاردکدشده را جهت نگهداری اصولی تجمیع می‌کند.
- */
+
 public final class UIConfig {
 
-    private UIConfig() {} // جلوگیری از نمونه‌سازی (Utility Class)
+    private UIConfig() {}
 
-    // پالت رنگ‌های زمین‌ها (فعال، تمام‌شده، بدون منبع)
     public static final Color FOREST_TOP_ACTIVE = new Color(60, 180, 60);
     public static final Color FOREST_BASE_ACTIVE = new Color(25, 100, 25);
     public static final Color FOREST_TOP_DEPLETED = new Color(90, 110, 80);
@@ -81,7 +77,6 @@ public final class UIConfig {
     public static final Color RES_FOOD_GENERIC_BORDER = new Color(100, 200, 80);
     public static final Color RES_FOOD_GENERIC_TEXT = new Color(180, 255, 130);
 
-    // پالت رنگ‌های یونیت‌ها
     public static final Color UNIT_EXPLORER = new Color(65, 105, 225);
     public static final Color UNIT_BUILDER = new Color(255, 215, 0);
     public static final Color UNIT_WORKER = new Color(255, 140, 0);
@@ -89,7 +84,6 @@ public final class UIConfig {
     public static final Color UNIT_STATIONED_AURA = new Color(255, 165, 0, 150);
     public static final Color UNIT_SELECTED_AURA = new Color(0, 255, 255, 200);
 
-    // فونت‌های استاندارد
     public static final String FONT_SANS_SERIF = "SansSerif";
     public static final String FONT_SEGOE_UI = "Segoe UI";
 }

@@ -53,7 +53,6 @@ public class UnitController {
         if (building == null || building.isDestroyed()) return false;
         if (building.getType() == BuildingType.TOWN_HALL) return false;
 
-        // [گام ۵ - اصلاح]: جلوگیری از استقرار کارگر در هکسی که منبع آن تمام شده است
         ResourceType producedRes = building.getType().getProducedResource();
         if (producedRes != ResourceType.NONE && !hex.hasResource(producedRes)) {
             return false;
@@ -62,9 +61,6 @@ public class UnitController {
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
-    /**
-     * اجرای استقرار با استفاده از Guard امنیتی canStation
-     */
     public boolean handleStation(Worker worker, Hex hex) {
         if (!canStation(worker, hex)) return false;
 

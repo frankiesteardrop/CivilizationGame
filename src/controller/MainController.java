@@ -2,10 +2,6 @@ package controller;
 
 import model.*;
 
-/**
- * کنترلر اصلی بازی.
- * پیاده‌سازی الگوی Facade جهت رعایت قانون دِمِتر و جلوگیری از دسترسی مستقیم لایه View به زیرسیستم‌ها.
- */
 public class MainController {
     private final GameMap gameMap;
     private final TurnController turnController;
@@ -27,9 +23,6 @@ public class MainController {
     public BuildController getBuildController() { return buildController; }
     public UpgradeController getUpgradeController() { return upgradeController; }
 
-    // ==========================================
-    // متدهای Facade برای تعاملات یونیت‌ها (Unit Controller Delegation)
-    // ==========================================
     public Unit selectUnitAt(Hex hex) {
         return unitController.selectUnitAt(hex, gameMap);
     }
@@ -62,9 +55,7 @@ public class MainController {
         return unitController.handleExpandBorder(expander, gameMap);
     }
 
-    // ==========================================
-    // متدهای Facade برای ساخت‌وساز (Build Controller Delegation)
-    // ==========================================
+
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
         return buildController.canBuild(type, hex, builder);
     }
@@ -73,9 +64,7 @@ public class MainController {
         buildController.buildStructure(builder, type, hex);
     }
 
-    // ==========================================
-    // متدهای Facade برای ارتقا و تولید (Upgrade Controller Delegation)
-    // ==========================================
+
     public boolean canAffordWarehouseUpgrade() {
         return upgradeController.canAffordWarehouseUpgrade();
     }
@@ -100,9 +89,6 @@ public class MainController {
         upgradeController.trainUnit(unitType);
     }
 
-    // ==========================================
-    // مدیریت سیستم صوتی (Audio Delegation)
-    // ==========================================
     public static void setMusicVolume(int volumePercent) {
         AudioManager.setVolume(volumePercent);
     }
