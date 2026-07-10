@@ -1,6 +1,7 @@
 package view;
 
 import controller.MainController;
+import controller.AudioController;
 import model.GameEventDispatcher;
 import model.GameMap;
 import javax.swing.*;
@@ -17,6 +18,9 @@ public class MainFrame extends JFrame {
     private GamePanel gamePanel;
     private JPanel gameWrapper;
 
+    // کنترلر صدا به عنوان یک فیلد اختصاصی اضافه شد تا معماری شی‌گرا حفظ شود
+    private final AudioController audioController;
+
     public MainFrame() {
         setTitle("Civilization VI");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -28,8 +32,9 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        // واگذاری مدیریت صدا به کنترلر
-        MainController.playMusic("/music.wav");
+        // نمونه‌سازی و پخش موسیقی توسط خود فریم اصلی به صورت اصولی
+        this.audioController = new AudioController();
+        this.audioController.playMusic("/music.wav");
 
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
         mainContainer.add(mainMenuPanel, "MENU");
@@ -44,6 +49,11 @@ public class MainFrame extends JFrame {
         });
     }
 
+    // متد دسترسی برای کلاس‌های منو و تنظیمات
+    public AudioController getAudioController() {
+        return audioController;
+    }
+
     public void startGame() {
         GameEventDispatcher.clearAllListeners();
 
@@ -52,7 +62,7 @@ public class MainFrame extends JFrame {
             gameWrapper = null;
         }
 
-        // [گام 3]: نقشه عظیم با شعاع 50 (شامل بیش از 7500 هکس)
+        // نقشه عظیم با شعاع 50 (شامل بیش از 7500 هکس)
         GameMap freshGameMap = new GameMap(50);
         this.mainController = new MainController(freshGameMap);
 
@@ -84,7 +94,8 @@ public class MainFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE
         );
         if (confirm == JOptionPane.YES_OPTION) {
-            MainController.stopMusic();
+            // توقف امن پخش صدا
+            audioController.stopMusic();
             System.exit(0);
         }
     }

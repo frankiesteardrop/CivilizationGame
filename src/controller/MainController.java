@@ -12,7 +12,7 @@ public class MainController {
     private final UpgradeController upgradeController;
     private final EconomyController economyController;
 
-    private static final AudioController audioController = new AudioController();
+
 
     public MainController(GameMap gameMap) {
         this.gameMap = gameMap;
@@ -132,8 +132,5 @@ public class MainController {
         return new MenuAction(fullLabel, canBuild, () -> buildController.buildStructure(builder, type, hex));
     }
 
-    public static void setMusicVolume(int volumePercent) { audioController.setVolume(volumePercent); }
-    public static int getMusicVolume() { return audioController.getCurrentVolume(); }
-    public static void playMusic(String resourcePath) { audioController.playMusic(resourcePath); }
-    public static void stopMusic() { audioController.stopMusic(); }
+
 }

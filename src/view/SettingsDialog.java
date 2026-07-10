@@ -1,26 +1,23 @@
 package view;
 
-import controller.MainController;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-
 
 public class SettingsDialog extends JDialog {
 
     private final JSlider volumeSlider;
     private final JLabel percentageLabel;
 
-    public SettingsDialog(JFrame parentFrame) {
+    // ورودی سازنده از JFrame به MainFrame تغییر یافت تا ارتباط شی‌گرا برقرار شود
+    public SettingsDialog(MainFrame parentFrame) {
         super(parentFrame, "Audio Settings", true);
-
 
         setUndecorated(true);
         setSize(420, 260);
         setLocationRelativeTo(parentFrame);
         setLayout(new BorderLayout());
-
 
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBackground(new Color(30, 33, 40));
@@ -29,17 +26,16 @@ public class SettingsDialog extends JDialog {
                 BorderFactory.createEmptyBorder(20, 25, 20, 25)
         ));
 
-
         JLabel titleLabel = new JLabel("🎵 AUDIO SETTINGS", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(new Color(236, 240, 241));
         mainPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // پنل مرکزی شامل اسلایدر و درصد زنده
         JPanel centerPanel = new JPanel(new GridLayout(2, 1, 10, 5));
         centerPanel.setOpaque(false);
 
-        int currentVolume = MainController.getMusicVolume();
+        // گرفتن مقدار ولوم مستقیماً از نمونه اکتیو کنترلر صدا در فریم والد
+        int currentVolume = parentFrame.getAudioController().getCurrentVolume();
         percentageLabel = new JLabel("Music Volume: " + currentVolume + "%", SwingConstants.CENTER);
         percentageLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
         percentageLabel.setForeground(new Color(46, 204, 113));
@@ -53,18 +49,17 @@ public class SettingsDialog extends JDialog {
         volumeSlider.setFocusable(false);
         volumeSlider.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // ارسال تغییرات زنده به Facade و آپدیت متن لیبل
+        // اعمال تغییرات روی نمونه کنترلر صدای فریم والد
         volumeSlider.addChangeListener(e -> {
             int val = volumeSlider.getValue();
             percentageLabel.setText("Music Volume: " + val + "%");
-            MainController.setMusicVolume(val);
+            parentFrame.getAudioController().setVolume(val);
         });
 
         centerPanel.add(percentageLabel);
         centerPanel.add(volumeSlider);
         mainPanel.add(centerPanel, BorderLayout.CENTER);
 
-        // دکمه بستن حرفه‌ای با افکت Hover
         JButton closeButton = buildCloseButton();
         mainPanel.add(closeButton, BorderLayout.SOUTH);
 
