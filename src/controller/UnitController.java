@@ -11,7 +11,6 @@ import model.GameConfig;
 import model.GameEventDispatcher;
 import model.ResourceType;
 
-
 public class UnitController {
 
     private Hex lastClickedHex = null;
@@ -44,7 +43,6 @@ public class UnitController {
         if (worker == null || !worker.isAlive()) return false;
         if (worker.isStationed()) return false;
 
-        // [گام ۳ - اصلاح]: اعتبارسنجی موقعیت
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
 
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;

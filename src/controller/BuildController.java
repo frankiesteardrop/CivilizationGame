@@ -18,7 +18,6 @@ public class BuildController {
 
         if (!hex.isInsideBorder()) return false;
 
-        // اگر ساختمانی وجود دارد، تنها در صورتی مجاز به ساخت هستیم که آن ساختمان کاملاً مخروبه (Destroyed) باشد
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
 
         if (builder.getCharges() <= 0) return false;
@@ -77,7 +76,6 @@ public class BuildController {
 
         Inventory inv = gameMap.getTownHall().getInventory();
 
-        // تخریب فیزیکی و حذف کامل ساختمان مخروبه قبلی برای جلوگیری از Memory Leak و باگ‌های منطقی
         if (hex.getBuilding() != null && hex.getBuilding().isDestroyed()) {
             hex.setBuilding(null);
         }
