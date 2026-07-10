@@ -89,7 +89,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {
         SwingUtilities.invokeLater(() -> {
-
             resetEndTurnButton();
             updateHUD();
         });
@@ -141,7 +140,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override
     public void onUnitStateChanged(Unit unit) {
         SwingUtilities.invokeLater(() -> {
-
             resetEndTurnButton();
             updateHUD();
             gamePanel.repaint();
@@ -163,7 +161,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
             gamePanel.repaint();
         });
     }
-
 
     @Override
     public void onBorderExpanded(int centerQ, int centerR) {
@@ -190,10 +187,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
         int maxStone = inv.getCapacity(ResourceType.STONE);
         int maxIron  = inv.getCapacity(ResourceType.IRON);
 
-        int netFood  = EconomyManager.calculateNetProduction(map, ResourceType.FOOD);
-        int netWood  = EconomyManager.calculateNetProduction(map, ResourceType.WOOD);
-        int netStone = EconomyManager.calculateNetProduction(map, ResourceType.STONE);
-        int netIron  = EconomyManager.calculateNetProduction(map, ResourceType.IRON);
+        // [اصلاح معماری]: درخواست محاسبات اقتصادی به صورت شی‌گرا از طریق کنترلر اصلی
+        int netFood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.FOOD);
+        int netWood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.WOOD);
+        int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
+        int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
 
         infoContainer.add(createResourceCard(
                 "🍔 Food",

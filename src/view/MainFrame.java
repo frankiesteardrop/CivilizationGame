@@ -1,6 +1,5 @@
 package view;
 
-import controller.AudioManager;
 import controller.MainController;
 import model.GameEventDispatcher;
 import model.GameMap;

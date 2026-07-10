@@ -1,9 +1,16 @@
-package model;
+package controller;
 
+import model.*;
 
-public class EconomyManager {
+public class EconomyController {
 
-    public static boolean processEndTurn(GameMap map) {
+    private final MainController mainController;
+
+    public EconomyController(MainController mainController) {
+        this.mainController = mainController;
+    }
+
+    public boolean processEndTurn(GameMap map) {
         produceResources(map);
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
@@ -12,7 +19,7 @@ public class EconomyManager {
         return isStarving;
     }
 
-    private static void produceResources(GameMap map) {
+    private void produceResources(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
 
@@ -41,11 +48,10 @@ public class EconomyManager {
             }
         }
 
-
         townHall.advanceProductionQueue(map.isStarving());
     }
 
-    private static void processUpkeep(GameMap map) {
+    private void processUpkeep(GameMap map) {
         Inventory inventory = map.getTownHall().getInventory();
 
         for (Hex hex : map.getHexes()) {
@@ -67,7 +73,7 @@ public class EconomyManager {
         }
     }
 
-    private static boolean processFoodConsumption(GameMap map) {
+    private boolean processFoodConsumption(GameMap map) {
         Inventory inventory = map.getTownHall().getInventory();
 
         int totalFoodNeeded = map.getUnits().stream()
@@ -89,7 +95,7 @@ public class EconomyManager {
         return false;
     }
 
-    public static void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
+    public void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
             if (u instanceof Worker) {
                 Worker w = (Worker) u;
@@ -100,10 +106,9 @@ public class EconomyManager {
         }
     }
 
-    public static int calculateNetProduction(GameMap map, ResourceType type) {
+    public int calculateNetProduction(GameMap map, ResourceType type) {
         int net = 0;
         TownHall townHall = map.getTownHall();
-
 
         if (type == ResourceType.WOOD) net += GameConfig.SAFEGUARD_WOOD_AMOUNT;
         if (type == ResourceType.FOOD) net += GameConfig.SAFEGUARD_FOOD_AMOUNT;

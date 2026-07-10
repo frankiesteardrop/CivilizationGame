@@ -5,27 +5,24 @@ import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 
-public class AudioManager {
-    private static Clip clip;
-    private static FloatControl volumeControl;
-    private static int currentVolume = 50;
-    private static boolean isAudioAvailable = false;
+public class AudioController {
+    private Clip clip;
+    private FloatControl volumeControl;
+    private int currentVolume = 50;
+    private boolean isAudioAvailable = false;
 
-    public static void playMusic(String resourcePath) {
-
+    public void playMusic(String resourcePath) {
         stopMusic();
-
         String cleanPath = resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
 
         try {
-            InputStream audioSrc = AudioManager.class.getClassLoader().getResourceAsStream(cleanPath);
+            InputStream audioSrc = AudioController.class.getClassLoader().getResourceAsStream(cleanPath);
 
             if (audioSrc == null) {
                 System.err.println("⚠️ [Audio Fallback] Music file '" + resourcePath + "' not found. Running game in mute mode.");
                 isAudioAvailable = false;
                 return;
             }
-
 
             try (InputStream bufferedIn = new BufferedInputStream(audioSrc);
                  AudioInputStream audioInput = AudioSystem.getAudioInputStream(bufferedIn)) {
@@ -43,13 +40,11 @@ public class AudioManager {
             }
 
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException e) {
-
             System.err.println("⚠️ [Audio Fallback] Could not initialize audio system: " + e.getMessage() + ". Running game silently.");
             clip = null;
             volumeControl = null;
             isAudioAvailable = false;
         } catch (Throwable t) {
-
             System.err.println("⚠️ [Audio Fallback] Critical audio hardware failure. Running game gracefully without audio.");
             clip = null;
             volumeControl = null;
@@ -57,7 +52,7 @@ public class AudioManager {
         }
     }
 
-    public static void setVolume(int volumePercent) {
+    public void setVolume(int volumePercent) {
         currentVolume = volumePercent;
         if (isAudioAvailable && volumeControl != null) {
             float min = volumeControl.getMinimum();
@@ -68,11 +63,11 @@ public class AudioManager {
         }
     }
 
-    public static int getCurrentVolume() {
+    public int getCurrentVolume() {
         return currentVolume;
     }
 
-    public static void stopMusic() {
+    public void stopMusic() {
         if (clip != null) {
             if (clip.isRunning()) {
                 clip.stop();
@@ -84,7 +79,7 @@ public class AudioManager {
         }
     }
 
-    public static boolean isAudioSystemWorking() {
+    public boolean isAudioSystemWorking() {
         return isAudioAvailable;
     }
 }

@@ -115,25 +115,13 @@ public class GameMap {
         units.add(new Worker(-1, 0));
     }
 
-    public void nextTurn() {
-        for (Unit unit : units.getAll()) {
-            if (unit.isAlive()) {
-                unit.resetAP();
-            }
-        }
-
-        isStarving = EconomyManager.processEndTurn(this);
-
-        if (isStarving) {
-            for (Unit unit : units.getAll()) {
-                if (unit.isAlive()) {
-                    unit.consumeAP(1);
-                }
-            }
-        }
-
-        units.removeIf(u -> !u.isAlive());
+    // === این متدها را جایگزین nextTurn قبلی کنید ===
+    public void incrementTurn() {
         currentTurn++;
+    }
+
+    public void removeDeadUnits() {
+        units.removeIf(u -> !u.isAlive());
     }
 
     public void updateFogOfWar() {
