@@ -79,4 +79,10 @@ public class GameConfig {
 
     public static final int UNIT_CAP_BASE = 10;
     public static final int UNIT_CAP_SETTLEMENT_BONUS = 5;
+
+
+    // شانس تولید منابع احتمالی در مناطق مختلف نقشه
+    public static final double CHANCE_MOUNTAIN_IRON = 0.3;
+    public static final double CHANCE_MEADOW_FOOD = 0.5;
+    public static final double CHANCE_PLAINS_ANIMAL = 0.3;
 }

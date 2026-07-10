@@ -51,18 +51,18 @@ public class GameMap {
                         break;
                     case MOUNTAIN:
                         newHex.addResource(ResourceType.STONE, GameConfig.SEED_MOUNTAIN_STONE);
-                        if (random.nextDouble() < 0.3) {
+                        if (random.nextDouble() < GameConfig.CHANCE_MOUNTAIN_IRON) {
                             newHex.addResource(ResourceType.IRON, GameConfig.SEED_MOUNTAIN_IRON);
                         }
                         break;
                     case MEADOW:
-                        if (random.nextDouble() < 0.5) {
+                        if (random.nextDouble() < GameConfig.CHANCE_MEADOW_FOOD) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.WHEAT : ResourceSubtype.RICE);
                         }
                         break;
                     case PLAINS:
-                        if (random.nextDouble() < 0.3) {
+                        if (random.nextDouble() < GameConfig.CHANCE_PLAINS_ANIMAL) {
                             newHex.addResource(ResourceType.FOOD, GameConfig.SEED_PLAINS_FOOD);
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.CATTLE : ResourceSubtype.SHEEP);
                         }
