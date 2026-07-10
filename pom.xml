@@ -18,7 +18,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <main.class>controller.Main</main.class>
+        <main.class>Main</main.class>
     </properties>
 
     <dependencies>
@@ -42,7 +42,6 @@
         </resources>
 
         <plugins>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -103,8 +102,6 @@
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>3.3.1</version>
             </plugin>
-
         </plugins>
     </build>
-
 </project>
