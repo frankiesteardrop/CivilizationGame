@@ -76,24 +76,28 @@ public class GameMap {
         ensureStartingResources();
     }
 
+    // الگوریتم ارتقایافته برای تضمین قطعی فاصله چوب از تاون‌هال
     private void ensureStartingResources() {
         boolean hasForestNear = false;
         List<Hex> availableCandidates = new ArrayList<>();
 
         for (Hex hex : hexes.getAll()) {
-            int dist = getHexDistance(townHall.getQ(), townHall.getR(),
-                    hex.getQ(), hex.getR());
+            int dist = getHexDistance(townHall.getQ(), townHall.getR(), hex.getQ(), hex.getR());
             if (dist > 0 && dist <= 2) {
                 if (hex.getTerrainType() == TerrainType.FOREST) {
                     hasForestNear = true;
-                    break;
+                    // تضمین اینکه جنگل حتماً منبع چوب داشته باشد
+                    if (!hex.hasResource(ResourceType.WOOD)) {
+                        hex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
+                    }
                 }
-                if (hex.getTerrainType() != TerrainType.MOUNTAIN) {
+                if (hex.getTerrainType() != TerrainType.MOUNTAIN && hex.getTerrainType() != TerrainType.FOREST) {
                     availableCandidates.add(hex);
                 }
             }
         }
 
+        // تضمین قطعی صورت‌سوال: اگر جنگلی در شعاع ۲ نبود، حتماً یکی ایجاد می‌شود
         if (!hasForestNear && !availableCandidates.isEmpty()) {
             Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
@@ -104,6 +108,13 @@ public class GameMap {
             }
 
             targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
+        } else if (!hasForestNear) {
+            // مکانیزم ثانویه (Safeguard) برای مپ‌های بسیار خاص
+            Hex forceHex = getHexAt(townHall.getQ() + 1, townHall.getR());
+            if (forceHex != null) {
+                forceHex.setTerrainType(TerrainType.FOREST);
+                forceHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
+            }
         }
     }
 
@@ -115,7 +126,6 @@ public class GameMap {
         units.add(new Worker(-1, 0));
     }
 
-    // === این متدها را جایگزین nextTurn قبلی کنید ===
     public void incrementTurn() {
         currentTurn++;
     }
@@ -197,7 +207,6 @@ public class GameMap {
             }
         }
 
-        // در صورت پر بودن تمام مناطق کشف‌شده، اولین هکس خالی نقشه را انتخاب می‌کنیم تا تداخل رخ ندهد
         for (Hex hex : sortedHexes) {
             if (!hasUnitAt(hex.getQ(), hex.getR())) {
                 return hex;

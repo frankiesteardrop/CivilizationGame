@@ -88,25 +88,41 @@ public class GamePanel extends JPanel {
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
     }
 
-
     public Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
         double y = HEX_SIZE * 3.0 / 2.0 * r;
         return new Point((int)(x * zoomFactor) + offsetX, (int)(y * zoomFactor) + offsetY);
     }
 
+    // الگوریتم حرفه‌ای O(1) برای پیدا کردن هکس با تبدیل مختصات هندسی پیکسلی به هگزاگونال
     public Hex getHexAtPixel(Point p, List<Hex> hexes) {
-        Hex closest = null;
-        double minDst = Double.MAX_VALUE;
+        double rawX = (p.x - offsetX) / zoomFactor;
+        double rawY = (p.y - offsetY) / zoomFactor;
+
+        double qExact = (Math.sqrt(3.0)/3.0 * rawX - 1.0/3.0 * rawY) / HEX_SIZE;
+        double rExact = (2.0/3.0 * rawY) / HEX_SIZE;
+
+        int hexQ = (int) Math.round(qExact);
+        int hexR = (int) Math.round(rExact);
+        int hexS = -hexQ - hexR;
+
+        double qDiff = Math.abs(hexQ - qExact);
+        double rDiff = Math.abs(hexR - rExact);
+        double sDiff = Math.abs(hexS - (-qExact - rExact));
+
+        if (qDiff > rDiff && qDiff > sDiff) {
+            hexQ = -hexR - hexS;
+        } else if (rDiff > sDiff) {
+            hexR = -hexQ - hexS;
+        }
+
         for (Hex hex : hexes) {
-            double dst = p.distance(getHexPixelCoords(hex.getQ(), hex.getR()));
-            if (dst < HEX_SIZE * zoomFactor && dst < minDst) {
-                minDst = dst; closest = hex;
+            if (hex.getQ() == hexQ && hex.getR() == hexR) {
+                return hex;
             }
         }
-        return closest;
+        return null;
     }
-
 
     public boolean isAnimating() { return animatingUnit != null; }
     public Unit getSelectedUnit() { return selectedUnit; }

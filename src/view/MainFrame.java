@@ -28,7 +28,8 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        AudioManager.playMusic("/music.wav");
+        // واگذاری مدیریت صدا به کنترلر
+        MainController.playMusic("/music.wav");
 
         MainMenuPanel mainMenuPanel = new MainMenuPanel(this);
         mainContainer.add(mainMenuPanel, "MENU");
@@ -44,7 +45,6 @@ public class MainFrame extends JFrame {
     }
 
     public void startGame() {
-
         GameEventDispatcher.clearAllListeners();
 
         if (gameWrapper != null) {
@@ -52,7 +52,8 @@ public class MainFrame extends JFrame {
             gameWrapper = null;
         }
 
-        GameMap freshGameMap = new GameMap(5);
+        // [گام 3]: نقشه عظیم با شعاع 50 (شامل بیش از 7500 هکس)
+        GameMap freshGameMap = new GameMap(50);
         this.mainController = new MainController(freshGameMap);
 
         this.gamePanel = new GamePanel(mainController);
@@ -69,12 +70,10 @@ public class MainFrame extends JFrame {
         gamePanel.requestFocusInWindow();
     }
 
-
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();
         cardLayout.show(mainContainer, "MENU");
     }
-
 
     public void exitGameSafely() {
         int confirm = JOptionPane.showConfirmDialog(
@@ -85,7 +84,7 @@ public class MainFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE
         );
         if (confirm == JOptionPane.YES_OPTION) {
-            AudioManager.stopMusic();
+            MainController.stopMusic();
             System.exit(0);
         }
     }

@@ -8,24 +8,40 @@ import java.awt.*;
 public class HexRenderer {
 
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
-        for (Hex hex : map.getHexes()) drawHexTerrain(g2d, hex, panel);
+        // الگوریتم Frustum Culling: محاسبه کادر مانیتور
+        Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
+        java.util.List<Hex> visibleHexes = new java.util.ArrayList<>();
+        int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
 
-        for (Hex hex : map.getHexes())
+        // فیلتر کردن هکس‌هایی که فقط داخل کادر هستند
+        for (Hex hex : map.getHexes()) {
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (pt.x + sz * 2 >= viewRect.x && pt.x - sz * 2 <= viewRect.x + viewRect.width &&
+                    pt.y + sz * 2 >= viewRect.y && pt.y - sz * 2 <= viewRect.y + viewRect.height) {
+                visibleHexes.add(hex);
+            }
+        }
+
+        // حالا تمام عملیات گرافیکی فقط روی هکس‌های مرئی (visibleHexes) انجام می‌شود
+        for (Hex hex : visibleHexes) drawHexTerrain(g2d, hex, panel);
+
+        for (Hex hex : visibleHexes)
             if (hex.isInsideBorder() && (hex.isExplored() || hex.isVisible()))
                 drawHexBorder(g2d, hex, panel);
 
-        drawMovementHighlights(g2d, panel, map, unitController);
+        drawMovementHighlights(g2d, panel, map, unitController, visibleHexes);
 
-        for (Hex hex : map.getHexes())
+        for (Hex hex : visibleHexes)
             if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
     }
 
-    private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
+    private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, java.util.List<Hex> visibleHexes) {
         Unit selectedUnit = panel.getSelectedUnit();
         if (selectedUnit == null || panel.isAnimating()) return;
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
-        for (Hex hex : map.getHexes()) {
+        // فقط هکس‌های مرئی چک می‌شوند تا پرفورمنس حفظ شود
+        for (Hex hex : visibleHexes) {
             int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
             if (dist != 1) continue;
 
@@ -167,28 +183,16 @@ public class HexRenderer {
         String symbol;
 
         switch (rt) {
-            case WOOD:
-                bgColor = UIConfig.RES_WOOD_BG; borderColor = UIConfig.RES_WOOD_BORDER; textColor = UIConfig.RES_WOOD_TEXT; symbol = "W";
-                break;
-            case STONE:
-                bgColor = UIConfig.RES_STONE_BG; borderColor = UIConfig.RES_STONE_BORDER; textColor = UIConfig.RES_STONE_TEXT; symbol = "S";
-                break;
-            case IRON:
-                bgColor = UIConfig.RES_IRON_BG; borderColor = UIConfig.RES_IRON_BORDER; textColor = UIConfig.RES_IRON_TEXT; symbol = "I";
-                break;
+            case WOOD: bgColor = UIConfig.RES_WOOD_BG; borderColor = UIConfig.RES_WOOD_BORDER; textColor = UIConfig.RES_WOOD_TEXT; symbol = "W"; break;
+            case STONE: bgColor = UIConfig.RES_STONE_BG; borderColor = UIConfig.RES_STONE_BORDER; textColor = UIConfig.RES_STONE_TEXT; symbol = "S"; break;
+            case IRON: bgColor = UIConfig.RES_IRON_BG; borderColor = UIConfig.RES_IRON_BORDER; textColor = UIConfig.RES_IRON_TEXT; symbol = "I"; break;
             case FOOD:
                 ResourceSubtype st = hex.getResourceSubtype();
-                if (st == ResourceSubtype.WHEAT) {
-                    bgColor = UIConfig.RES_WHEAT_BG; borderColor = UIConfig.RES_WHEAT_BORDER; textColor = UIConfig.RES_WHEAT_TEXT; symbol = "Wh";
-                } else if (st == ResourceSubtype.RICE) {
-                    bgColor = UIConfig.RES_RICE_BG; borderColor = UIConfig.RES_RICE_BORDER; textColor = UIConfig.RES_RICE_TEXT; symbol = "Ri";
-                } else if (st == ResourceSubtype.CATTLE) {
-                    bgColor = UIConfig.RES_CATTLE_BG; borderColor = UIConfig.RES_CATTLE_BORDER; textColor = UIConfig.RES_CATTLE_TEXT; symbol = "Ca";
-                } else if (st == ResourceSubtype.SHEEP) {
-                    bgColor = UIConfig.RES_SHEEP_BG; borderColor = UIConfig.RES_SHEEP_BORDER; textColor = UIConfig.RES_SHEEP_TEXT; symbol = "Sh";
-                } else {
-                    bgColor = UIConfig.RES_FOOD_GENERIC_BG; borderColor = UIConfig.RES_FOOD_GENERIC_BORDER; textColor = UIConfig.RES_FOOD_GENERIC_TEXT; symbol = "F";
-                }
+                if (st == ResourceSubtype.WHEAT) { bgColor = UIConfig.RES_WHEAT_BG; borderColor = UIConfig.RES_WHEAT_BORDER; textColor = UIConfig.RES_WHEAT_TEXT; symbol = "Wh"; }
+                else if (st == ResourceSubtype.RICE) { bgColor = UIConfig.RES_RICE_BG; borderColor = UIConfig.RES_RICE_BORDER; textColor = UIConfig.RES_RICE_TEXT; symbol = "Ri"; }
+                else if (st == ResourceSubtype.CATTLE) { bgColor = UIConfig.RES_CATTLE_BG; borderColor = UIConfig.RES_CATTLE_BORDER; textColor = UIConfig.RES_CATTLE_TEXT; symbol = "Ca"; }
+                else if (st == ResourceSubtype.SHEEP) { bgColor = UIConfig.RES_SHEEP_BG; borderColor = UIConfig.RES_SHEEP_BORDER; textColor = UIConfig.RES_SHEEP_TEXT; symbol = "Sh"; }
+                else { bgColor = UIConfig.RES_FOOD_GENERIC_BG; borderColor = UIConfig.RES_FOOD_GENERIC_BORDER; textColor = UIConfig.RES_FOOD_GENERIC_TEXT; symbol = "F"; }
                 break;
             default: return;
         }

@@ -6,8 +6,19 @@ import java.awt.*;
 public class UnitRenderer {
 
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map) {
+        Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
+
         for (Unit u : map.getUnits()) {
-            if (u.isAlive()) drawUnit(g2d, u, panel, map);
+            if (u.isAlive()) {
+                Point pt = panel.getHexPixelCoords(u.getQ(), u.getR());
+                int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor() * 2);
+
+                // Culling Check: فقط رندر یونیت‌هایی که داخل صفحه هستند
+                if (pt.x + sz >= viewRect.x && pt.x - sz <= viewRect.x + viewRect.width &&
+                        pt.y + sz >= viewRect.y && pt.y - sz <= viewRect.y + viewRect.height) {
+                    drawUnit(g2d, u, panel, map);
+                }
+            }
         }
     }
 
