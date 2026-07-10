@@ -22,6 +22,7 @@ public class GameMap {
         this.random = new Random();
 
         generateMap();
+        setupInitialTerritory(); // این خط برای تنظیم مرزهای اولیه اضافه شد
         spawnInitialUnits();
         updateFogOfWar();
     }
@@ -34,9 +35,6 @@ public class GameMap {
 
                 if (q == 0 && r == 0) {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
-                    centerHex.setExplored(true);
-                    centerHex.setVisible(true);
-                    centerHex.setInsideBorder(true);
                     centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
                     continue;
@@ -74,6 +72,16 @@ public class GameMap {
         }
 
         ensureStartingResources();
+    }
+
+    private void setupInitialTerritory() {
+        // شعاع ۱ هکسی اطراف تاون‌هال به عنوان قلمرو اولیه بازیکن ثبت می‌شود
+        for (Hex hex : hexes.getAll()) {
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
+                hex.setInsideBorder(true);
+                hex.setExplored(true);
+            }
+        }
     }
 
     private void ensureStartingResources() {
@@ -115,11 +123,12 @@ public class GameMap {
     }
 
     private void spawnInitialUnits() {
-        units.add(new Explorer(1, 0));
-        units.add(new Builder(0, 1));
-        units.add(new Builder(-1, 1));
-        units.add(new Worker(1, -1));
-        units.add(new Worker(-1, 0));
+        // تمامی یونیت‌ها منطقاً باید از درون خود تاون‌هال بازی را استارت بزنند
+        units.add(new Explorer(0, 0));
+        units.add(new Builder(0, 0));
+        units.add(new Builder(0, 0));
+        units.add(new Worker(0, 0));
+        units.add(new Worker(0, 0));
     }
 
     public void incrementTurn() {
