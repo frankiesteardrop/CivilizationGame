@@ -28,18 +28,18 @@ public class TurnController {
     }
 
     public void forceEndTurn() {
-        // ریست کردن AP همه یونیت‌ها
+        // گام اول: ریست کردن AP تمام یونیت‌ها (کارگران مستقر نیز شارژ استقرار خود را در این مرحله می‌پردازند)
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
-        // پردازش اقتصاد و دریافت وضعیت قحطی
+        // گام دوم: پردازش اقتصاد، کسر هزینه‌های نگهداری (Upkeep) و دریافت وضعیت قحطی
         boolean isStarving = mainController.getEconomyController().processEndTurn(gameMap);
         gameMap.setStarving(isStarving);
 
-        // اعمال جریمه قحطی روی AP
+        // گام سوم: اعمال دقیق جریمه قحطی (کسر ۱ واحد AP از تمام یونیت‌های زنده) مطابق داک
         if (isStarving) {
             for (Unit unit : gameMap.getUnits()) {
                 if (unit.isAlive()) {

@@ -1,6 +1,5 @@
 package model;
 
-
 public class Worker extends Unit {
     private boolean isStationed;
     private Building stationedBuilding;
@@ -11,20 +10,16 @@ public class Worker extends Unit {
         this.stationedBuilding = null;
     }
 
-
     @Override
     public void resetAP() {
         if (!isAlive) return;
 
-
         super.resetAP();
-
 
         if (isStationed) {
             consumeAP(GameConfig.WORKER_STATION_AP_COST);
         }
     }
-
 
     public boolean stationIn(Building building) {
         if (isStationed) return false;
@@ -44,13 +39,14 @@ public class Worker extends Unit {
         return true;
     }
 
+    // متد اخراج کارگر: این متد چه از طریق دکمه Leave و چه به خاطر تخریب ساختمان اجرا شود،
+    // به هیچ وجه AP کسر شده را برنمی‌گرداند.
     public void eject() {
         if (!isStationed || stationedBuilding == null) return;
 
         stationedBuilding.removeWorker();
         this.isStationed = false;
         this.stationedBuilding = null;
-
 
         GameEventDispatcher.fireUnitStateChanged(this);
     }

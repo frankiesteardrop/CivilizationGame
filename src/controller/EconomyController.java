@@ -63,6 +63,7 @@ public class EconomyController {
 
             if (!paid) {
                 b.registerFailedUpkeep();
+                // اگر ساختمان مخروبه شد، بلافاصله تمام کارگران با تابع قفل‌شده eject بیرون پرتاب می‌شوند
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
@@ -89,7 +90,7 @@ public class EconomyController {
             if (currentFood > 0) {
                 inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
             }
-            return true;
+            return true; // تایید وقوع قحطی
         }
 
         return false;

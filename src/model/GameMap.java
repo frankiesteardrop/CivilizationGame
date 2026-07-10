@@ -76,7 +76,6 @@ public class GameMap {
         ensureStartingResources();
     }
 
-    // الگوریتم ارتقایافته برای تضمین قطعی فاصله چوب از تاون‌هال
     private void ensureStartingResources() {
         boolean hasForestNear = false;
         List<Hex> availableCandidates = new ArrayList<>();
@@ -86,7 +85,6 @@ public class GameMap {
             if (dist > 0 && dist <= 2) {
                 if (hex.getTerrainType() == TerrainType.FOREST) {
                     hasForestNear = true;
-                    // تضمین اینکه جنگل حتماً منبع چوب داشته باشد
                     if (!hex.hasResource(ResourceType.WOOD)) {
                         hex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
                     }
@@ -97,7 +95,6 @@ public class GameMap {
             }
         }
 
-        // تضمین قطعی صورت‌سوال: اگر جنگلی در شعاع ۲ نبود، حتماً یکی ایجاد می‌شود
         if (!hasForestNear && !availableCandidates.isEmpty()) {
             Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
@@ -109,7 +106,6 @@ public class GameMap {
 
             targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
         } else if (!hasForestNear) {
-            // مکانیزم ثانویه (Safeguard) برای مپ‌های بسیار خاص
             Hex forceHex = getHexAt(townHall.getQ() + 1, townHall.getR());
             if (forceHex != null) {
                 forceHex.setTerrainType(TerrainType.FOREST);
@@ -166,16 +162,17 @@ public class GameMap {
         }
     }
 
+    // اصلاح حیاتی و تطبیق با داک: تنها هکس‌هایی به مرز اضافه می‌شوند که isExplored آنها true باشد.
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null && (centerHex.isExplored() || centerHex.isVisible())) {
+        if (centerHex != null && centerHex.isExplored()) {
             centerHex.setInsideBorder(true);
         }
 
         int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
         for (int[] d : directions) {
             Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            if (neighbor != null && (neighbor.isExplored() || neighbor.isVisible())) {
+            if (neighbor != null && neighbor.isExplored()) {
                 neighbor.setInsideBorder(true);
             }
         }
