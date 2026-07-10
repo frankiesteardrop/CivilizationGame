@@ -83,10 +83,9 @@ public class GameMap {
             }
         }
     }
-
     private void ensureStartingResources() {
         boolean hasForestNear = false;
-        List<Hex> availableCandidates = new ArrayList<>();
+        java.util.List<Hex> availableCandidates = new java.util.ArrayList<>();
 
         for (Hex hex : hexes.getAll()) {
             int dist = getHexDistance(townHall.getQ(), townHall.getR(), hex.getQ(), hex.getR());
@@ -107,10 +106,8 @@ public class GameMap {
             Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
 
-            if (targetHex.hasResource(ResourceType.FOOD)) {
-                targetHex.extractResource(ResourceType.FOOD, Integer.MAX_VALUE);
-                targetHex.setResourceSubtype(ResourceSubtype.NONE);
-            }
+            // اصلاح باگ گرافیکی: پاکسازی کامل منبع قبلی از هکس
+            targetHex.clearResourceCompletely(ResourceType.FOOD);
 
             targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
         } else if (!hasForestNear) {

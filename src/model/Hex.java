@@ -63,6 +63,14 @@ public class Hex {
         return extracted;
     }
 
+    // متد جدید برای حل باگ رندرینگ منابع ارواح (پاکسازی کامل بدون باقی گذاشتن ردِ صفر)
+    public void clearResourceCompletely(ResourceType type) {
+        resources.remove(type);
+        if (type == ResourceType.FOOD) {
+            this.resourceSubtype = ResourceSubtype.NONE;
+        }
+    }
+
     public boolean isResourceDepleted() {
         if (resources.isEmpty()) return true;
         for (int amount : resources.values()) {
