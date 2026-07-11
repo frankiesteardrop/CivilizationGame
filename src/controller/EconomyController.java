@@ -83,17 +83,19 @@ public class EconomyController {
 
         if (totalFoodNeeded == 0) return false;
 
-        boolean canPay = inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
+        int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
 
-        if (!canPay) {
-            int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
+        // رفع باگ پرش منطقی: مقایسه و مصرف اصولی موجودی حتی در زمان قحطی
+        if (currentFood >= totalFoodNeeded) {
+            inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
+            return false;
+        } else {
             if (currentFood > 0) {
-                inventory.forceDecreaseResource(ResourceType.FOOD, currentFood);
+                // موجودی را رسماً از طریق سیستم استاندارد مصرف می‌کنیم تا ایونت‌ها درست شلیک شوند
+                inventory.consumeResource(ResourceType.FOOD, currentFood);
             }
-            return true; // تایید وقوع قحطی
+            return true; // تایید ورود به فاز بحران و قحطی
         }
-
-        return false;
     }
 
     public void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
