@@ -3,7 +3,6 @@ package model;
 import java.util.LinkedList;
 import java.util.Queue;
 
-
 public class TownHall extends Building {
 
     private final int q;
@@ -42,17 +41,21 @@ public class TownHall extends Building {
         return BuildingType.TOWN_HALL;
     }
 
-
     public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, GameConfig.SAFEGUARD_WOOD_AMOUNT);
         this.inventory.addResource(ResourceType.FOOD, GameConfig.SAFEGUARD_FOOD_AMOUNT);
     }
 
-
     public void advanceProductionQueue(boolean isStarving) {
-        if (isStarving || productionQueue.isEmpty()) return;
+        if (productionQueue.isEmpty()) return;
 
         ProductionTask currentTask = productionQueue.peek();
+
+        // رفع باگ منطقی قحطی: اگر قحطی برقرار باشد، فقط صف تولید جمعیت متوقف می‌شود
+        if (isStarving && isPopulationTask(currentTask.getName())) {
+            return;
+        }
+
         currentTask.decrementTurn();
 
         if (currentTask.isCompleted()) {
@@ -60,6 +63,14 @@ public class TownHall extends Building {
             currentTask.complete();
             GameEventDispatcher.fireProductionCompleted(currentTask.getName());
         }
+    }
+
+    // متد کمکی برای تشخیص اینکه آیا تسک فعلی مربوط به تولید یونیت (جمعیت) است یا ارتقاها
+    private boolean isPopulationTask(String taskName) {
+        return "Worker".equals(taskName) ||
+                "Builder".equals(taskName) ||
+                "Explorer".equals(taskName) ||
+                "Border Expander".equals(taskName);
     }
 
     public boolean queueProduction(String itemName, int turnCost, Runnable onComplete) {
