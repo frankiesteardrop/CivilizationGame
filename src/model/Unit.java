@@ -10,7 +10,6 @@ public abstract class Unit {
     protected int visionRadius;
     protected boolean isAlive;
 
-
     public Unit(int q, int r, UnitType type) {
         this.q = q;
         this.r = r;
@@ -29,6 +28,9 @@ public abstract class Unit {
     }
 
     public boolean consumeAP(int amount) {
+        // رفع آسیب‌پذیری: گارد گذاری برای جلوگیری از مقادیر منفی یا غیرمنطقی
+        if (amount <= 0) return false;
+
         if (currentAP >= amount) {
             currentAP -= amount;
             return true;

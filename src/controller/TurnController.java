@@ -18,28 +18,25 @@ public class TurnController {
 
     public boolean hasIdleUnits() {
         for (Unit u : gameMap.getUnits()) {
+            // رفع نقص Clean Code: کدهای مرده و تکراری حذف شدند
             if (!u.isAlive()) continue;
             if (u.getCurrentAP() <= 0) continue;
             if (u instanceof Worker && ((Worker) u).isStationed()) continue;
-            if (u instanceof BorderExpander && !u.isAlive()) continue;
             return true;
         }
         return false;
     }
 
     public void forceEndTurn() {
-        // گام اول: ریست کردن AP تمام یونیت‌ها (کارگران مستقر نیز شارژ استقرار خود را در این مرحله می‌پردازند)
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
-        // گام دوم: پردازش اقتصاد، کسر هزینه‌های نگهداری (Upkeep) و دریافت وضعیت قحطی
         boolean isStarving = mainController.getEconomyController().processEndTurn(gameMap);
         gameMap.setStarving(isStarving);
 
-        // گام سوم: اعمال دقیق جریمه قحطی (کسر ۱ واحد AP از تمام یونیت‌های زنده) مطابق داک
         if (isStarving) {
             for (Unit unit : gameMap.getUnits()) {
                 if (unit.isAlive()) {
@@ -48,7 +45,6 @@ public class TurnController {
             }
         }
 
-        // حذف یونیت‌های مرده و آپدیت ترن
         gameMap.removeDeadUnits();
         gameMap.incrementTurn();
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());

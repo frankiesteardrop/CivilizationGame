@@ -22,7 +22,7 @@ public class GameMap {
         this.random = new Random();
 
         generateMap();
-        setupInitialTerritory(); // این خط برای تنظیم مرزهای اولیه اضافه شد
+        setupInitialTerritory();
         spawnInitialUnits();
         updateFogOfWar();
     }
@@ -66,16 +66,13 @@ public class GameMap {
                         }
                         break;
                 }
-
                 hexes.add(newHex);
             }
         }
-
         ensureStartingResources();
     }
 
     private void setupInitialTerritory() {
-        // شعاع ۱ هکسی اطراف تاون‌هال به عنوان قلمرو اولیه بازیکن ثبت می‌شود
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
                 hex.setInsideBorder(true);
@@ -83,6 +80,7 @@ public class GameMap {
             }
         }
     }
+
     private void ensureStartingResources() {
         boolean hasForestNear = false;
         java.util.List<Hex> availableCandidates = new java.util.ArrayList<>();
@@ -105,10 +103,7 @@ public class GameMap {
         if (!hasForestNear && !availableCandidates.isEmpty()) {
             Hex targetHex = availableCandidates.get(random.nextInt(availableCandidates.size()));
             targetHex.setTerrainType(TerrainType.FOREST);
-
-            // اصلاح باگ گرافیکی: پاکسازی کامل منبع قبلی از هکس
             targetHex.clearResourceCompletely(ResourceType.FOOD);
-
             targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
         } else if (!hasForestNear) {
             Hex forceHex = getHexAt(townHall.getQ() + 1, townHall.getR());
@@ -120,7 +115,6 @@ public class GameMap {
     }
 
     private void spawnInitialUnits() {
-        // تمامی یونیت‌ها منطقاً باید از درون خود تاون‌هال بازی را استارت بزنند
         units.add(new Explorer(0, 0));
         units.add(new Builder(0, 0));
         units.add(new Builder(0, 0));
@@ -168,7 +162,6 @@ public class GameMap {
         }
     }
 
-    // اصلاح حیاتی و تطبیق با داک: تنها هکس‌هایی به مرز اضافه می‌شوند که isExplored آنها true باشد.
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
         if (centerHex != null && centerHex.isExplored()) {
@@ -223,10 +216,8 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
+    // رفع باگ وحشتناک در محاسبه سقف جمعیت (حذف جریمه ناعادلانه در زمان قحطی)
     public int getUnitCap() {
-        if (isStarving) {
-            return GameConfig.UNIT_CAP_BASE;
-        }
         int cap = GameConfig.UNIT_CAP_BASE;
         for (Hex h : hexes.getAll()) {
             Building b = h.getBuilding();
