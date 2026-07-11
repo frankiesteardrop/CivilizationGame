@@ -51,6 +51,15 @@ public class Worker extends Unit {
         GameEventDispatcher.fireUnitStateChanged(this);
     }
 
+    // رفع باگ نشت وضعیت: پاکسازی اصولی قبل از حذف شیء
+    @Override
+    public void kill() {
+        if (isStationed) {
+            eject();
+        }
+        super.kill();
+    }
+
     public boolean isStationed() {
         return isStationed;
     }
