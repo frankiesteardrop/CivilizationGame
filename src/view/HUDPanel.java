@@ -26,7 +26,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final JPanel infoContainer;
     private final JButton endTurnBtn;
 
-    // کارت‌های کش‌شده (Cached) برای جلوگیری از ساخت مجدد کامپوننت‌ها
     private final HUDCard foodCard;
     private final HUDCard woodCard;
     private final HUDCard stoneCard;
@@ -58,7 +57,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn = buildEndTurnButton();
         add(endTurnBtn, BorderLayout.EAST);
 
-        // مقداردهی اولیه کارت‌ها (فقط یک بار)
         foodCard = new HUDCard("🍔 Food", new Color(46, 204, 113), false);
         woodCard = new HUDCard("🪵 Wood", new Color(211, 84, 0), false);
         stoneCard = new HUDCard("🪨 Stone", new Color(149, 165, 166), false);
@@ -69,7 +67,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         starvationAlertCard = createStarvationCard();
         starvationAlertCard.setVisible(false);
 
-        // افزودن کارت‌ها به کانتینر
         infoContainer.add(foodCard);
         infoContainer.add(woodCard);
         infoContainer.add(stoneCard);
@@ -80,6 +77,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.add(starvationAlertCard);
 
         GameEventDispatcher.addListener(this);
+
+        // تایمر برای رفع باگ پرش‌های UI در حین انیمیشن‌ها و اکشن‌های سریع
+        Timer uiSyncTimer = new Timer(500, e -> updateHUD());
+        uiSyncTimer.start();
+
         updateHUD();
     }
 
@@ -210,7 +212,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         });
     }
 
-    // نسخه کاملاً بهینه شده متد updateHUD
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
             resetEndTurnButton();
@@ -229,7 +230,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
         int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
 
-        // تنها متن کامپوننت‌های قبلی آپدیت می‌شود (بدون ساخت آبجکت جدید)
         foodCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.FOOD), maxFood, netFood));
         woodCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.WOOD), maxWood, netWood));
         stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
@@ -349,7 +349,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
     }
 
-    // کلاس داخلی برای کپسوله‌سازی کارت‌های گرافیکی منو و مدیریت آپدیت متون
     private static class HUDCard extends JPanel {
         private final JLabel label;
         private final String title;

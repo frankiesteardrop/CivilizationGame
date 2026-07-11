@@ -12,8 +12,6 @@ public class MainController {
     private final UpgradeController upgradeController;
     private final EconomyController economyController;
 
-
-
     public MainController(GameMap gameMap) {
         this.gameMap = gameMap;
         this.economyController = new EconomyController(this);
@@ -38,7 +36,6 @@ public class MainController {
         List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
 
-        // هوشمندسازی UI: دلیل قفل بودن دکمه‌ها به کاربر نشان داده می‌شود
         boolean qEmpty = th.isProductionQueueEmpty();
         String prefix = qEmpty ? "" : "⏳ [BUSY] ";
         boolean isPopCapped = gameMap.getAliveUnitsCount() >= gameMap.getUnitCap();
@@ -129,8 +126,11 @@ public class MainController {
         else if (!canBuild && builder.getCharges() <= 0) lockReason = " [NO CHARGE]";
 
         String fullLabel = label + " (-" + type.getApCost() + "AP" + (cost.isEmpty() ? "" : " | " + cost.trim()) + ")" + lockReason;
-        return new MenuAction(fullLabel, canBuild, () -> buildController.buildStructure(builder, type, hex));
+
+        // رفع باگ نشت رویداد: مجبور کردن سیستم به شلیک Event پس از ساخت و ساز
+        return new MenuAction(fullLabel, canBuild, () -> {
+            buildController.buildStructure(builder, type, hex);
+            GameEventDispatcher.fireUnitStateChanged(builder);
+        });
     }
-
-
 }
