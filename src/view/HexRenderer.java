@@ -20,16 +20,31 @@ public class HexRenderer {
             }
         }
 
+        // 1. کشیدن زمین‌ها
         for (Hex hex : visibleHexes) drawHexTerrain(g2d, hex, panel);
 
+        // 2. کشیدن مرزهای طلایی
         for (Hex hex : visibleHexes)
             if (hex.isInsideBorder() && (hex.isExplored() || hex.isVisible()))
                 drawHexBorder(g2d, hex, panel);
 
+        // 3. کشیدن هایلایت‌های حرکت
         drawMovementHighlights(g2d, panel, map, unitController, visibleHexes);
 
+        // 4. کشیدن جزئیات (آیکون منابع و ساختمان‌ها)
         for (Hex hex : visibleHexes)
             if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
+
+        // 5. رفع باگ Z-Index: کشیدن سایه مه‌جنگ به عنوان آخرین لایه
+        // این کار باعث می‌شود تمام آیکون‌ها، مرزها و تکست‌ها در هکس‌های خارج از دید به درستی تاریک شوند
+        for (Hex hex : visibleHexes) {
+            if (hex.isExplored() && !hex.isVisible()) {
+                Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+                Polygon polygon = createHexPolygon(pt, sz);
+                g2d.setColor(new Color(0, 0, 0, 160)); // سایه غلیظ 60 درصدی
+                g2d.fillPolygon(polygon);
+            }
+        }
     }
 
     private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, java.util.List<Hex> visibleHexes) {
@@ -113,11 +128,6 @@ public class HexRenderer {
 
         if (hasDepletedResource) {
             g2d.setColor(new Color(40, 40, 40, 100));
-            g2d.fillPolygon(polygon);
-        }
-
-        if (!hex.isVisible() && hex.isExplored()) {
-            g2d.setColor(UIConfig.FOG_SHADOW);
             g2d.fillPolygon(polygon);
         }
 
