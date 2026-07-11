@@ -34,7 +34,6 @@ public class UnitController {
     public void executeMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || targetHex == null || map == null) return;
 
-        // گارد دوم: جلوگیری از باگ تداخلِ کلیک‌های همزمان در حین انیمیشن
         if (!canMove(unit, targetHex)) return;
 
         int cost = targetHex.getTerrainType().getMovementCost();
@@ -84,6 +83,11 @@ public class UnitController {
 
         int q = expander.getQ();
         int r = expander.getR();
+
+        // رفع باگ نادیده گرفتن مرز مبداء: مرزگشا باید به مرز فعلی متصل باشد
+        if (!map.isContiguousToBorder(q, r)) {
+            return false;
+        }
 
         expander.consumeAP(GameConfig.EXPAND_AP_COST);
         map.expandBorderAt(q, r);
