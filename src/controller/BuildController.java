@@ -23,9 +23,8 @@ public class BuildController {
         if (builder.getCharges() <= 0) return false;
         if (builder.getCurrentAP() < type.getApCost()) return false;
 
-        if (type == BuildingType.SETTLEMENT && gameMap.isStarving()) {
-            return false;
-        }
+        // رفع باگ منطقی: محدودیت غیرقانونی ساخت شهرک در زمان قحطی حذف شد.
+        // قحطی فقط رشد جمعیت را متوقف می‌کند، نه احداث زیرساخت‌ها را.
 
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
@@ -76,6 +75,7 @@ public class BuildController {
 
         Inventory inv = gameMap.getTownHall().getInventory();
 
+        // اجرای دقیق قانون: پاکسازی و جایگزینی ساختمان در صورت مخروبه بودن
         if (hex.getBuilding() != null && hex.getBuilding().isDestroyed()) {
             hex.setBuilding(null);
         }
