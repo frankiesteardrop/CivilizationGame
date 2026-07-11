@@ -127,9 +127,20 @@ public class GameMap {
     }
 
     public void removeDeadUnits() {
-        boolean removed = units.removeIf(u -> !u.isAlive());
-        // رفع باگ نابینایی: اگر یونیتی مرد، نقشه باید آپدیت شود تا مه‌جنگ دوباره تاریک شود
-        if (removed) {
+        // گام اول: ابتدا بررسی می‌کنیم که آیا اصلاً یونیت مرده‌ای در نقشه وجود دارد؟
+        boolean hasDeadUnits = false;
+        for (Unit u : units.getAll()) {
+            if (!u.isAlive()) {
+                hasDeadUnits = true;
+                break;
+            }
+        }
+
+        // گام دوم: متد کاستوم ریپازیتوری شما که خروجی void دارد را با خیال راحت صدا می‌زنیم
+        units.removeIf(u -> !u.isAlive());
+
+        // گام سوم: رفع باگ نابینایی - اگر یونیت مرده‌ای وجود داشت و حالا حذف شده، مه‌جنگ آپدیت شود
+        if (hasDeadUnits) {
             updateFogOfWar();
         }
     }
