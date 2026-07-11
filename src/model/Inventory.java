@@ -28,7 +28,9 @@ public class Inventory {
         if (type == ResourceType.NONE || amount <= 0) return;
 
         int current  = resources.getOrDefault(type, 0);
-        int capacity = capacities.getOrDefault(type, GameConfig.DEFAULT_WOOD_CAPACITY);
+
+        // رفع باگ: جایگزینی DEFAULT_WOOD_CAPACITY با 0 برای Fallback منطقی‌تر
+        int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
 
         resources.put(type, updated);
@@ -48,8 +50,8 @@ public class Inventory {
     }
 
     public void forceDecreaseResource(ResourceType type, int amount) {
-
         if (type == ResourceType.NONE || amount <= 0) return;
+
         int current = resources.getOrDefault(type, 0);
         int updated = Math.max(0, current - amount);
         resources.put(type, updated);
@@ -78,6 +80,7 @@ public class Inventory {
     }
 
     public int getCapacity(ResourceType type) {
-        return capacities.getOrDefault(type, GameConfig.DEFAULT_WOOD_CAPACITY);
+        // رفع باگ: استفاده از 0 به عنوان مقدار پیش‌فرض امن
+        return capacities.getOrDefault(type, 0);
     }
 }
