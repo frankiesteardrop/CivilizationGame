@@ -34,6 +34,9 @@ public class UnitController {
     public void executeMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || targetHex == null || map == null) return;
 
+        // گارد دوم: جلوگیری از باگ تداخلِ کلیک‌های همزمان در حین انیمیشن
+        if (!canMove(unit, targetHex)) return;
+
         int cost = targetHex.getTerrainType().getMovementCost();
         unit.moveTo(targetHex.getQ(), targetHex.getR(), cost);
         map.updateFogOfWar();

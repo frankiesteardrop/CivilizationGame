@@ -127,7 +127,11 @@ public class GameMap {
     }
 
     public void removeDeadUnits() {
-        units.removeIf(u -> !u.isAlive());
+        boolean removed = units.removeIf(u -> !u.isAlive());
+        // رفع باگ نابینایی: اگر یونیتی مرد، نقشه باید آپدیت شود تا مه‌جنگ دوباره تاریک شود
+        if (removed) {
+            updateFogOfWar();
+        }
     }
 
     public void updateFogOfWar() {
@@ -216,7 +220,6 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
-    // رفع باگ وحشتناک در محاسبه سقف جمعیت (حذف جریمه ناعادلانه در زمان قحطی)
     public int getUnitCap() {
         int cap = GameConfig.UNIT_CAP_BASE;
         for (Hex h : hexes.getAll()) {
