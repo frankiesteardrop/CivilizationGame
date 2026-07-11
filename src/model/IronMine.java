@@ -9,7 +9,6 @@ public class IronMine extends Building {
     @Override
     public int calculateProduction(TownHall townHall) {
         if (townHall != null && townHall.isProfessionalToolsUnlocked()) {
-            // اعمال باف ۱.۵ برابری مستقیماً روی بیسِ تولید (به ازای هر کارگر) با ریاضیات صحیح
             int boostedPerWorker = (getType().getBaseProduction() * 3) / 2;
             return getStationedWorkers() * boostedPerWorker;
         }

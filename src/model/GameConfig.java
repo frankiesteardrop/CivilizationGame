@@ -3,13 +3,11 @@ package model;
 
 
 public class GameConfig {
-    // هزینه‌های ارتقای انبار
     public static final int WAREHOUSE_LVL1_WOOD = 100;
     public static final int WAREHOUSE_LVL1_STONE = 50;
     public static final int WAREHOUSE_LVL2_WOOD = 200;
     public static final int WAREHOUSE_LVL2_STONE = 100;
 
-    // هزینه‌های تکنولوژی‌ها
     public static final int TECH_STONE_MINE_WOOD = 50;
     public static final int TECH_IRON_MINE_WOOD = 100;
     public static final int TECH_IRON_MINE_STONE = 50;
@@ -22,7 +20,6 @@ public class GameConfig {
     public static final int TECH_SETTLEMENT_STONE = 100;
     public static final int TECH_SETTLEMENT_IRON = 50;
 
-    // هزینه‌های ساخت و تولید یونیت‌ها
     public static final int WORKER_FOOD_COST = 20;
     public static final int WORKER_TURN_COST = 1;
 
@@ -80,8 +77,6 @@ public class GameConfig {
     public static final int UNIT_CAP_BASE = 10;
     public static final int UNIT_CAP_SETTLEMENT_BONUS = 5;
 
-
-    // شانس تولید منابع احتمالی در مناطق مختلف نقشه
     public static final double CHANCE_MOUNTAIN_IRON = 0.3;
     public static final double CHANCE_MEADOW_FOOD = 0.5;
     public static final double CHANCE_PLAINS_ANIMAL = 0.3;

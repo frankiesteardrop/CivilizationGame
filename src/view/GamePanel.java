@@ -94,7 +94,6 @@ public class GamePanel extends JPanel {
         return new Point((int)(x * zoomFactor) + offsetX, (int)(y * zoomFactor) + offsetY);
     }
 
-    // الگوریتم حرفه‌ای O(1) برای پیدا کردن هکس با تبدیل مختصات هندسی پیکسلی به هگزاگونال
     public Hex getHexAtPixel(Point p, List<Hex> hexes) {
         double rawX = (p.x - offsetX) / zoomFactor;
         double rawY = (p.y - offsetY) / zoomFactor;

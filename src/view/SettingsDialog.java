@@ -10,7 +10,6 @@ public class SettingsDialog extends JDialog {
     private final JSlider volumeSlider;
     private final JLabel percentageLabel;
 
-    // ورودی سازنده از JFrame به MainFrame تغییر یافت تا ارتباط شی‌گرا برقرار شود
     public SettingsDialog(MainFrame parentFrame) {
         super(parentFrame, "Audio Settings", true);
 
@@ -34,7 +33,6 @@ public class SettingsDialog extends JDialog {
         JPanel centerPanel = new JPanel(new GridLayout(2, 1, 10, 5));
         centerPanel.setOpaque(false);
 
-        // گرفتن مقدار ولوم مستقیماً از نمونه اکتیو کنترلر صدا در فریم والد
         int currentVolume = parentFrame.getAudioController().getCurrentVolume();
         percentageLabel = new JLabel("Music Volume: " + currentVolume + "%", SwingConstants.CENTER);
         percentageLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
@@ -49,7 +47,7 @@ public class SettingsDialog extends JDialog {
         volumeSlider.setFocusable(false);
         volumeSlider.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // اعمال تغییرات روی نمونه کنترلر صدای فریم والد
+
         volumeSlider.addChangeListener(e -> {
             int val = volumeSlider.getValue();
             percentageLabel.setText("Music Volume: " + val + "%");

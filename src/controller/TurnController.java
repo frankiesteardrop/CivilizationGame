@@ -27,18 +27,15 @@ public class TurnController {
     }
 
     public void forceEndTurn() {
-        // گام اول: تجدید AP تمام یونیت‌ها
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
             }
         }
 
-        // گام دوم و سوم: تولید منابع، پیشروی صف، کسر Upkeep و بررسی قحطی
         boolean isStarving = mainController.getEconomyController().processEndTurn(gameMap);
         gameMap.setStarving(isStarving);
 
-        // اعمال ضعف و جریمه قحطی روی یونیت‌ها
         if (isStarving) {
             for (Unit unit : gameMap.getUnits()) {
                 if (unit.isAlive()) {
@@ -50,11 +47,8 @@ public class TurnController {
         gameMap.removeDeadUnits();
         gameMap.incrementTurn();
 
-        // رفع باگ State Desync: آپدیت اجباری مه‌جنگ برای اعمال تاثیراتِ
-        // ساختمان‌های مخروبه شده و یونیت‌های تازه تولید شده در این ترن
         gameMap.updateFogOfWar();
 
-        // بازگشت کنترل به بازیکن برای شروع نوبت جدید
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
     }
 }

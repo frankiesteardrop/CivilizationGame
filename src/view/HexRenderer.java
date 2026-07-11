@@ -8,12 +8,10 @@ import java.awt.*;
 public class HexRenderer {
 
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
-        // الگوریتم Frustum Culling: محاسبه کادر مانیتور
         Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
         java.util.List<Hex> visibleHexes = new java.util.ArrayList<>();
         int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
 
-        // فیلتر کردن هکس‌هایی که فقط داخل کادر هستند
         for (Hex hex : map.getHexes()) {
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (pt.x + sz * 2 >= viewRect.x && pt.x - sz * 2 <= viewRect.x + viewRect.width &&
@@ -22,7 +20,6 @@ public class HexRenderer {
             }
         }
 
-        // حالا تمام عملیات گرافیکی فقط روی هکس‌های مرئی (visibleHexes) انجام می‌شود
         for (Hex hex : visibleHexes) drawHexTerrain(g2d, hex, panel);
 
         for (Hex hex : visibleHexes)
@@ -40,7 +37,6 @@ public class HexRenderer {
         if (selectedUnit == null || panel.isAnimating()) return;
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
-        // فقط هکس‌های مرئی چک می‌شوند تا پرفورمنس حفظ شود
         for (Hex hex : visibleHexes) {
             int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
             if (dist != 1) continue;

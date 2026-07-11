@@ -84,7 +84,6 @@ public class UnitController {
         int q = expander.getQ();
         int r = expander.getR();
 
-        // رفع باگ نادیده گرفتن مرز مبداء: مرزگشا باید به مرز فعلی متصل باشد
         if (!map.isContiguousToBorder(q, r)) {
             return false;
         }

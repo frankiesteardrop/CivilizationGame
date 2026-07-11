@@ -127,7 +127,6 @@ public class MainController {
 
         String fullLabel = label + " (-" + type.getApCost() + "AP" + (cost.isEmpty() ? "" : " | " + cost.trim()) + ")" + lockReason;
 
-        // رفع باگ نشت رویداد: مجبور کردن سیستم به شلیک Event پس از ساخت و ساز
         return new MenuAction(fullLabel, canBuild, () -> {
             buildController.buildStructure(builder, type, hex);
             GameEventDispatcher.fireUnitStateChanged(builder);

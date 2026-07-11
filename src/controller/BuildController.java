@@ -80,7 +80,7 @@ public class BuildController {
         builder.useCharge();
 
         Building newBuilding = createBuilding(type);
-        // جایگزینی مستقیم ساختمان جدید (چه هکس خالی باشد چه دارای مخروبه)
+
         hex.setBuilding(newBuilding);
 
         gameMap.updateFogOfWar();

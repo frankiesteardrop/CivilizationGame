@@ -51,7 +51,6 @@ public class TownHall extends Building {
 
         ProductionTask currentTask = productionQueue.peek();
 
-        // رفع باگ منطقی قحطی: اگر قحطی برقرار باشد، فقط صف تولید جمعیت متوقف می‌شود
         if (isStarving && isPopulationTask(currentTask.getName())) {
             return;
         }
@@ -65,7 +64,6 @@ public class TownHall extends Building {
         }
     }
 
-    // متد کمکی برای تشخیص اینکه آیا تسک فعلی مربوط به تولید یونیت (جمعیت) است یا ارتقاها
     private boolean isPopulationTask(String taskName) {
         return "Worker".equals(taskName) ||
                 "Builder".equals(taskName) ||

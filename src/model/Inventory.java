@@ -29,7 +29,6 @@ public class Inventory {
 
         int current  = resources.getOrDefault(type, 0);
 
-        // رفع باگ: جایگزینی DEFAULT_WOOD_CAPACITY با 0 برای Fallback منطقی‌تر
         int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
 
@@ -80,7 +79,6 @@ public class Inventory {
     }
 
     public int getCapacity(ResourceType type) {
-        // رفع باگ: استفاده از 0 به عنوان مقدار پیش‌فرض امن
         return capacities.getOrDefault(type, 0);
     }
 }

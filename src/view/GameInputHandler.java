@@ -96,7 +96,6 @@ public class GameInputHandler extends MouseAdapter {
             if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
                 showMenu(e, mainController.getUnitMenuActions(selectedUnit, clickedHex));
             } else if (!panel.isAnimating()) {
-                // کنترلر مستقیماً می‌گوید که آیا حرکت مجاز است (بدون نیاز به چک کردن station)
                 if (mainController.canMove(selectedUnit, clickedHex)) {
                     Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
                     Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
@@ -111,7 +110,6 @@ public class GameInputHandler extends MouseAdapter {
         }
     }
 
-    // این متد جنریک تمام منوها را از روی دیتای کنترلر می‌سازد بدون اینکه قوانین را بداند
     private void showMenu(MouseEvent e, List<MenuAction> actions) {
         if (actions == null || actions.isEmpty()) return;
 
@@ -131,7 +129,7 @@ public class GameInputHandler extends MouseAdapter {
             } else {
                 item.addActionListener(ev -> {
                     action.execute();
-                    panel.setSelectedUnit(null); // Deselect after action
+                    panel.setSelectedUnit(null);
                     panel.repaint();
                 });
             }

@@ -18,7 +18,6 @@ public class MainFrame extends JFrame {
     private GamePanel gamePanel;
     private JPanel gameWrapper;
 
-    // کنترلر صدا به عنوان یک فیلد اختصاصی اضافه شد تا معماری شی‌گرا حفظ شود
     private final AudioController audioController;
 
     public MainFrame() {
@@ -32,7 +31,6 @@ public class MainFrame extends JFrame {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        // نمونه‌سازی و پخش موسیقی توسط خود فریم اصلی به صورت اصولی
         this.audioController = new AudioController();
         this.audioController.playMusic("/music.wav");
 
@@ -62,7 +60,6 @@ public class MainFrame extends JFrame {
             gameWrapper = null;
         }
 
-        // نقشه عظیم با شعاع 50 (شامل بیش از 7500 هکس)
         GameMap freshGameMap = new GameMap(50);
         this.mainController = new MainController(freshGameMap);
 
@@ -94,7 +91,7 @@ public class MainFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE
         );
         if (confirm == JOptionPane.YES_OPTION) {
-            // توقف امن پخش صدا
+
             audioController.stopMusic();
             System.exit(0);
         }

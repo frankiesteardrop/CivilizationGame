@@ -31,16 +31,12 @@ public class Worker extends Unit {
         this.isStationed = true;
         this.stationedBuilding = building;
 
-        // کسر AP بابت عمل استقرار
         consumeAP(GameConfig.WORKER_STATION_AP_COST);
 
-        // اطلاع به لایه View جهت به‌روزرسانی رابط کاربری
         GameEventDispatcher.fireUnitStateChanged(this);
         return true;
     }
 
-    // متد اخراج کارگر: این متد چه از طریق دکمه Leave و چه به خاطر تخریب ساختمان اجرا شود،
-    // به هیچ وجه AP کسر شده را برنمی‌گرداند.
     public void eject() {
         if (!isStationed || stationedBuilding == null) return;
 
@@ -51,7 +47,6 @@ public class Worker extends Unit {
         GameEventDispatcher.fireUnitStateChanged(this);
     }
 
-    // رفع باگ نشت وضعیت: پاکسازی اصولی قبل از حذف شیء
     @Override
     public void kill() {
         if (isStationed) {

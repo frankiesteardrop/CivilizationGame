@@ -63,7 +63,7 @@ public class EconomyController {
 
             if (!paid) {
                 b.registerFailedUpkeep();
-                // اگر ساختمان مخروبه شد، بلافاصله تمام کارگران با تابع قفل‌شده eject بیرون پرتاب می‌شوند
+
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
@@ -85,16 +85,15 @@ public class EconomyController {
 
         int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
 
-        // رفع باگ پرش منطقی: مقایسه و مصرف اصولی موجودی حتی در زمان قحطی
         if (currentFood >= totalFoodNeeded) {
             inventory.consumeResource(ResourceType.FOOD, totalFoodNeeded);
             return false;
         } else {
             if (currentFood > 0) {
-                // موجودی را رسماً از طریق سیستم استاندارد مصرف می‌کنیم تا ایونت‌ها درست شلیک شوند
+
                 inventory.consumeResource(ResourceType.FOOD, currentFood);
             }
-            return true; // تایید ورود به فاز بحران و قحطی
+            return true;
         }
     }
 
@@ -113,7 +112,6 @@ public class EconomyController {
         int net = 0;
         TownHall townHall = map.getTownHall();
 
-        // اضافه کردن تولید Safeguard به صورت پیش‌فرض
         if (type == ResourceType.WOOD) net += GameConfig.SAFEGUARD_WOOD_AMOUNT;
         if (type == ResourceType.FOOD) net += GameConfig.SAFEGUARD_FOOD_AMOUNT;
 
@@ -121,11 +119,10 @@ public class EconomyController {
             Building b = h.getBuilding();
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
-            // محاسبه تولید خالص
             if (b.getType().getProducedResource() == type) {
                 if (h.hasResource(type)) {
                     int prod = b.calculateProduction(townHall);
-                    // رفع باگ UI: محدود کردن تولید نمایشی به میزان منبع واقعی موجود در هکس
+
                     int availableResource = h.getResources().getOrDefault(type, 0);
                     int actualProduction = Math.min(prod, availableResource);
 
@@ -133,13 +130,11 @@ public class EconomyController {
                 }
             }
 
-            // کسر هزینه‌های نگهداری (Upkeep)
             if (b.getUpkeepResource() == type) {
                 net -= b.getUpkeepAmount();
             }
         }
 
-        // کسر مصرف غذای یونیت‌های زنده
         if (type == ResourceType.FOOD) {
             for (Unit u : map.getUnits()) {
                 if (u.isAlive()) net -= u.getFoodConsumption();

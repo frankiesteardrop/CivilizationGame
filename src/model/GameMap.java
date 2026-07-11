@@ -127,7 +127,6 @@ public class GameMap {
     }
 
     public void removeDeadUnits() {
-        // گام اول: ابتدا بررسی می‌کنیم که آیا اصلاً یونیت مرده‌ای در نقشه وجود دارد؟
         boolean hasDeadUnits = false;
         for (Unit u : units.getAll()) {
             if (!u.isAlive()) {
@@ -135,11 +134,8 @@ public class GameMap {
                 break;
             }
         }
-
-        // گام دوم: متد کاستوم ریپازیتوری شما که خروجی void دارد را با خیال راحت صدا می‌زنیم
         units.removeIf(u -> !u.isAlive());
 
-        // گام سوم: رفع باگ نابینایی - اگر یونیت مرده‌ای وجود داشت و حالا حذف شده، مه‌جنگ آپدیت شود
         if (hasDeadUnits) {
             updateFogOfWar();
         }

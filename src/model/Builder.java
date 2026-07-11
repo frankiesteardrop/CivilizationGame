@@ -13,11 +13,10 @@ public class Builder extends Unit {
     public void useCharge() {
         if (charges > 0) {
             charges--;
-            // آپدیت معماری MVC: اطلاع به لایه View بابت تغییر وضعیت (کسر شارژ)
+
             GameEventDispatcher.fireUnitStateChanged(this);
         }
 
-        // ایمن‌سازی فرآیند حذف (Consume)
         if (charges == 0 && this.isAlive()) {
             this.kill();
         }
