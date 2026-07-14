@@ -45,7 +45,6 @@ public class Hex {
     public void setResourceSubtype(ResourceSubtype resourceSubtype) { this.resourceSubtype = resourceSubtype; }
 
     public void addResource(ResourceType type, int amount) {
-
         if (type != ResourceType.NONE && amount > 0) {
             resources.put(type, resources.getOrDefault(type, 0) + amount);
         }
@@ -71,7 +70,7 @@ public class Hex {
     }
 
     public boolean isResourceDepleted() {
-        if (resources.isEmpty()) return true;
+        if (resources.isEmpty()) return false;
         for (int amount : resources.values()) {
             if (amount > 0) return false;
         }
