@@ -58,7 +58,6 @@ public class BuildController {
             case SETTLEMENT:
                 boolean hasAnyResource =
                         hex.hasResource(ResourceType.WOOD) ||
-                                hex.hasResource(ResourceType.STONE) ||
                                 hex.hasResource(ResourceType.IRON) ||
                                 hex.hasResource(ResourceType.FOOD);
                 return th.isSettlementUnlocked() && !hasAnyResource;
