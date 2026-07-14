@@ -10,17 +10,6 @@ public class Worker extends Unit {
         this.stationedBuilding = null;
     }
 
-    @Override
-    public void resetAP() {
-        if (!isAlive) return;
-
-        super.resetAP();
-
-        if (isStationed) {
-            consumeAP(GameConfig.WORKER_STATION_AP_COST);
-        }
-    }
-
     public boolean stationIn(Building building) {
         if (isStationed) return false;
         if (building == null || building.isDestroyed()) return false;
