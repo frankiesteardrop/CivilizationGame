@@ -121,9 +121,7 @@ public class MainController {
         if (type.getIronCost() > 0) cost += type.getIronCost() + "I";
 
         boolean canBuild = buildController.canBuild(type, hex, builder);
-        String lockReason = "";
-        if (!canBuild && builder.getCurrentAP() < type.getApCost()) lockReason = " [NO AP]";
-        else if (!canBuild && builder.getCharges() <= 0) lockReason = " [NO CHARGE]";
+        String lockReason = canBuild ? "" : buildController.getBuildFailReason(type, hex, builder);
 
         String fullLabel = label + " (-" + type.getApCost() + "AP" + (cost.isEmpty() ? "" : " | " + cost.trim()) + ")" + lockReason;
 
