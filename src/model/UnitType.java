@@ -3,7 +3,7 @@ package model;
 public enum UnitType {
     WORKER(2, 1, 1),
     BUILDER(4, 2, 2),
-    EXPLORER(6, 2, 2), // شعاع دید از ۴ به ۲ کاهش یافت تا فاز اکتشاف منطقی‌تر شود
+    EXPLORER(6, 2, 4),
     BORDER_EXPANDER(5, 2, 2);
 
     private final int maxAP;
