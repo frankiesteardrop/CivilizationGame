@@ -63,12 +63,14 @@ public class Inventory {
     }
 
     public void upgradeToLevel1() {
+        capacities.put(ResourceType.FOOD,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
         capacities.put(ResourceType.WOOD,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
         capacities.put(ResourceType.STONE, GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
         capacities.put(ResourceType.IRON,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
     }
 
     public void upgradeToLevel2() {
+        capacities.put(ResourceType.FOOD,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
         capacities.put(ResourceType.WOOD,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
         capacities.put(ResourceType.STONE, GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
         capacities.put(ResourceType.IRON,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
