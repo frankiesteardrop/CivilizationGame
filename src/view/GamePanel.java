@@ -48,9 +48,21 @@ public class GamePanel extends JPanel {
         addMouseWheelListener(inputHandler);
 
         animationTimer = new Timer(16, e -> {
-            updateAnimation();
-            updatePulseEffect();
-            repaint();
+            boolean needsRepaint = false;
+
+            if (animatingUnit != null) {
+                updateAnimation();
+                needsRepaint = true;
+            }
+
+            if (selectedUnit != null) {
+                updatePulseEffect();
+                needsRepaint = true;
+            }
+
+            if (needsRepaint) {
+                repaint();
+            }
         });
         animationTimer.start();
     }

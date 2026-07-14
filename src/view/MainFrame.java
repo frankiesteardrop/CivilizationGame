@@ -47,7 +47,6 @@ public class MainFrame extends JFrame {
         });
     }
 
-    // متد دسترسی برای کلاس‌های منو و تنظیمات
     public AudioController getAudioController() {
         return audioController;
     }
@@ -60,7 +59,7 @@ public class MainFrame extends JFrame {
             gameWrapper = null;
         }
 
-        GameMap freshGameMap = new GameMap(50);
+        GameMap freshGameMap = new GameMap(20);
         this.mainController = new MainController(freshGameMap);
 
         this.gamePanel = new GamePanel(mainController);
@@ -91,7 +90,6 @@ public class MainFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE
         );
         if (confirm == JOptionPane.YES_OPTION) {
-
             audioController.stopMusic();
             System.exit(0);
         }

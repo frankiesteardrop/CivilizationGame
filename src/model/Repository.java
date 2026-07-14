@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-
 public class Repository<T> {
     private final List<T> items = new ArrayList<>();
+    private final List<T> unmodifiableView = Collections.unmodifiableList(items);
 
     public void add(T item) {
         if (item != null) {
@@ -16,27 +16,23 @@ public class Repository<T> {
         }
     }
 
-
     public void removeIf(Predicate<T> filter) {
         if (filter != null) {
             items.removeIf(filter);
         }
     }
 
-
     public Stream<T> stream() {
-        return new ArrayList<>(items).stream();
+        return items.stream();
     }
 
-
     public List<T> getAll() {
-        return Collections.unmodifiableList(new ArrayList<>(items));
+        return unmodifiableView;
     }
 
     public void clear() {
         items.clear();
     }
-
 
     public int size() {
         return items.size();
