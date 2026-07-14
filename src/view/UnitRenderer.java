@@ -7,21 +7,31 @@ public class UnitRenderer {
 
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map) {
         Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
+        java.util.Map<String, java.util.List<Unit>> unitStacks = new java.util.HashMap<>();
 
         for (Unit u : map.getUnits()) {
             if (u.isAlive()) {
+                String key = u.getQ() + "," + u.getR();
+                unitStacks.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(u);
+            }
+        }
+
+        for (java.util.List<Unit> stack : unitStacks.values()) {
+            int stackSize = stack.size();
+            for (int i = 0; i < stackSize; i++) {
+                Unit u = stack.get(i);
                 Point pt = panel.getHexPixelCoords(u.getQ(), u.getR());
                 int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor() * 2);
 
                 if (pt.x + sz >= viewRect.x && pt.x - sz <= viewRect.x + viewRect.width &&
                         pt.y + sz >= viewRect.y && pt.y - sz <= viewRect.y + viewRect.height) {
-                    drawUnit(g2d, u, panel, map);
+                    drawUnit(g2d, u, panel, map, i, stackSize);
                 }
             }
         }
     }
 
-    private void drawUnit(Graphics2D g2d, Unit u, GamePanel panel, GameMap map) {
+    private void drawUnit(Graphics2D g2d, Unit u, GamePanel panel, GameMap map, int stackIndex, int stackSize) {
         boolean isStationed = (u instanceof Worker && ((Worker) u).isStationed());
 
         Hex unitHex = map.getHexAt(u.getQ(), u.getR());
@@ -34,7 +44,15 @@ public class UnitRenderer {
             py = (int)(panel.getAnimStartY() + (panel.getAnimTargetY() - panel.getAnimStartY()) * easeOut);
         } else {
             Point pt = panel.getHexPixelCoords(u.getQ(), u.getR());
-            px = pt.x; py = pt.y;
+            px = pt.x;
+            py = pt.y;
+
+            if (!isStationed && stackSize > 1) {
+                int offsetStep = (int)(6 * panel.getZoomFactor());
+                int totalOffset = (stackSize - 1) * offsetStep;
+                px += (stackIndex * offsetStep) - (totalOffset / 2);
+                py -= (stackIndex * offsetStep) - (totalOffset / 2);
+            }
         }
 
         double zoomFactor = panel.getZoomFactor();

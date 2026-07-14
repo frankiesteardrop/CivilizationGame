@@ -84,10 +84,6 @@ public class UnitController {
         int q = expander.getQ();
         int r = expander.getR();
 
-        if (!map.isContiguousToBorder(q, r)) {
-            return false;
-        }
-
         expander.consumeAP(GameConfig.EXPAND_AP_COST);
         map.expandBorderAt(q, r);
         map.updateFogOfWar();
