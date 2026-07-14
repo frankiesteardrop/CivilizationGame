@@ -42,8 +42,16 @@ public class EconomyController {
             int production = b.calculateProduction(townHall);
             if (production <= 0) continue;
 
-            int extracted = hex.extractResource(targetRes, production);
-            inventory.addResource(targetRes, extracted);
+            int currentAmount = inventory.getResourceAmount(targetRes);
+            int capacity = inventory.getCapacity(targetRes);
+            int availableSpace = Math.max(0, capacity - currentAmount);
+
+            int actualToExtract = Math.min(production, availableSpace);
+
+            if (actualToExtract > 0) {
+                int extracted = hex.extractResource(targetRes, actualToExtract);
+                inventory.addResource(targetRes, extracted);
+            }
 
             if (!hex.hasResource(targetRes)) {
                 ejectWorkersFromHex(map, hex);
