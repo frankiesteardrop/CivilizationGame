@@ -51,7 +51,7 @@ public class TownHall extends Building {
 
         ProductionTask currentTask = productionQueue.peek();
 
-        if (isStarving && isPopulationTask(currentTask.getName())) {
+        if (isStarving && currentTask.isPopulationTask()) {
             return;
         }
 
@@ -64,18 +64,11 @@ public class TownHall extends Building {
         }
     }
 
-    public boolean isPopulationTask(String taskName) {
-        return "Worker".equals(taskName) ||
-                "Builder".equals(taskName) ||
-                "Explorer".equals(taskName) ||
-                "Border Expander".equals(taskName);
-    }
-
-    public boolean queueProduction(String itemName, int turnCost, Runnable onComplete) {
+    public boolean queueProduction(String itemName, int turnCost, boolean isPopulationTask, Runnable onComplete) {
         if (!productionQueue.isEmpty()) {
             return false;
         }
-        productionQueue.add(new ProductionTask(itemName, turnCost, onComplete));
+        productionQueue.add(new ProductionTask(itemName, turnCost, isPopulationTask, onComplete));
         return true;
     }
 
@@ -111,18 +104,21 @@ public class TownHall extends Building {
     public static class ProductionTask {
         private final String name;
         private int turnsRemaining;
+        private final boolean isPopulationTask;
         private final Runnable onComplete;
 
-        public ProductionTask(String name, int turnsRemaining, Runnable onComplete) {
-            this.name           = name;
-            this.turnsRemaining = turnsRemaining;
-            this.onComplete     = onComplete;
+        public ProductionTask(String name, int turnsRemaining, boolean isPopulationTask, Runnable onComplete) {
+            this.name             = name;
+            this.turnsRemaining   = turnsRemaining;
+            this.isPopulationTask = isPopulationTask;
+            this.onComplete       = onComplete;
         }
 
-        public String getName()        { return name; }
-        public int getTurnsRemaining() { return turnsRemaining; }
-        public void decrementTurn()    { turnsRemaining--; }
-        public boolean isCompleted()   { return turnsRemaining <= 0; }
-        public void complete()         { if (onComplete != null) onComplete.run(); }
+        public String getName()              { return name; }
+        public int getTurnsRemaining()       { return turnsRemaining; }
+        public boolean isPopulationTask()    { return isPopulationTask; }
+        public void decrementTurn()          { turnsRemaining--; }
+        public boolean isCompleted()         { return turnsRemaining <= 0; }
+        public void complete()               { if (onComplete != null) onComplete.run(); }
     }
 }
