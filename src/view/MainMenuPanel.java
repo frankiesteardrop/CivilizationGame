@@ -1,6 +1,5 @@
 package view;
 
-import controller.MainController; // [گام حل باگ ۲۳]: استفاده از Facade به جای AudioManager مستقیم
 import javax.swing.*;
 import java.awt.*;
 
@@ -17,7 +16,7 @@ public class MainMenuPanel extends JPanel {
         gbc.gridx = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel titleLabel = new JLabel("Civilization VI", SwingConstants.CENTER);
+        JLabel titleLabel = new JLabel("Civilization Sharif", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 40));
         titleLabel.setForeground(Color.LIGHT_GRAY);
         gbc.gridy = 0;

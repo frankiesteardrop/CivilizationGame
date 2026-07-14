@@ -1,7 +1,5 @@
 package model;
 
-
-
 public class GameConfig {
     public static final int WAREHOUSE_LVL1_WOOD = 100;
     public static final int WAREHOUSE_LVL1_STONE = 50;
@@ -44,15 +42,12 @@ public class GameConfig {
     public static final int TECH_PROF_TOOLS_TURN_COST = 3;
     public static final int TECH_SETTLEMENT_TURN_COST = 3;
 
-
     public static final int BUILDER_INITIAL_CHARGES = 3;
     public static final int WORKER_STATION_AP_COST = 1;
     public static final int BUILDING_UNPAID_TURNS_TO_DESTROY = 3;
-    public static final int BUILDING_VISION_RADIUS = 1;
 
     public static final int SAFEGUARD_WOOD_AMOUNT = 1;
     public static final int SAFEGUARD_FOOD_AMOUNT = 1;
-
 
     public static final int SEED_FOREST_WOOD = 500;
     public static final int SEED_MOUNTAIN_STONE = 400;
@@ -60,14 +55,12 @@ public class GameConfig {
     public static final int SEED_MEADOW_FOOD = 300;
     public static final int SEED_PLAINS_FOOD = 300;
 
-
     public static final int DEFAULT_FOOD_CAPACITY  = 200;
     public static final int DEFAULT_WOOD_CAPACITY  = 200;
     public static final int DEFAULT_STONE_CAPACITY = 200;
     public static final int DEFAULT_IRON_CAPACITY  = 200;
     public static final int WAREHOUSE_UPGRADE1_CAPACITY = 500;
     public static final int WAREHOUSE_UPGRADE2_CAPACITY = 1000;
-
 
     public static final int STARTING_FOOD = 100;
     public static final int STARTING_WOOD = 80;

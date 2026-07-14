@@ -28,7 +28,6 @@ public class Inventory {
         if (type == ResourceType.NONE || amount <= 0) return;
 
         int current  = resources.getOrDefault(type, 0);
-
         int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
 
@@ -46,15 +45,6 @@ public class Inventory {
             return true;
         }
         return false;
-    }
-
-    public void forceDecreaseResource(ResourceType type, int amount) {
-        if (type == ResourceType.NONE || amount <= 0) return;
-
-        int current = resources.getOrDefault(type, 0);
-        int updated = Math.max(0, current - amount);
-        resources.put(type, updated);
-        GameEventDispatcher.fireResourceChanged(type, updated);
     }
 
     public boolean hasEnough(ResourceType type, int amount) {
