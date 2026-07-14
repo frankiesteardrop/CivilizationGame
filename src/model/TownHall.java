@@ -64,7 +64,7 @@ public class TownHall extends Building {
         }
     }
 
-    private boolean isPopulationTask(String taskName) {
+    public boolean isPopulationTask(String taskName) {
         return "Worker".equals(taskName) ||
                 "Builder".equals(taskName) ||
                 "Explorer".equals(taskName) ||

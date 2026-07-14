@@ -78,7 +78,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         GameEventDispatcher.addListener(this);
 
-        // تایمر برای رفع باگ پرش‌های UI در حین انیمیشن‌ها و اکشن‌های سریع
         Timer uiSyncTimer = new Timer(500, e -> updateHUD());
         uiSyncTimer.start();
 
@@ -237,7 +236,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
-            if (isStarving) {
+            if (isStarving && map.getTownHall().isPopulationTask(currentTask.getName())) {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
             } else {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)");
