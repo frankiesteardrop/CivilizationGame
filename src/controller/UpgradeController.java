@@ -43,7 +43,7 @@ public class UpgradeController {
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE)
                         && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
             case "SETTLEMENT":
-                return th.isIronMineUnlocked() && !th.isSettlementUnlocked()
+                return !th.isSettlementUnlocked()
                         && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD)
                         && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE)
                         && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_SETTLEMENT_IRON);
