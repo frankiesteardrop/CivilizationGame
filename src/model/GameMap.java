@@ -2,11 +2,14 @@ package model;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class GameMap {
     private final Repository<Hex> hexes;
+    private final Map<String, Hex> hexMap;
     private final Repository<Unit> units;
     private final int radius;
     private final Random random;
@@ -17,6 +20,7 @@ public class GameMap {
     public GameMap(int radius) {
         this.radius = radius;
         this.hexes = new Repository<>();
+        this.hexMap = new HashMap<>();
         this.units = new Repository<>();
         this.townHall = new TownHall(0, 0);
         this.random = new Random();
@@ -37,6 +41,7 @@ public class GameMap {
                     Hex centerHex = new Hex(q, r, TerrainType.PLAINS);
                     centerHex.setBuilding(this.townHall);
                     hexes.add(centerHex);
+                    hexMap.put(q + "," + r, centerHex);
                     continue;
                 }
 
@@ -67,6 +72,7 @@ public class GameMap {
                         break;
                 }
                 hexes.add(newHex);
+                hexMap.put(q + "," + r, newHex);
             }
         }
         ensureStartingResources();
@@ -272,9 +278,6 @@ public class GameMap {
     public void setStarving(boolean starving) { this.isStarving = starving; }
 
     public Hex getHexAt(int q, int r) {
-        for (Hex hex : hexes.getAll()) {
-            if (hex.getQ() == q && hex.getR() == r) return hex;
-        }
-        return null;
+        return hexMap.get(q + "," + r);
     }
 }

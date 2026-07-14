@@ -127,12 +127,7 @@ public class GamePanel extends JPanel {
             hexR = -hexQ - hexS;
         }
 
-        for (Hex hex : hexes) {
-            if (hex.getQ() == hexQ && hex.getR() == hexR) {
-                return hex;
-            }
-        }
-        return null;
+        return mainController.getGameMap().getHexAt(hexQ, hexR);
     }
 
     public boolean isAnimating() { return animatingUnit != null; }
