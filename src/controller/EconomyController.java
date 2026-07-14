@@ -15,6 +15,8 @@ public class EconomyController {
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
 
+        map.getTownHall().advanceProductionQueue(isStarving);
+
         GameEventDispatcher.fireStarvationChanged(isStarving);
         return isStarving;
     }
@@ -47,8 +49,6 @@ public class EconomyController {
                 ejectWorkersFromHex(map, hex);
             }
         }
-
-        townHall.advanceProductionQueue(map.isStarving());
     }
 
     private void processUpkeep(GameMap map) {
