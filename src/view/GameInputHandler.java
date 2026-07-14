@@ -90,17 +90,17 @@ public class GameInputHandler extends MouseAdapter {
     }
 
     private void handleRightClick(MouseEvent e, Hex clickedHex) {
+        if (panel.isAnimating()) return;
+
         Unit selectedUnit = panel.getSelectedUnit();
 
         if (selectedUnit != null) {
             if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
                 showMenu(e, mainController.getUnitMenuActions(selectedUnit, clickedHex));
-            } else if (!panel.isAnimating()) {
-                if (mainController.canMove(selectedUnit, clickedHex)) {
-                    Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
-                    Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
-                    panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
-                }
+            } else if (mainController.canMove(selectedUnit, clickedHex)) {
+                Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
+                Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
+                panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
             }
             return;
         }
