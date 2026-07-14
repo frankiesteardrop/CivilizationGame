@@ -17,7 +17,7 @@ public class MainMenuPanel extends JPanel {
         gbc.gridx = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel titleLabel = new JLabel("Civilization VI - Sharif", SwingConstants.CENTER);
+        JLabel titleLabel = new JLabel("Civilization VI", SwingConstants.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 40));
         titleLabel.setForeground(Color.LIGHT_GRAY);
         gbc.gridy = 0;

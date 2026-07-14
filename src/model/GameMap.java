@@ -115,11 +115,18 @@ public class GameMap {
     }
 
     private void spawnInitialUnits() {
-        units.add(new Explorer(0, 0));
-        units.add(new Builder(0, 0));
-        units.add(new Builder(0, 0));
-        units.add(new Worker(0, 0));
-        units.add(new Worker(0, 0));
+        addUnit(new Explorer(0, 0));
+        addUnit(new Builder(0, 0));
+        addUnit(new Builder(0, 0));
+        addUnit(new Worker(0, 0));
+        addUnit(new Worker(0, 0));
+    }
+
+    public void addUnit(Unit unit) {
+        if (unit != null) {
+            units.add(unit);
+            updateFogOfWar();
+        }
     }
 
     public void incrementTurn() {

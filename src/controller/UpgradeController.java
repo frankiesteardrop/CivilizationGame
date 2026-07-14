@@ -167,10 +167,10 @@ public class UpgradeController {
         int targetR = spawnHex != null ? spawnHex.getR() : th.getR();
 
         switch(unitType) {
-            case "WORKER": gameMap.getUnits().add(new Worker(targetQ, targetR)); break;
-            case "BUILDER": gameMap.getUnits().add(new Builder(targetQ, targetR)); break;
-            case "EXPLORER": gameMap.getUnits().add(new Explorer(targetQ, targetR)); break;
-            case "BORDER_EXPANDER": gameMap.getUnits().add(new BorderExpander(targetQ, targetR)); break;
+            case "WORKER": gameMap.addUnit(new Worker(targetQ, targetR)); break;
+            case "BUILDER": gameMap.addUnit(new Builder(targetQ, targetR)); break;
+            case "EXPLORER": gameMap.addUnit(new Explorer(targetQ, targetR)); break;
+            case "BORDER_EXPANDER": gameMap.addUnit(new BorderExpander(targetQ, targetR)); break;
         }
     }
 }
