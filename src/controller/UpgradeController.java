@@ -161,6 +161,29 @@ public class UpgradeController {
     }
 
     private void spawnSpecificUnit(String unitType) {
+        if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) {
+            Inventory inv = gameMap.getTownHall().getInventory();
+            switch (unitType) {
+                case "WORKER":
+                    inv.addResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
+                    break;
+                case "BUILDER":
+                    inv.addResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST);
+                    inv.addResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
+                    break;
+                case "EXPLORER":
+                    inv.addResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST);
+                    inv.addResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
+                    break;
+                case "BORDER_EXPANDER":
+                    inv.addResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST);
+                    inv.addResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST);
+                    inv.addResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
+                    break;
+            }
+            return;
+        }
+
         TownHall th = gameMap.getTownHall();
         Hex spawnHex = gameMap.findEmptySpawnHex(th.getQ(), th.getR());
         int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();
