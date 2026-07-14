@@ -83,7 +83,7 @@ public class GameMap {
 
     private void ensureStartingResources() {
         boolean hasForestNear = false;
-        java.util.List<Hex> availableCandidates = new java.util.ArrayList<>();
+        List<Hex> availableCandidates = new ArrayList<>();
 
         for (Hex hex : hexes.getAll()) {
             int dist = getHexDistance(townHall.getQ(), townHall.getR(), hex.getQ(), hex.getR());
@@ -109,6 +109,9 @@ public class GameMap {
             Hex forceHex = getHexAt(townHall.getQ() + 1, townHall.getR());
             if (forceHex != null) {
                 forceHex.setTerrainType(TerrainType.FOREST);
+                forceHex.clearResourceCompletely(ResourceType.FOOD);
+                forceHex.clearResourceCompletely(ResourceType.STONE);
+                forceHex.clearResourceCompletely(ResourceType.IRON);
                 forceHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
             }
         }
@@ -169,10 +172,13 @@ public class GameMap {
         for (Unit unit : units.getAll()) {
             if (!unit.isAlive()) continue;
             int visionRadius = unit.getVisionRadius();
+            boolean isExplorer = (unit instanceof Explorer);
             for (Hex hex : hexes.getAll()) {
                 if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
                     hex.setVisible(true);
-                    hex.setExplored(true);
+                    if (isExplorer) {
+                        hex.setExplored(true);
+                    }
                 }
             }
         }
