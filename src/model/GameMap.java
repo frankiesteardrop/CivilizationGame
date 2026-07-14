@@ -165,9 +165,7 @@ public class GameMap {
             for (Hex hex : hexes.getAll()) {
                 if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
                     hex.setVisible(true);
-                    if (unit instanceof Explorer) {
-                        hex.setExplored(true);
-                    }
+                    hex.setExplored(true);
                 }
             }
         }
