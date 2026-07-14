@@ -90,7 +90,6 @@ public class EconomyController {
             return false;
         } else {
             if (currentFood > 0) {
-
                 inventory.consumeResource(ResourceType.FOOD, currentFood);
             }
             return true;
@@ -109,11 +108,14 @@ public class EconomyController {
     }
 
     public int calculateNetProduction(GameMap map, ResourceType type) {
-        int net = 0;
         TownHall townHall = map.getTownHall();
+        Inventory inventory = townHall.getInventory();
 
-        if (type == ResourceType.WOOD) net += GameConfig.SAFEGUARD_WOOD_AMOUNT;
-        if (type == ResourceType.FOOD) net += GameConfig.SAFEGUARD_FOOD_AMOUNT;
+        int grossProduction = 0;
+        int grossConsumption = 0;
+
+        if (type == ResourceType.WOOD) grossProduction += GameConfig.SAFEGUARD_WOOD_AMOUNT;
+        if (type == ResourceType.FOOD) grossProduction += GameConfig.SAFEGUARD_FOOD_AMOUNT;
 
         for (Hex h : map.getHexes()) {
             Building b = h.getBuilding();
@@ -122,25 +124,29 @@ public class EconomyController {
             if (b.getType().getProducedResource() == type) {
                 if (h.hasResource(type)) {
                     int prod = b.calculateProduction(townHall);
-
                     int availableResource = h.getResources().getOrDefault(type, 0);
                     int actualProduction = Math.min(prod, availableResource);
-
-                    net += actualProduction;
+                    grossProduction += actualProduction;
                 }
             }
 
             if (b.getUpkeepResource() == type) {
-                net -= b.getUpkeepAmount();
+                grossConsumption += b.getUpkeepAmount();
             }
         }
 
         if (type == ResourceType.FOOD) {
             for (Unit u : map.getUnits()) {
-                if (u.isAlive()) net -= u.getFoodConsumption();
+                if (u.isAlive()) grossConsumption += u.getFoodConsumption();
             }
         }
 
-        return net;
+        int currentAmount = inventory.getResourceAmount(type);
+        int capacity = inventory.getCapacity(type);
+        int availableSpace = Math.max(0, capacity - currentAmount);
+
+        int cappedProduction = Math.min(grossProduction, availableSpace);
+
+        return cappedProduction - grossConsumption;
     }
 }
