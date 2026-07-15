@@ -28,7 +28,6 @@ public abstract class Unit {
     }
 
     public boolean consumeAP(int amount) {
-        // رفع آسیب‌پذیری: گارد گذاری برای جلوگیری از مقادیر منفی یا غیرمنطقی
         if (amount <= 0) return false;
 
         if (currentAP >= amount) {

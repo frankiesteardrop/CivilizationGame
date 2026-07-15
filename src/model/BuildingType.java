@@ -12,7 +12,7 @@ public enum BuildingType {
 
     FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.WOOD, 1, 1),
 
-    STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),
+    STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, Re  sourceType.WOOD, 1, 1),
 
     SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1);
 
