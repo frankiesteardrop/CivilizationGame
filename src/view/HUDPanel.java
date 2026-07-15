@@ -236,7 +236,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
-            if (isStarving && map.getTownHall().isPopulationTask(currentTask.getName())) {
+            if (isStarving && currentTask.isPopulationTask()) {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
             } else {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)");
