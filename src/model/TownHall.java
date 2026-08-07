@@ -9,13 +9,11 @@ public class TownHall extends Building {
     private final int r;
     private final Inventory inventory;
 
-    private int level; // جایگزین warehouseUpgradeLevel
+    private int level;
+    private int happiness; // متغیر انباشته رضایت عمومی فاز 2
 
-    // تکنولوژی‌های پایه
     private boolean stoneMineUnlocked;
     private boolean ironMineUnlocked;
-
-    // تکنولوژی‌های جدید فاز دوم
     private boolean seafaringUnlocked;
     private boolean steelToolsUnlocked;
     private boolean defensiveArchUnlocked;
@@ -27,6 +25,7 @@ public class TownHall extends Building {
         this.setMaxHp(200);
         this.hp = 200;
         this.defense = 10;
+        this.happiness = 0; // شروع از 0
 
         this.q = q;
         this.r = r;
@@ -38,7 +37,7 @@ public class TownHall extends Building {
         this.inventory.addResource(ResourceType.STONE, GameConfig.STARTING_STONE);
         this.inventory.addResource(ResourceType.IRON,  GameConfig.STARTING_IRON);
 
-        this.level = 1; // Base Camp
+        this.level = 1;
         this.stoneMineUnlocked = false;
         this.ironMineUnlocked = false;
         this.seafaringUnlocked = false;
@@ -50,6 +49,10 @@ public class TownHall extends Building {
     public BuildingType getType() {
         return BuildingType.TOWN_HALL;
     }
+
+    // متدهای مربوط به رضایت
+    public int getHappiness() { return happiness; }
+    public void addHappiness(int amount) { this.happiness += amount; }
 
     public void produceSafeguardResources() {
         this.inventory.addResource(ResourceType.WOOD, GameConfig.SAFEGUARD_WOOD_AMOUNT);
@@ -66,9 +69,7 @@ public class TownHall extends Building {
             return;
         }
 
-        if (isStarving && currentTask.isPopulationTask()) {
-            return;
-        }
+        if (isStarving && currentTask.isPopulationTask()) return;
 
         currentTask.decrementTurn();
 
@@ -93,32 +94,27 @@ public class TownHall extends Building {
         }
     }
 
-    public boolean isProductionQueueEmpty() {
-        return productionQueue.isEmpty();
-    }
-
+    public boolean isProductionQueueEmpty() { return productionQueue.isEmpty(); }
     public int getLevel() { return level; }
 
     public void upgradeLevel() {
         if (level == 1) {
-            level = 2; // Settlement
+            level = 2;
             inventory.upgradeToLevel2();
-            heal(50); // Heal 50 HP در لحظه ارتقا
+            heal(50);
         } else if (level == 2) {
-            level = 3; // Capital
+            level = 3;
             inventory.upgradeToLevel3();
         }
     }
 
-    // اعمال معماری دفاعی
     public void applyDefensiveArchitecture() {
         this.defensiveArchUnlocked = true;
         this.setMaxHp(350);
         this.setDefense(30);
-        this.heal(150); // جبران افزایش سقف HP
+        this.heal(150);
     }
 
-    // متدهای مربوط به پشتیبانی از UI قبلی (جلوگیری از کرش)
     public boolean isSettlementUnlocked() { return level >= 2; }
     public boolean isProfessionalToolsUnlocked() { return steelToolsUnlocked; }
 

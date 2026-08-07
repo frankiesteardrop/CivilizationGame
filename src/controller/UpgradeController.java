@@ -30,7 +30,6 @@ public class UpgradeController {
     }
 
     private void initStrategies() {
-        // --- Tech Strategies ---
         techStrategies.put("STONE_MINE", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) { return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD); }
             public void unlock(TownHall th, Inventory inv) {
@@ -49,7 +48,6 @@ public class UpgradeController {
             }
         });
 
-        // پشتیبانی از منوی قبلی: Settlement در واقع ارتقای سطح تالار به ۲ است
         techStrategies.put("SETTLEMENT", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() == 1 && inv.hasEnough(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE); }
             public void unlock(TownHall th, Inventory inv) {
@@ -59,7 +57,6 @@ public class UpgradeController {
             }
         });
 
-        // پشتیبانی از منوی قبلی: Prof Tools در واقع همان Steel Tools فاز دوم است
         techStrategies.put("PROF_TOOLS", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 2 && !th.isSteelToolsUnlocked() && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON); }
             public void unlock(TownHall th, Inventory inv) {
@@ -69,7 +66,6 @@ public class UpgradeController {
             }
         });
 
-        // تکنولوژی‌های جدید (برای اضافه‌شدن به UI در آینده)
         techStrategies.put("SEAFARING", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 2 && !th.isSeafaringUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_SEAFARING_WOOD); }
             public void unlock(TownHall th, Inventory inv) {
@@ -88,7 +84,6 @@ public class UpgradeController {
             }
         });
 
-        // --- Unit Strategies ---
         unitStrategies.put("WORKER", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
@@ -119,12 +114,9 @@ public class UpgradeController {
         });
     }
 
-    // متدهای قدیمی Warehouse به منظور جلوگیری از کرش UI نگه داشته شده‌اند اما مسیر را به سمت ارتقای TownHall می‌برند.
     public boolean canAffordWarehouseUpgrade() {
         TownHall th = gameMap.getTownHall();
-        if (th.getLevel() >= 3) return false;
-        if (!th.isProductionQueueEmpty()) return false;
-
+        if (th.getLevel() >= 3 || !th.isProductionQueueEmpty()) return false;
         Inventory inv = th.getInventory();
         if (th.getLevel() == 1) return inv.hasEnough(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE);
         if (th.getLevel() == 2) return inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL3_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TH_UPGRADE_LVL3_IRON);
@@ -191,6 +183,12 @@ public class UpgradeController {
             strategy.refundResources(gameMap.getTownHall().getInventory());
             return;
         }
+
+        // رویداد لحظه‌ای: کسر رضایت در صورت رسیدن به سقف ظرفیت یونیت
+        if (gameMap.getAliveUnitsCount() + 1 == gameMap.getUnitCap()) {
+            gameMap.getTownHall().addHappiness(-1);
+        }
+
         TownHall th = gameMap.getTownHall();
         Hex spawnHex = gameMap.findEmptySpawnHex(th.getQ(), th.getR());
         int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();

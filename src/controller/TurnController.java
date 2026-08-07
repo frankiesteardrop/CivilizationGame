@@ -1,6 +1,5 @@
 package controller;
 
-import model.BorderExpander;
 import model.GameEventDispatcher;
 import model.GameMap;
 import model.Unit;
@@ -27,9 +26,16 @@ public class TurnController {
     }
 
     public void forceEndTurn() {
+        // خواندن وضعیت رضایت عمومی
+        int effectiveHappiness = mainController.getEconomyController().getEffectiveHappiness(gameMap);
+
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
+                // جریمه شورش (-5 یا کمتر): 1- AP برای همه یونیت‌ها
+                if (effectiveHappiness <= -5) {
+                    unit.consumeAP(1);
+                }
             }
         }
 

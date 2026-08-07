@@ -10,8 +10,6 @@ public class BuildController {
 
     private final GameMap gameMap;
     private final Map<BuildingType, Function<TownHall, Boolean>> techRequirements = new HashMap<>();
-
-    // تغییر یافت تا GameMap را بگیرد و بتواند همسایه‌ها را بررسی کند (برای ساحل)
     private final Map<BuildingType, BiPredicate<Hex, GameMap>> terrainRequirements = new HashMap<>();
 
     public BuildController(GameMap gameMap) {
@@ -31,11 +29,9 @@ public class BuildController {
         terrainRequirements.put(BuildingType.IRON_MINE, (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON));
         terrainRequirements.put(BuildingType.SETTLEMENT, (hex, map) -> !hex.hasResource(ResourceType.WOOD) && !hex.hasResource(ResourceType.IRON) && !hex.hasResource(ResourceType.FOOD));
 
-        // قوانین ساختمان‌های جدید
         terrainRequirements.put(BuildingType.MONUMENT, (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
         terrainRequirements.put(BuildingType.DOCK, (hex, map) -> {
             if (hex.getTerrainType() == TerrainType.SEA || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
-            // باید حداقل یک همسایه دریایی داشته باشد (ساحلی باشد)
             for (int i = 0; i < 6; i++) {
                 Hex neighbor = map.getNeighbor(hex, i);
                 if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA) return true;
@@ -59,13 +55,8 @@ public class BuildController {
                 && inv.hasEnough(ResourceType.IRON, type.getIronCost());
     }
 
-    private boolean hasRequiredTech(BuildingType type, TownHall th) {
-        return techRequirements.getOrDefault(type, t -> true).apply(th);
-    }
-
-    private boolean isValidTerrainForBuilding(BuildingType type, Hex hex) {
-        return terrainRequirements.getOrDefault(type, (h, m) -> false).test(hex, gameMap);
-    }
+    private boolean hasRequiredTech(BuildingType type, TownHall th) { return techRequirements.getOrDefault(type, t -> true).apply(th); }
+    private boolean isValidTerrainForBuilding(BuildingType type, Hex hex) { return terrainRequirements.getOrDefault(type, (h, m) -> false).test(hex, gameMap); }
 
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
@@ -81,11 +72,17 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
+        // اعمال رویدادهای لحظه‌ای رضایت
+        if (type == BuildingType.SETTLEMENT) {
+            gameMap.getTownHall().addHappiness(-1);
+        } else if (type == BuildingType.MONUMENT) {
+            gameMap.getTownHall().addHappiness(2);
+        }
+
         gameMap.updateFogOfWar();
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
-    // -------------- متدهای جدید زیرساخت (جاده، دیوار) --------------
     public boolean canBuildRoad(Hex hex, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (!hex.isInsideBorder() || hex.hasRoad()) return false;
@@ -119,38 +116,38 @@ public class BuildController {
         builder.useCharge();
         hex.setWall(dir, true, 100);
 
-        // اعمال دیوار برای هکس همسایه (یال مشترک است)
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
     }
 
-    // -------------- متد جدید تخریب اختیاری --------------
     public boolean canDestroy(Hex hex, String type, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
-        if (builder.getCurrentAP() < 1) return false; // هزینه تخریب 1 AP
+        if (builder.getCurrentAP() < 1) return false;
 
-        // سازنده باید روی هکس یا مجاور آن باشد
         int dist = gameMap.getHexDistance(builder.getQ(), builder.getR(), hex.getQ(), hex.getR());
         if (dist > 1) return false;
 
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
             return b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL;
-        } else if (type.equals("ROAD")) {
-            return hex.hasRoad();
-        } else if (type.equals("WALL")) {
-            return hex.hasWall(dir);
-        }
+        } else if (type.equals("ROAD")) return hex.hasRoad();
+        else if (type.equals("WALL")) return hex.hasWall(dir);
+
         return false;
     }
 
     public void destroyStructure(Builder builder, Hex hex, String type, int dir) {
         if (!canDestroy(hex, type, dir, builder)) return;
-        builder.consumeAP(1); // منابع بازگردانده نمی‌شوند
+        builder.consumeAP(1);
 
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
-            // آزادسازی Workerهای مستقر
+
+            // حذف اثر رضایت بنای یادبود در زمان تخریب
+            if (b.getType() == BuildingType.MONUMENT) {
+                gameMap.getTownHall().addHappiness(-2);
+            }
+
             gameMap.getUnits().stream()
                     .filter(u -> u instanceof Worker && ((Worker) u).getStationedBuilding() == b)
                     .forEach(u -> ((Worker) u).eject());
