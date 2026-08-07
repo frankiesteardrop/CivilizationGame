@@ -17,6 +17,9 @@ public class GameMap {
     private int currentTurn = 1;
     private boolean isStarving = false;
 
+    // آرایه جهت‌های 6 گانه برای پیدا کردن همسایه‌ها
+    private static final int[][] DIRECTIONS = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
+
     public GameMap(int radius) {
         this.radius = radius;
         this.hexes = new Repository<>();
@@ -26,6 +29,7 @@ public class GameMap {
         this.random = new Random();
 
         generateMap();
+        generateRivers(); // تولید رودخانه‌ها بعد از مپ
         setupInitialTerritory();
         spawnInitialUnits();
         updateFogOfWar();
@@ -45,7 +49,10 @@ public class GameMap {
                     continue;
                 }
 
-                TerrainType terrain = getRandomTerrain();
+                // تضمین اینکه اطراف TownHall با کوه/دریا قفل نمی‌شود (شعاع 2)
+                boolean isNearCenter = getHexDistance(0, 0, q, r) <= 2;
+                TerrainType terrain = getRandomTerrain(isNearCenter);
+
                 Hex newHex = new Hex(q, r, terrain);
 
                 switch (terrain) {
@@ -70,12 +77,49 @@ public class GameMap {
                             newHex.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.CATTLE : ResourceSubtype.SHEEP);
                         }
                         break;
+                    case SEA:
+                        if (random.nextDouble() < 0.4) {
+                            newHex.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
+                            newHex.setResourceSubtype(ResourceSubtype.FISH);
+                        }
+                        break;
                 }
                 hexes.add(newHex);
                 hexMap.put(q + "," + r, newHex);
             }
         }
         ensureStartingResources();
+    }
+
+    private void generateRivers() {
+        for (Hex hex : hexes.getAll()) {
+            if (random.nextDouble() < 0.1) { // 10% احتمال وجود رودخانه روی هر یال
+                int dir = random.nextInt(6);
+                Hex neighbor = getNeighbor(hex, dir);
+                // رودخانه بین دریاها معنی ندارد
+                if (neighbor != null && hex.getTerrainType() != TerrainType.SEA && neighbor.getTerrainType() != TerrainType.SEA) {
+                    hex.setRiver(dir, true);
+                    neighbor.setRiver((dir + 3) % 6, true);
+                }
+            }
+        }
+    }
+
+    private TerrainType getRandomTerrain(boolean isNearCenter) {
+        TerrainType[] terrains = TerrainType.values();
+        TerrainType t = terrains[random.nextInt(terrains.length)];
+
+        // اگر نزدیک مرکز بودیم، رشته‌کوه یا دریا تولید نمی‌کنیم تا بازیکن گیر نیفتد
+        if (isNearCenter && (t == TerrainType.SEA || t == TerrainType.MOUNTAIN_RANGE)) {
+            return TerrainType.PLAINS;
+        }
+        return t;
+    }
+
+    public Hex getNeighbor(Hex hex, int direction) {
+        int dq = DIRECTIONS[direction][0];
+        int dr = DIRECTIONS[direction][1];
+        return getHexAt(hex.getQ() + dq, hex.getR() + dr);
     }
 
     private void setupInitialTerritory() {
@@ -100,7 +144,7 @@ public class GameMap {
                         hex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
                     }
                 }
-                if (hex.getTerrainType() != TerrainType.MOUNTAIN && hex.getTerrainType() != TerrainType.FOREST) {
+                if (hex.getTerrainType() != TerrainType.MOUNTAIN && hex.getTerrainType() != TerrainType.FOREST && hex.getTerrainType() != TerrainType.SEA && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
                     availableCandidates.add(hex);
                 }
             }
@@ -111,15 +155,6 @@ public class GameMap {
             targetHex.setTerrainType(TerrainType.FOREST);
             targetHex.clearResourceCompletely(ResourceType.FOOD);
             targetHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
-        } else if (!hasForestNear) {
-            Hex forceHex = getHexAt(townHall.getQ() + 1, townHall.getR());
-            if (forceHex != null) {
-                forceHex.setTerrainType(TerrainType.FOREST);
-                forceHex.clearResourceCompletely(ResourceType.FOOD);
-                forceHex.clearResourceCompletely(ResourceType.STONE);
-                forceHex.clearResourceCompletely(ResourceType.IRON);
-                forceHex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
-            }
         }
     }
 
@@ -138,29 +173,19 @@ public class GameMap {
         }
     }
 
-    public void incrementTurn() {
-        currentTurn++;
-    }
+    public void incrementTurn() { currentTurn++; }
 
     public void removeDeadUnits() {
         boolean hasDeadUnits = false;
         for (Unit u : units.getAll()) {
-            if (!u.isAlive()) {
-                hasDeadUnits = true;
-                break;
-            }
+            if (!u.isAlive()) { hasDeadUnits = true; break; }
         }
         units.removeIf(u -> !u.isAlive());
-
-        if (hasDeadUnits) {
-            updateFogOfWar();
-        }
+        if (hasDeadUnits) updateFogOfWar();
     }
 
     public void updateFogOfWar() {
-        for (Hex hex : hexes.getAll()) {
-            hex.setVisible(false);
-        }
+        for (Hex hex : hexes.getAll()) { hex.setVisible(false); }
 
         for (Hex hex : hexes.getAll()) {
             Building b = hex.getBuilding();
@@ -182,9 +207,7 @@ public class GameMap {
             for (Hex hex : hexes.getAll()) {
                 if (getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR()) <= visionRadius) {
                     hex.setVisible(true);
-                    if (isExplorer) {
-                        hex.setExplored(true);
-                    }
+                    if (isExplorer) hex.setExplored(true);
                 }
             }
         }
@@ -192,31 +215,21 @@ public class GameMap {
 
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null && centerHex.isExplored()) {
-            centerHex.setInsideBorder(true);
-        }
+        if (centerHex != null && centerHex.isExplored()) centerHex.setInsideBorder(true);
 
-        int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
-        for (int[] d : directions) {
-            Hex neighbor = getHexAt(centerQ + d[0], centerR + d[1]);
-            if (neighbor != null && neighbor.isExplored()) {
-                neighbor.setInsideBorder(true);
-            }
+        for (int i = 0; i < 6; i++) {
+            Hex neighbor = getNeighbor(centerHex, i);
+            if (neighbor != null && neighbor.isExplored()) neighbor.setInsideBorder(true);
         }
     }
 
     public boolean isContiguousToBorder(int q, int r) {
         Hex centerHex = getHexAt(q, r);
-        if (centerHex != null && centerHex.isInsideBorder()) {
-            return true;
-        }
+        if (centerHex != null && centerHex.isInsideBorder()) return true;
 
-        int[][] directions = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
-        for (int[] d : directions) {
-            Hex neighbor = getHexAt(q + d[0], r + d[1]);
-            if (neighbor != null && neighbor.isInsideBorder()) {
-                return true;
-            }
+        for (int i = 0; i < 6; i++) {
+            Hex neighbor = getHexAt(q + DIRECTIONS[i][0], r + DIRECTIONS[i][1]);
+            if (neighbor != null && neighbor.isInsideBorder()) return true;
         }
         return false;
     }
@@ -226,17 +239,10 @@ public class GameMap {
         sortedHexes.sort(Comparator.comparingInt(h -> getHexDistance(startQ, startR, h.getQ(), h.getR())));
 
         for (Hex hex : sortedHexes) {
-            if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR())) {
+            if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR()) && hex.getTerrainType() != TerrainType.SEA && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
                 return hex;
             }
         }
-
-        for (Hex hex : sortedHexes) {
-            if (!hasUnitAt(hex.getQ(), hex.getR())) {
-                return hex;
-            }
-        }
-
         return getHexAt(startQ, startR);
     }
 
@@ -256,28 +262,15 @@ public class GameMap {
     }
 
     public int getHexDistance(int q1, int r1, int q2, int r2) {
-        return (Math.abs(q1 - q2)
-                + Math.abs(q1 + r1 - q2 - r2)
-                + Math.abs(r1 - r2)) / 2;
+        return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2;
     }
 
-    private TerrainType getRandomTerrain() {
-        TerrainType[] terrains = TerrainType.values();
-        return terrains[random.nextInt(terrains.length)];
-    }
-
-    public int getAliveUnitsCount() {
-        return (int) units.stream().filter(Unit::isAlive).count();
-    }
-
+    public int getAliveUnitsCount() { return (int) units.stream().filter(Unit::isAlive).count(); }
     public List<Hex> getHexes() { return hexes.getAll(); }
     public List<Unit> getUnits() { return units.getAll(); }
     public TownHall getTownHall() { return townHall; }
     public int getCurrentTurn() { return currentTurn; }
     public boolean isStarving() { return isStarving; }
     public void setStarving(boolean starving) { this.isStarving = starving; }
-
-    public Hex getHexAt(int q, int r) {
-        return hexMap.get(q + "," + r);
-    }
+    public Hex getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
 }

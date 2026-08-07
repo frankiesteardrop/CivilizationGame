@@ -16,6 +16,12 @@ public class Hex {
     private boolean isInsideBorder;
     private Building building;
 
+    // زیرساخت‌های جدید فاز دوم
+    private boolean hasRoad;
+    private final boolean[] rivers;  // 6 جهت
+    private final boolean[] walls;   // 6 جهت
+    private final int[] wallHp;      // میزان سلامتی دیوار در هر جهت
+
     public Hex(int q, int r, TerrainType terrainType) {
         this.q = q;
         this.r = r;
@@ -26,6 +32,11 @@ public class Hex {
         this.isVisible = false;
         this.isInsideBorder = false;
         this.building = null;
+
+        this.hasRoad = false;
+        this.rivers = new boolean[6];
+        this.walls = new boolean[6];
+        this.wallHp = new int[6];
     }
 
     public int getQ() { return q; }
@@ -38,8 +49,34 @@ public class Hex {
     public void setVisible(boolean visible) { this.isVisible = visible; }
     public boolean isInsideBorder() { return isInsideBorder; }
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }
+
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
+
+    // متدهای جاده
+    public boolean hasRoad() { return hasRoad; }
+    public void setRoad(boolean hasRoad) { this.hasRoad = hasRoad; }
+
+    // متدهای رودخانه (0 تا 5)
+    public boolean hasRiver(int dir) { return rivers[dir]; }
+    public void setRiver(int dir, boolean hasRiver) { rivers[dir] = hasRiver; }
+
+    // متدهای دیوار (0 تا 5)
+    public boolean hasWall(int dir) { return walls[dir]; }
+    public void setWall(int dir, boolean hasWall, int hp) {
+        walls[dir] = hasWall;
+        wallHp[dir] = hp;
+    }
+    public int getWallHp(int dir) { return wallHp[dir]; }
+    public void damageWall(int dir, int amount) {
+        if (walls[dir]) {
+            wallHp[dir] -= amount;
+            if (wallHp[dir] <= 0) {
+                walls[dir] = false;
+                wallHp[dir] = 0;
+            }
+        }
+    }
 
     public ResourceSubtype getResourceSubtype() { return resourceSubtype; }
     public void setResourceSubtype(ResourceSubtype resourceSubtype) { this.resourceSubtype = resourceSubtype; }
@@ -77,7 +114,5 @@ public class Hex {
         return true;
     }
 
-    public Map<ResourceType, Integer> getResources() {
-        return resources;
-    }
+    public Map<ResourceType, Integer> getResources() { return resources; }
 }

@@ -15,6 +15,8 @@ public class BuildingFactory {
         registry.put(BuildingType.FARM, Farm::new);
         registry.put(BuildingType.STABLE, Stable::new);
         registry.put(BuildingType.SETTLEMENT, Settlement::new);
+        registry.put(BuildingType.DOCK, Dock::new);             // اضافه شد
+        registry.put(BuildingType.MONUMENT, Monument::new);     // اضافه شد
     }
 
     public static Building createBuilding(BuildingType type) {

@@ -3,18 +3,14 @@ package model;
 public enum BuildingType {
 
     TOWN_HALL(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2),
-
     LUMBER_MILL(1, 15, 0, 0, ResourceType.WOOD, 2, 5, ResourceType.WOOD, 1, 1),
-
     STONE_MINE(2, 30, 0, 0, ResourceType.STONE, 2, 4, ResourceType.WOOD, 1, 1),
-
     IRON_MINE(2, 40, 15, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2, 1),
-
     FARM(1, 15, 0, 0, ResourceType.FOOD, 2, 8, ResourceType.WOOD, 1, 1),
-
     STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),
-
-    SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1);
+    SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1),
+    DOCK(2, 30, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),      // اضافه شده برای دریا
+    MONUMENT(2, 20, 20, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1); // اضافه شده برای رضایت
 
     private final int apCost;
     private final int woodCost;
