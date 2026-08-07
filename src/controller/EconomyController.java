@@ -2,12 +2,29 @@ package controller;
 
 import model.*;
 
-public class EconomyController {
+public class EconomyController implements GameEventListener {
 
     private final MainController mainController;
 
     public EconomyController(MainController mainController) {
         this.mainController = mainController;
+        GameEventDispatcher.addListener(this);
+    }
+
+    @Override
+    public void onTurnEnded(int newTurn) {
+        GameMap map = mainController.getGameMap();
+        boolean isStarving = processEndTurn(map);
+        map.setStarving(isStarving);
+
+        if (isStarving) {
+            for (Unit unit : map.getUnits()) {
+                if (unit.isAlive()) {
+                    unit.consumeAP(1);
+                }
+            }
+        }
+        GameEventDispatcher.fireStarvationChanged(isStarving);
     }
 
     public boolean processEndTurn(GameMap map) {
@@ -17,7 +34,6 @@ public class EconomyController {
 
         map.getTownHall().advanceProductionQueue(isStarving);
 
-        GameEventDispatcher.fireStarvationChanged(isStarving);
         return isStarving;
     }
 
@@ -157,4 +173,14 @@ public class EconomyController {
 
         return cappedProduction - grossConsumption;
     }
+
+    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
+    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {}
+    @Override public void onUnitKilled(Unit unit) {}
+    @Override public void onProductionCompleted(String itemName) {}
+    @Override public void onStarvationChanged(boolean isStarving) {}
+    @Override public void onUnitStateChanged(Unit unit) {}
+    @Override public void onBuildingConstructed(Hex hex) {}
+    @Override public void onBuildingDestroyed(Hex hex) {}
+    @Override public void onBorderExpanded(int centerQ, int centerR) {}
 }

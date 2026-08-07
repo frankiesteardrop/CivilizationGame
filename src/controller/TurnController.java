@@ -33,20 +33,8 @@ public class TurnController {
             }
         }
 
-        boolean isStarving = mainController.getEconomyController().processEndTurn(gameMap);
-        gameMap.setStarving(isStarving);
-
-        if (isStarving) {
-            for (Unit unit : gameMap.getUnits()) {
-                if (unit.isAlive()) {
-                    unit.consumeAP(1);
-                }
-            }
-        }
-
         gameMap.removeDeadUnits();
         gameMap.incrementTurn();
-
         gameMap.updateFogOfWar();
 
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());

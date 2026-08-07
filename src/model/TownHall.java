@@ -51,6 +51,11 @@ public class TownHall extends Building {
 
         ProductionCommand currentTask = productionQueue.peek();
 
+        if (currentTask.isCanceled()) {
+            productionQueue.poll();
+            return;
+        }
+
         if (isStarving && currentTask.isPopulationTask()) {
             return;
         }
@@ -59,7 +64,7 @@ public class TownHall extends Building {
 
         if (currentTask.isCompleted()) {
             productionQueue.poll();
-            currentTask.execute(); // Command Pattern in Action!
+            currentTask.execute();
             GameEventDispatcher.fireProductionCompleted(currentTask.getName());
         }
     }
@@ -70,6 +75,14 @@ public class TownHall extends Building {
         }
         productionQueue.add(command);
         return true;
+    }
+
+    public void cancelCurrentProduction() {
+        if (!productionQueue.isEmpty()) {
+            productionQueue.peek().cancel();
+            productionQueue.poll();
+            GameEventDispatcher.fireProductionCompleted("Canceled: Resources Lost");
+        }
     }
 
     public boolean isProductionQueueEmpty() {
