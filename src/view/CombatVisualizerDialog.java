@@ -7,7 +7,7 @@ import java.util.Collections;
 
 public class CombatVisualizerDialog extends JDialog {
     private int tickCount = 0;
-    private final Timer rollTimer;
+    private Timer rollTimer; // کلمه final برای جلوگیری از ارور کامپایلر حذف شد
 
     public CombatVisualizerDialog(JFrame parent, List<Integer> atkDice, List<Integer> defDice, int atkDmg, int defDmg) {
         super(parent, "⚔️ Combat Resolution", true);
@@ -56,7 +56,9 @@ public class CombatVisualizerDialog extends JDialog {
                 atkLabel.setText("Attacker: " + randomRolls(atkDice.size()));
                 defLabel.setText("Defender: " + randomRolls(defDice.size()));
             } else {
-                rollTimer.stop();
+                // استفاده از getSource برای توقف ایمن تایمر
+                ((Timer) e.getSource()).stop();
+
                 title.setText("⚔️ Combat Result");
 
                 atkLabel.setText("Attacker: " + formatFinalDice(atkDice, defDice, true));

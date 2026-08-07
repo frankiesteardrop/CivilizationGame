@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change beforePath="$PROJECT_DIR$/src/controller/EconomyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/EconomyController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/GameEventListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventListener.java" afterDir="false" />
-    </list>
+    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn." />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -56,7 +52,11 @@
     "com.intellij.ide.FileNotInSourceRootChecker.no.check": "true",
     "git-widget-placeholder": "phase2-development",
     "kotlin-language-version-configured": "true",
-    "onboarding.tips.debug.path": "C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java"
+    "last_opened_file_path": "C:/Users/HP/gson-2.10.1 (1).jar",
+    "onboarding.tips.debug.path": "C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0"
   }
 }]]></component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
