@@ -13,6 +13,7 @@ import model.Builder;
 import model.Worker;
 import model.BorderExpander;
 import model.GameEventListener;
+import model.ProductionCommand; // <-- این ایمپورت اضافه شد تا Command جدید را بشناسد
 
 import javax.swing.*;
 import java.awt.*;
@@ -234,7 +235,9 @@ public class HUDPanel extends JPanel implements GameEventListener {
         stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
         ironCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.IRON), maxIron, netIron));
 
-        TownHall.ProductionTask currentTask = map.getTownHall().getProductionQueue().peek();
+        // ---> تغییر اساسی در این خط: از ProductionTask به ProductionCommand تغییر یافت
+        ProductionCommand currentTask = map.getTownHall().getProductionQueue().peek();
+
         if (currentTask != null) {
             if (isStarving && currentTask.isPopulationTask()) {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
