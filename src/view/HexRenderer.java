@@ -2,14 +2,29 @@ package view;
 
 import controller.UnitController;
 import model.*;
-
 import java.awt.*;
+import java.util.List;
 
 public class HexRenderer {
 
+    private Polygon cachedHexBase = null;
+    private double lastZoom = -1;
+
+    private void updateCache(double zoom) {
+        if (lastZoom == zoom && cachedHexBase != null) return;
+        int sz = (int)(GamePanel.HEX_SIZE * zoom);
+        cachedHexBase = new Polygon();
+        for (int i = 0; i < 6; i++) {
+            double angle = Math.PI / 180.0 * (60 * i - 30);
+            cachedHexBase.addPoint((int)(sz * Math.cos(angle)), (int)(sz * Math.sin(angle)));
+        }
+        lastZoom = zoom;
+    }
+
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
+        updateCache(panel.getZoomFactor());
         Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
-        java.util.List<Hex> visibleHexes = new java.util.ArrayList<>();
+        List<Hex> visibleHexes = new java.util.ArrayList<>();
         int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
 
         for (Hex hex : map.getHexes()) {
@@ -31,58 +46,74 @@ public class HexRenderer {
         for (Hex hex : visibleHexes)
             if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
 
+        // افکت سیل (Flood Overlay)
+        List<Hex> flooded = panel.getFloodedHexes();
+        if (flooded != null && !flooded.isEmpty() && panel.getFloodAlpha() > 0) {
+            g2d.setColor(new Color(52, 152, 219, (int)(panel.getFloodAlpha() * 255)));
+            for (Hex hex : flooded) {
+                if (visibleHexes.contains(hex)) {
+                    Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+                    g2d.translate(pt.x, pt.y);
+                    g2d.fillPolygon(cachedHexBase);
+                    g2d.translate(-pt.x, -pt.y);
+                }
+            }
+        }
+
         for (Hex hex : visibleHexes) {
             if (hex.isExplored() && !hex.isVisible()) {
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-                Polygon polygon = createHexPolygon(pt, sz);
                 g2d.setColor(new Color(0, 0, 0, 160));
-                g2d.fillPolygon(polygon);
+                g2d.translate(pt.x, pt.y);
+                g2d.fillPolygon(cachedHexBase);
+                g2d.translate(-pt.x, -pt.y);
             }
         }
     }
 
-    private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, java.util.List<Hex> visibleHexes) {
+    private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, List<Hex> visibleHexes) {
         Unit selectedUnit = panel.getSelectedUnit();
         if (selectedUnit == null || panel.isAnimating()) return;
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
         for (Hex hex : visibleHexes) {
             int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
-            if (dist != 1) continue;
+            if (dist > selectedUnit.getAttackRange()) continue;
 
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
-            Polygon polygon = createHexPolygon(pt, sz);
+            g2d.translate(pt.x, pt.y);
 
             if (unitController.canMove(selectedUnit, hex)) {
                 g2d.setColor(UIConfig.MOVE_VALID_FILL);
-                g2d.fillPolygon(polygon);
+                g2d.fillPolygon(cachedHexBase);
                 g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor())));
                 g2d.setColor(UIConfig.MOVE_VALID_BORDER);
-                g2d.drawPolygon(polygon);
-                g2d.setStroke(new BasicStroke(1f));
-            } else {
+                g2d.drawPolygon(cachedHexBase);
+            } else if (dist == 1) {
                 g2d.setColor(UIConfig.MOVE_INVALID_FILL);
-                g2d.fillPolygon(polygon);
+                g2d.fillPolygon(cachedHexBase);
                 g2d.setStroke(new BasicStroke((float)(2.0 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10.0f, new float[]{6.0f, 6.0f}, 0.0f));
                 g2d.setColor(UIConfig.MOVE_INVALID_BORDER);
-                g2d.drawPolygon(polygon);
-                g2d.setStroke(new BasicStroke(1f));
+                g2d.drawPolygon(cachedHexBase);
             }
+            g2d.translate(-pt.x, -pt.y);
+            g2d.setStroke(new BasicStroke(1f));
         }
     }
 
     private void drawHexTerrain(Graphics2D g2d, Hex hex, GamePanel panel) {
         Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
         int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
-        Polygon polygon = createHexPolygon(pt, sz);
+
+        g2d.translate(pt.x, pt.y);
 
         if (!hex.isExplored() && !hex.isVisible()) {
             g2d.setColor(UIConfig.UNEXPLORED_FILL);
-            g2d.fillPolygon(polygon);
+            g2d.fillPolygon(cachedHexBase);
             g2d.setStroke(new BasicStroke(1f));
             g2d.setColor(UIConfig.UNEXPLORED_BORDER);
-            g2d.drawPolygon(polygon);
+            g2d.drawPolygon(cachedHexBase);
+            g2d.translate(-pt.x, -pt.y);
             return;
         }
 
@@ -112,38 +143,45 @@ public class HexRenderer {
                 if (hasActiveResource) { topColor = UIConfig.MEADOW_TOP_ACTIVE; baseColor = UIConfig.MEADOW_BASE_ACTIVE; }
                 else { topColor = UIConfig.MEADOW_TOP_NORMAL; baseColor = UIConfig.MEADOW_BASE_NORMAL; }
                 break;
+            case SEA:
+                topColor = new Color(41, 128, 185); baseColor = new Color(26, 82, 118);
+                break;
+            case MOUNTAIN_RANGE:
+                topColor = new Color(200, 200, 200); baseColor = new Color(100, 100, 100);
+                break;
             default:
                 topColor = Color.GRAY; baseColor = Color.DARK_GRAY; break;
         }
 
-        GradientPaint gp = new GradientPaint(pt.x, pt.y - sz, topColor, pt.x, pt.y + sz, baseColor);
+        GradientPaint gp = new GradientPaint(0, -sz, topColor, 0, sz, baseColor);
         g2d.setPaint(gp);
-        g2d.fillPolygon(polygon);
+        g2d.fillPolygon(cachedHexBase);
 
         if (hasDepletedResource) {
             g2d.setColor(new Color(40, 40, 40, 100));
-            g2d.fillPolygon(polygon);
+            g2d.fillPolygon(cachedHexBase);
         }
 
         if (hex == panel.getHoveredHex() && panel.getSelectedUnit() == null) {
             g2d.setColor(new Color(255, 255, 255, 50));
-            g2d.fillPolygon(polygon);
+            g2d.fillPolygon(cachedHexBase);
         }
 
         g2d.setStroke(new BasicStroke(1.5f));
         g2d.setColor(new Color(0, 0, 0, 100));
-        g2d.drawPolygon(polygon);
+        g2d.drawPolygon(cachedHexBase);
         g2d.setStroke(new BasicStroke(1f));
+        g2d.translate(-pt.x, -pt.y);
     }
 
     private void drawHexBorder(Graphics2D g2d, Hex hex, GamePanel panel) {
         Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-        int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
-        Polygon polygon = createHexPolygon(pt, sz);
+        g2d.translate(pt.x, pt.y);
         g2d.setStroke(new BasicStroke((float)(4.0 * panel.getZoomFactor())));
         g2d.setColor(new Color(255, 215, 0, 180));
-        g2d.drawPolygon(polygon);
+        g2d.drawPolygon(cachedHexBase);
         g2d.setStroke(new BasicStroke(1f));
+        g2d.translate(-pt.x, -pt.y);
     }
 
     private void drawHexDetails(Graphics2D g2d, Hex hex, GamePanel panel) {
@@ -161,6 +199,7 @@ public class HexRenderer {
     }
 
     private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt, ResourceType rt, double zoomFactor) {
+        // [محتوای قبلی drawResourceIcon بدون تغییر باقی می‌ماند]
         if (rt == ResourceType.NONE) return;
 
         int iconSize = Math.max(8, (int)(20 * zoomFactor));
@@ -192,6 +231,7 @@ public class HexRenderer {
                 else if (st == ResourceSubtype.RICE) { bgColor = UIConfig.RES_RICE_BG; borderColor = UIConfig.RES_RICE_BORDER; textColor = UIConfig.RES_RICE_TEXT; symbol = "Ri"; }
                 else if (st == ResourceSubtype.CATTLE) { bgColor = UIConfig.RES_CATTLE_BG; borderColor = UIConfig.RES_CATTLE_BORDER; textColor = UIConfig.RES_CATTLE_TEXT; symbol = "Ca"; }
                 else if (st == ResourceSubtype.SHEEP) { bgColor = UIConfig.RES_SHEEP_BG; borderColor = UIConfig.RES_SHEEP_BORDER; textColor = UIConfig.RES_SHEEP_TEXT; symbol = "Sh"; }
+                else if (st == ResourceSubtype.FISH) { bgColor = new Color(52, 152, 219); borderColor = new Color(41, 128, 185); textColor = Color.WHITE; symbol = "Fi"; }
                 else { bgColor = UIConfig.RES_FOOD_GENERIC_BG; borderColor = UIConfig.RES_FOOD_GENERIC_BORDER; textColor = UIConfig.RES_FOOD_GENERIC_TEXT; symbol = "F"; }
                 break;
             default: return;
@@ -214,6 +254,7 @@ public class HexRenderer {
     }
 
     private void drawBuildingIcon(Graphics2D g2d, Building b, Point pt, int size, double zoomFactor) {
+        // [محتوای قبلی drawBuildingIcon بدون تغییر باقی می‌ماند. به دلیل محدودیت فضا آن را تکرار نمی‌کنم ولی تو آن را دست نخورده نگه دار و فقط ساختمان‌های جدید مثل BAZAAR را اضافه کن]
         if (b.getType() == BuildingType.TOWN_HALL) {
             int w = (int)(40 * zoomFactor);
             int h = (int)(40 * zoomFactor);
@@ -318,11 +359,20 @@ public class HexRenderer {
                 g2d.setStroke(new BasicStroke(1f));
                 g2d.fillArc(x - size/5, y + size/6, size/2 - size/10, size/3, 0, 180);
                 break;
-            default: break;
+            case TRIBE_CAMP:
+            case TRADING_POST:
+            case BAZAAR:
+            case MONUMENT:
+            case DOCK:
+                g2d.setColor(new Color(100, 100, 100));
+                g2d.fillRoundRect(x - size/2, y - size/2, size, size, 5, 5);
+                g2d.setColor(Color.WHITE);
+                g2d.drawRoundRect(x - size/2, y - size/2, size, size, 5, 5);
+                break;
         }
 
         int fs = (int)(11 * zoomFactor);
-        if (fs > 5) {
+        if (fs > 5 && b.getType() != BuildingType.TRIBE_CAMP) {
             g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
             String wt = b.getStationedWorkers() + "/" + b.getMaxWorkers();
             FontMetrics fm = g2d.getFontMetrics();
@@ -334,14 +384,5 @@ public class HexRenderer {
             g2d.setColor(Color.WHITE);
             g2d.drawString(wt, labelX + 3, labelY + fs);
         }
-    }
-
-    public static Polygon createHexPolygon(Point pt, int size) {
-        Polygon polygon = new Polygon();
-        for (int i = 0; i < 6; i++) {
-            double angle = Math.PI / 180.0 * (60 * i - 30);
-            polygon.addPoint(pt.x + (int)(size * Math.cos(angle)), pt.y + (int)(size * Math.sin(angle)));
-        }
-        return polygon;
     }
 }

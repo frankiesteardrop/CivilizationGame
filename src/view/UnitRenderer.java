@@ -60,12 +60,17 @@ public class UnitRenderer {
         int radius = (u == panel.getSelectedUnit() && !isStationed)
                 ? (int)(baseRadius * panel.getPulseScale()) : baseRadius;
 
+        // تنها بخش تنظیمات رنگ را در متد drawUnit با این کد جایگزین کن:
         String typeLetter;
         Color unitColor;
         if      (u instanceof Explorer)       { unitColor = UIConfig.UNIT_EXPLORER; typeLetter = "E"; }
         else if (u instanceof Builder)        { unitColor = UIConfig.UNIT_BUILDER; typeLetter = "B"; }
         else if (u instanceof Worker)         { unitColor = UIConfig.UNIT_WORKER; typeLetter = "W"; }
         else if (u instanceof BorderExpander) { unitColor = UIConfig.UNIT_EXPANDER; typeLetter = "X"; }
+        else if (u instanceof Swordsman)      { unitColor = UIConfig.UNIT_SWORDSMAN; typeLetter = "S"; }
+        else if (u instanceof Archer)         { unitColor = UIConfig.UNIT_ARCHER; typeLetter = "A"; }
+        else if (u instanceof Cavalry)        { unitColor = UIConfig.UNIT_CAVALRY; typeLetter = "C"; }
+        else if (u instanceof Bear)           { unitColor = UIConfig.UNIT_BEAR; typeLetter = "🐻"; }
         else                                  { unitColor = Color.GRAY; typeLetter = "U"; }
 
         if (isStationed) {

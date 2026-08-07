@@ -3,16 +3,23 @@ package controller;
 public class MenuAction {
     private final String label;
     private final boolean isEnabled;
+    private final String disabledReason;
     private final Runnable action;
 
     public MenuAction(String label, boolean isEnabled, Runnable action) {
+        this(label, isEnabled, "Requirements not met", action);
+    }
+
+    public MenuAction(String label, boolean isEnabled, String disabledReason, Runnable action) {
         this.label = label;
         this.isEnabled = isEnabled;
+        this.disabledReason = disabledReason;
         this.action = action;
     }
 
     public String getLabel() { return label; }
     public boolean isEnabled() { return isEnabled; }
+    public String getDisabledReason() { return disabledReason; }
 
     public void execute() {
         if (isEnabled && action != null) {

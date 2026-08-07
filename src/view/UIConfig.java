@@ -3,9 +3,7 @@ package view;
 import java.awt.Color;
 import java.awt.Font;
 
-
 public final class UIConfig {
-
     private UIConfig() {}
 
     public static final Color FOREST_TOP_ACTIVE = new Color(60, 180, 60);
@@ -36,15 +34,12 @@ public final class UIConfig {
 
     public static final Color UNEXPLORED_FILL = new Color(15, 18, 22);
     public static final Color UNEXPLORED_BORDER = new Color(35, 40, 48);
-    public static final Color FOG_SHADOW = new Color(10, 15, 20, 155);
 
-    // پالت رنگ‌های هایلایت حرکت (مجاز و غیرمجاز - Action Locking)
     public static final Color MOVE_VALID_FILL = new Color(0, 230, 255, 65);
     public static final Color MOVE_VALID_BORDER = new Color(0, 255, 230, 220);
     public static final Color MOVE_INVALID_FILL = new Color(231, 76, 60, 75);
     public static final Color MOVE_INVALID_BORDER = new Color(255, 80, 80, 230);
 
-    // پالت رنگ‌های آیکون منابع
     public static final Color RES_WOOD_BG = new Color(90, 55, 20, 220);
     public static final Color RES_WOOD_BORDER = new Color(180, 120, 60);
     public static final Color RES_WOOD_TEXT = new Color(255, 200, 120);
@@ -81,6 +76,12 @@ public final class UIConfig {
     public static final Color UNIT_BUILDER = new Color(255, 215, 0);
     public static final Color UNIT_WORKER = new Color(255, 140, 0);
     public static final Color UNIT_EXPANDER = new Color(218, 112, 214);
+
+    public static final Color UNIT_SWORDSMAN = new Color(231, 76, 60);
+    public static final Color UNIT_ARCHER = new Color(46, 204, 113);
+    public static final Color UNIT_CAVALRY = new Color(155, 89, 182);
+    public static final Color UNIT_BEAR = new Color(139, 69, 19);
+
     public static final Color UNIT_STATIONED_AURA = new Color(255, 165, 0, 150);
     public static final Color UNIT_SELECTED_AURA = new Color(0, 255, 255, 200);
 

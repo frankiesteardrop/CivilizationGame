@@ -2,14 +2,14 @@ package view;
 
 import controller.MainController;
 import controller.MenuAction;
-import model.Hex;
-import model.Unit;
+import model.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+import java.util.ArrayList;
 
-public class GamePanel extends JPanel {
+public class GamePanel extends JPanel implements GameEventListener {
 
     private final MainController mainController;
 
@@ -31,6 +31,12 @@ public class GamePanel extends JPanel {
     private double pulseScale = 1.0;
     private boolean pulseGrowing = true;
 
+    // افکت‌های بلایای طبیعی
+    private int shakeDuration = 0;
+    private int shakeX = 0, shakeY = 0;
+    private List<Hex> floodedHexes = new ArrayList<>();
+    private float floodAlpha = 0f;
+
     private final Timer animationTimer;
     private final HexRenderer hexRenderer;
     private final UnitRenderer unitRenderer;
@@ -48,6 +54,8 @@ public class GamePanel extends JPanel {
         addMouseMotionListener(inputHandler);
         addMouseWheelListener(inputHandler);
 
+        GameEventDispatcher.addListener(this);
+
         animationTimer = new Timer(16, e -> {
             boolean needsRepaint = false;
 
@@ -61,9 +69,21 @@ public class GamePanel extends JPanel {
                 needsRepaint = true;
             }
 
-            if (needsRepaint) {
-                repaint();
+            if (shakeDuration > 0) {
+                shakeX = (int)((Math.random() - 0.5) * 15);
+                shakeY = (int)((Math.random() - 0.5) * 15);
+                shakeDuration--;
+                if (shakeDuration == 0) { shakeX = 0; shakeY = 0; }
+                needsRepaint = true;
             }
+
+            if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
+                floodAlpha += 0.02f;
+                if (floodAlpha > 0.6f) floodAlpha = 0.6f;
+                needsRepaint = true;
+            }
+
+            if (needsRepaint) repaint();
         });
         animationTimer.start();
     }
@@ -97,8 +117,13 @@ public class GamePanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
+        // اعمال لرزش زلزله به تمام دوربین
+        g2d.translate(shakeX, shakeY);
+
         hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
+
+        g2d.translate(-shakeX, -shakeY);
     }
 
     public void showContextMenu(Point p, List<MenuAction> actions) {
@@ -117,6 +142,9 @@ public class GamePanel extends JPanel {
 
             if (!action.isEnabled()) {
                 item.setEnabled(false);
+                if (action.getDisabledReason() != null) {
+                    item.setToolTipText(action.getDisabledReason()); // افزودن ToolTip برای دلیل خاموشی
+                }
             } else {
                 item.addActionListener(ev -> {
                     action.execute();
@@ -126,10 +154,10 @@ public class GamePanel extends JPanel {
             }
             popup.add(item);
         }
-
         popup.show(this, p.x, p.y);
     }
 
+    // متدهای واسط (Getter/Setter)
     public Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
         double y = HEX_SIZE * 3.0 / 2.0 * r;
@@ -139,24 +167,16 @@ public class GamePanel extends JPanel {
     public Hex getHexAtPixel(Point p, List<Hex> hexes) {
         double rawX = (p.x - offsetX) / zoomFactor;
         double rawY = (p.y - offsetY) / zoomFactor;
-
         double qExact = (Math.sqrt(3.0)/3.0 * rawX - 1.0/3.0 * rawY) / HEX_SIZE;
         double rExact = (2.0/3.0 * rawY) / HEX_SIZE;
-
         int hexQ = (int) Math.round(qExact);
         int hexR = (int) Math.round(rExact);
         int hexS = -hexQ - hexR;
-
         double qDiff = Math.abs(hexQ - qExact);
         double rDiff = Math.abs(hexR - rExact);
         double sDiff = Math.abs(hexS - (-qExact - rExact));
-
-        if (qDiff > rDiff && qDiff > sDiff) {
-            hexQ = -hexR - hexS;
-        } else if (rDiff > sDiff) {
-            hexR = -hexQ - hexS;
-        }
-
+        if (qDiff > rDiff && qDiff > sDiff) hexQ = -hexR - hexS;
+        else if (rDiff > sDiff) hexR = -hexQ - hexS;
         return mainController.getGameMap().getHexAt(hexQ, hexR);
     }
 
@@ -179,6 +199,8 @@ public class GamePanel extends JPanel {
     public int getAnimStartY() { return animStartY; }
     public int getAnimTargetX() { return animTargetX; }
     public int getAnimTargetY() { return animTargetY; }
+    public List<Hex> getFloodedHexes() { return floodedHexes; }
+    public float getFloodAlpha() { return floodAlpha; }
 
     public void startAnimation(Unit unit, Hex targetHex, int startX, int startY, int targetX, int targetY) {
         this.animatingUnit = unit;
@@ -190,4 +212,36 @@ public class GamePanel extends JPanel {
         this.animTargetR = targetHex.getR();
         this.animProgress = 0.0;
     }
+
+    // پیاده سازی متدهای GameEventListener
+    @Override public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
+        SwingUtilities.invokeLater(() -> {
+            if ("EARTHQUAKE".equals(type)) {
+                shakeDuration = 30; // 30 فریم لرزش
+            } else if ("FLOOD".equals(type)) {
+                floodedHexes = affected;
+                floodAlpha = 0f;
+            }
+        });
+    }
+
+    @Override public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
+        SwingUtilities.invokeLater(() -> {
+            new CombatVisualizerDialog((JFrame)SwingUtilities.getWindowAncestor(this), atk, def, atkDmg, defDmg).setVisible(true);
+        });
+    }
+
+    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
+    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { repaint(); }
+    @Override public void onUnitKilled(Unit unit) { repaint(); }
+    @Override public void onProductionCompleted(String itemName) {}
+    @Override public void onTurnEnded(int newTurn) {
+        floodedHexes.clear(); // پاک کردن سیل با شروع ترن جدید
+        repaint();
+    }
+    @Override public void onStarvationChanged(boolean isStarving) {}
+    @Override public void onUnitStateChanged(Unit unit) { repaint(); }
+    @Override public void onBuildingConstructed(Hex hex) { repaint(); }
+    @Override public void onBuildingDestroyed(Hex hex) { repaint(); }
+    @Override public void onBorderExpanded(int centerQ, int centerR) { repaint(); }
 }

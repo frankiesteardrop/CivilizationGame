@@ -378,4 +378,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
                     + "</body></html>");
         }
     }
+    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
+    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}
 }
