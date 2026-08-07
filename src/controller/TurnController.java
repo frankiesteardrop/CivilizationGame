@@ -41,9 +41,12 @@ public class TurnController {
         gameMap.incrementTurn();
         gameMap.updateFogOfWar();
 
+        // بررسی و رخداد بلایای طبیعی ۵٪ در شروع ترن جدید
+        new DisasterController(gameMap).checkAndTriggerDisasters();
+
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
 
-        // پردازش هوش مصنوعی قبایل پس از اتمام رویدادهای ترن
+        // پردازش هوش مصنوعی قبایل
         mainController.getTribeController().processTribesTurn();
     }
 }

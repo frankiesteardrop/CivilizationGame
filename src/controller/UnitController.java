@@ -1,22 +1,18 @@
 package controller;
 
-import model.GameMap;
-import model.Hex;
-import model.Unit;
-import model.Worker;
-import model.Building;
-import model.BuildingType;
-import model.BorderExpander;
-import model.GameConfig;
-import model.GameEventDispatcher;
-import model.ResourceType;
+import model.*;
 
 public class UnitController {
 
     private Hex lastClickedHex = null;
     private int unitCycleIndex = 0;
 
+    // متد Overloaded هوشمند برای جلوگیری از خطا خوردن MainController
     public boolean canMove(Unit unit, Hex targetHex) {
+        return canMove(unit, targetHex, null);
+    }
+
+    public boolean canMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
 
@@ -28,50 +24,56 @@ public class UnitController {
         if (!isNeighbor) return false;
 
         int cost = targetHex.getTerrainType().getMovementCost();
+
+        // اعمال پویای جریمه فصلی اگر مپ موجود باشد
+        if (map != null) {
+            Season season = map.getCurrentSeason();
+            if (season == Season.WINTER && targetHex.getTerrainType() != TerrainType.SEA && targetHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                cost += 1;
+            } else if (season == Season.AUTUMN && targetHex.getTerrainType() == TerrainType.SEA) {
+                cost += 1;
+            }
+        }
+
         return unit.getCurrentAP() >= cost;
     }
 
     public void executeMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || targetHex == null || map == null) return;
 
-        if (!canMove(unit, targetHex)) return;
+        if (!canMove(unit, targetHex, map)) return;
 
         int cost = targetHex.getTerrainType().getMovementCost();
+        Season season = map.getCurrentSeason();
+        if (season == Season.WINTER && targetHex.getTerrainType() != TerrainType.SEA && targetHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) cost += 1;
+        else if (season == Season.AUTUMN && targetHex.getTerrainType() == TerrainType.SEA) cost += 1;
+
         unit.moveTo(targetHex.getQ(), targetHex.getR(), cost);
         map.updateFogOfWar();
     }
 
     public boolean canStation(Worker worker, Hex hex) {
-        if (worker == null || !worker.isAlive()) return false;
-        if (worker.isStationed()) return false;
-
+        if (worker == null || !worker.isAlive() || worker.isStationed()) return false;
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
-
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;
 
         Building building = hex.getBuilding();
-        if (building == null || building.isDestroyed()) return false;
-        if (building.getType() == BuildingType.TOWN_HALL) return false;
+        if (building == null || building.isDestroyed() || building.getType() == BuildingType.TOWN_HALL) return false;
 
         ResourceType producedRes = building.getType().getProducedResource();
-        if (producedRes != ResourceType.NONE && !hex.hasResource(producedRes)) {
-            return false;
-        }
+        if (producedRes != ResourceType.NONE && !hex.hasResource(producedRes)) return false;
 
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
     public boolean handleStation(Worker worker, Hex hex) {
         if (!canStation(worker, hex)) return false;
-
         Building building = hex.getBuilding();
         return worker.stationIn(building);
     }
 
     public void handleEject(Worker worker) {
-        if (worker != null && worker.isStationed()) {
-            worker.eject();
-        }
+        if (worker != null && worker.isStationed()) worker.eject();
     }
 
     public boolean canEject(Worker worker) {
@@ -90,7 +92,6 @@ public class UnitController {
         expander.kill();
 
         GameEventDispatcher.fireBorderExpanded(q, r);
-
         return true;
     }
 

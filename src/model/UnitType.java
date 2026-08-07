@@ -9,7 +9,10 @@ public enum UnitType {
     // ارتش (AP, Food, Vision, MaxHp, AttackRange, SiegeDamage)
     SWORDSMAN(2, 2, 2, 1, 1, 10),
     ARCHER(2, 2, 3, 1, 2, 6),
-    CAVALRY(4, 3, 4, 2, 1, 8);
+    CAVALRY(4, 3, 4, 2, 1, 8),
+
+    // خرس به عنوان بلای طبیعی اضافه شد
+    BEAR(2, 0, 1, 120, 1, 35);
 
     private final int maxAP;
     private final int foodConsumption;

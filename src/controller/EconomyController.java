@@ -11,14 +11,12 @@ public class EconomyController implements GameEventListener {
         GameEventDispatcher.addListener(this);
     }
 
-    // متد کلیدی برای محاسبه رضایت نهایی (ثابت + حضور نیروی نظامی در تالار)
     public int getEffectiveHappiness(GameMap map) {
         int base = map.getTownHall().getHappiness();
         boolean hasMilitary = false;
         TownHall th = map.getTownHall();
         for (Unit u : map.getUnits()) {
             if (u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()) {
-                // تمام نیروها به جز کارگران و استخراج‌گرها نظامی محسوب می‌شوند
                 if (u.getType() != UnitType.WORKER && u.getType() != UnitType.BUILDER &&
                         u.getType() != UnitType.EXPLORER && u.getType() != UnitType.BORDER_EXPANDER) {
                     hasMilitary = true;
@@ -55,6 +53,7 @@ public class EconomyController implements GameEventListener {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
         int happiness = getEffectiveHappiness(map);
+        Season season = map.getCurrentSeason();
 
         townHall.produceSafeguardResources();
         int farmPairs = 0;
@@ -73,7 +72,13 @@ public class EconomyController implements GameEventListener {
 
             int production = b.calculateProduction(townHall);
 
-            // اعمال پاداش‌های مجاورت (Adjacency Bonus)
+            // اعمال پاداش‌ها و جریمه‌های فصلی
+            if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
+                production += 1;
+            } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
+                production -= 1;
+            }
+
             if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
                 boolean nearSea = false;
                 for(int i = 0; i < 6; i++) {
@@ -90,7 +95,6 @@ public class EconomyController implements GameEventListener {
                 if (mCount >= 2) production += 1;
             }
 
-            // اعمال جریمه‌ها و پاداش‌های رضایت
             if (happiness <= -3) production -= b.getStationedWorkers();
             if (happiness >= 3) production += production / 10;
 
@@ -109,7 +113,6 @@ public class EconomyController implements GameEventListener {
 
             if (!hex.hasResource(targetRes)) ejectWorkersFromHex(map, hex);
 
-            // شناسایی مجاورت مزارع
             if (b.getType() == BuildingType.FARM) {
                 for(int i = 0; i < 6; i++) {
                     Hex neighbor = map.getNeighbor(hex, i);
@@ -121,7 +124,6 @@ public class EconomyController implements GameEventListener {
             }
         }
 
-        // اعمال یکباره سینرژی مزارع به کل امپراتوری
         farmPairs /= 2;
         if (farmPairs > 0) {
             int space = inventory.getCapacity(ResourceType.FOOD) - inventory.getResourceAmount(ResourceType.FOOD);
@@ -179,6 +181,7 @@ public class EconomyController implements GameEventListener {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
         int happiness = getEffectiveHappiness(map);
+        Season season = map.getCurrentSeason();
 
         int grossProduction = 0;
         int grossConsumption = 0;
@@ -195,6 +198,12 @@ public class EconomyController implements GameEventListener {
             if (b.getType().getProducedResource() == type) {
                 if (h.hasResource(type)) {
                     int prod = b.calculateProduction(townHall);
+
+                    if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
+                        prod += 1;
+                    } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
+                        prod -= 1;
+                    }
 
                     if (b.getType() == BuildingType.LUMBER_MILL && type == ResourceType.WOOD) {
                         boolean nearSea = false;

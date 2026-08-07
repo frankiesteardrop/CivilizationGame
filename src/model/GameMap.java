@@ -294,4 +294,8 @@ public class GameMap {
     public boolean isStarving() { return isStarving; }
     public void setStarving(boolean starving) { this.isStarving = starving; }
     public Hex getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
+    public Season getCurrentSeason() {
+        int seasonIndex = ((currentTurn - 1) / 10) % 4;
+        return Season.values()[seasonIndex];
+    }
 }
