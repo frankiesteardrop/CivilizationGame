@@ -91,6 +91,7 @@ public class UpgradeController {
             public UnitType getUnitType() { return UnitType.WORKER; }
             public int getTurnCost() { return GameConfig.WORKER_TURN_COST; }
         });
+
         unitStrategies.put("BUILDER", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST); }
@@ -98,6 +99,7 @@ public class UpgradeController {
             public UnitType getUnitType() { return UnitType.BUILDER; }
             public int getTurnCost() { return GameConfig.BUILDER_TURN_COST; }
         });
+
         unitStrategies.put("EXPLORER", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST); }
@@ -105,12 +107,40 @@ public class UpgradeController {
             public UnitType getUnitType() { return UnitType.EXPLORER; }
             public int getTurnCost() { return GameConfig.EXPLORER_TURN_COST; }
         });
+
         unitStrategies.put("BORDER_EXPANDER", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST) && inv.hasEnough(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST); inv.consumeResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
             public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST); inv.addResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST); inv.addResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
             public UnitType getUnitType() { return UnitType.BORDER_EXPANDER; }
             public int getTurnCost() { return GameConfig.BORDER_EXPANDER_TURN_COST; }
+        });
+
+        unitStrategies.put("SWORDSMAN", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, 20) && inv.hasEnough(ResourceType.WOOD, 10); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, 20); inv.consumeResource(ResourceType.WOOD, 10); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, 20); inv.addResource(ResourceType.WOOD, 10); }
+            public UnitType getUnitType() { return UnitType.SWORDSMAN; }
+            public int getTurnCost() { return 2; }
+        });
+
+        unitStrategies.put("ARCHER", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return gameMap.getTownHall().getLevel() >= 2 && inv.hasEnough(ResourceType.FOOD, 20) && inv.hasEnough(ResourceType.WOOD, 20); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, 20); inv.consumeResource(ResourceType.WOOD, 20); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, 20); inv.addResource(ResourceType.WOOD, 20); }
+            public UnitType getUnitType() { return UnitType.ARCHER; }
+            public int getTurnCost() { return 2; }
+        });
+
+        unitStrategies.put("CAVALRY", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) {
+                boolean hasStable = gameMap.getHexes().stream().anyMatch(h -> h.getBuilding() != null && h.getBuilding().getType() == BuildingType.STABLE && !h.getBuilding().isDestroyed());
+                return gameMap.getTownHall().getLevel() >= 2 && hasStable && inv.hasEnough(ResourceType.FOOD, 30) && inv.hasEnough(ResourceType.IRON, 20);
+            }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, 30); inv.consumeResource(ResourceType.IRON, 20); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, 30); inv.addResource(ResourceType.IRON, 20); }
+            public UnitType getUnitType() { return UnitType.CAVALRY; }
+            public int getTurnCost() { return 3; }
         });
     }
 
@@ -184,7 +214,6 @@ public class UpgradeController {
             return;
         }
 
-        // رویداد لحظه‌ای: کسر رضایت در صورت رسیدن به سقف ظرفیت یونیت
         if (gameMap.getAliveUnitsCount() + 1 == gameMap.getUnitCap()) {
             gameMap.getTownHall().addHappiness(-1);
         }

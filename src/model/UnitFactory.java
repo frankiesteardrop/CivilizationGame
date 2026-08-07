@@ -6,7 +6,6 @@ import java.util.function.BiFunction;
 
 public class UnitFactory {
 
-    // رجیستری برای نگهداری سازنده‌های (Constructors) هر یونیت
     private static final Map<UnitType, BiFunction<Integer, Integer, Unit>> registry = new HashMap<>();
 
     static {
@@ -14,6 +13,9 @@ public class UnitFactory {
         registry.put(UnitType.BUILDER, Builder::new);
         registry.put(UnitType.EXPLORER, Explorer::new);
         registry.put(UnitType.BORDER_EXPANDER, BorderExpander::new);
+        registry.put(UnitType.SWORDSMAN, Swordsman::new);
+        registry.put(UnitType.ARCHER, Archer::new);
+        registry.put(UnitType.CAVALRY, Cavalry::new);
     }
 
     public static Unit createUnit(UnitType type, int q, int r) {

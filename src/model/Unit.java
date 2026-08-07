@@ -10,6 +10,11 @@ public abstract class Unit {
     protected int visionRadius;
     protected boolean isAlive;
 
+    protected int hp;
+    protected int maxHp;
+    protected int attackRange;
+    protected int siegeDamage;
+
     public Unit(int q, int r, UnitType type) {
         this.q = q;
         this.r = r;
@@ -18,18 +23,18 @@ public abstract class Unit {
         this.currentAP = type.getMaxAP();
         this.foodConsumption = type.getFoodConsumption();
         this.visionRadius = type.getVisionRadius();
+
+        this.maxHp = type.getMaxHp();
+        this.hp = type.getMaxHp();
+        this.attackRange = type.getAttackRange();
+        this.siegeDamage = type.getSiegeDamage();
         this.isAlive = true;
     }
 
-    public void resetAP() {
-        if (isAlive) {
-            currentAP = maxAP;
-        }
-    }
+    public void resetAP() { if (isAlive) currentAP = maxAP; }
 
     public boolean consumeAP(int amount) {
         if (amount <= 0) return false;
-
         if (currentAP >= amount) {
             currentAP -= amount;
             return true;
@@ -47,6 +52,16 @@ public abstract class Unit {
         }
     }
 
+    public void takeDamage(int amount) {
+        if (!isAlive) return;
+        this.hp -= amount;
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.kill();
+        }
+        GameEventDispatcher.fireUnitStateChanged(this);
+    }
+
     public int getQ() { return q; }
     public int getR() { return r; }
     public UnitType getType() { return type; }
@@ -54,6 +69,11 @@ public abstract class Unit {
     public int getMaxAP() { return maxAP; }
     public int getFoodConsumption() { return foodConsumption; }
     public int getVisionRadius() { return visionRadius; }
+
+    public int getHp() { return hp; }
+    public int getMaxHp() { return maxHp; }
+    public int getAttackRange() { return attackRange; }
+    public int getSiegeDamage() { return siegeDamage; }
     public boolean isAlive() { return isAlive; }
 
     public void kill() {

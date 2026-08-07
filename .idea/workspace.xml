@@ -5,8 +5,19 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/controller/ArcherDamageHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/controller/CavalryDamageHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/controller/CombatController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/controller/DamageHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/controller/SwordsmanDamageHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/Archer.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/Cavalry.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/Swordsman.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/TownHall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TownHall.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UpgradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UpgradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Unit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Unit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/UnitFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/UnitType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitType.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
