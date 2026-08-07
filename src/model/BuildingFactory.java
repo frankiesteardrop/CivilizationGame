@@ -15,8 +15,11 @@ public class BuildingFactory {
         registry.put(BuildingType.FARM, Farm::new);
         registry.put(BuildingType.STABLE, Stable::new);
         registry.put(BuildingType.SETTLEMENT, Settlement::new);
-        registry.put(BuildingType.DOCK, Dock::new);             // اضافه شد
-        registry.put(BuildingType.MONUMENT, Monument::new);     // اضافه شد
+        registry.put(BuildingType.DOCK, Dock::new);
+        registry.put(BuildingType.MONUMENT, Monument::new);
+        registry.put(BuildingType.BAZAAR, Bazaar::new);
+        registry.put(BuildingType.TRADING_POST, TradingPost::new);
+        registry.put(BuildingType.TRIBE_CAMP, () -> new TribeCamp(50));
     }
 
     public static Building createBuilding(BuildingType type) {

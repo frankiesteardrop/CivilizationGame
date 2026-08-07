@@ -17,7 +17,6 @@ public class GameMap {
     private int currentTurn = 1;
     private boolean isStarving = false;
 
-    // آرایه جهت‌های 6 گانه برای پیدا کردن همسایه‌ها
     private static final int[][] DIRECTIONS = {{1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}};
 
     public GameMap(int radius) {
@@ -29,7 +28,8 @@ public class GameMap {
         this.random = new Random();
 
         generateMap();
-        generateRivers(); // تولید رودخانه‌ها بعد از مپ
+        generateRivers();
+        generateNeutralStructures();
         setupInitialTerritory();
         spawnInitialUnits();
         updateFogOfWar();
@@ -49,7 +49,6 @@ public class GameMap {
                     continue;
                 }
 
-                // تضمین اینکه اطراف TownHall با کوه/دریا قفل نمی‌شود (شعاع 2)
                 boolean isNearCenter = getHexDistance(0, 0, q, r) <= 2;
                 TerrainType terrain = getRandomTerrain(isNearCenter);
 
@@ -93,10 +92,9 @@ public class GameMap {
 
     private void generateRivers() {
         for (Hex hex : hexes.getAll()) {
-            if (random.nextDouble() < 0.1) { // 10% احتمال وجود رودخانه روی هر یال
+            if (random.nextDouble() < 0.1) {
                 int dir = random.nextInt(6);
                 Hex neighbor = getNeighbor(hex, dir);
-                // رودخانه بین دریاها معنی ندارد
                 if (neighbor != null && hex.getTerrainType() != TerrainType.SEA && neighbor.getTerrainType() != TerrainType.SEA) {
                     hex.setRiver(dir, true);
                     neighbor.setRiver((dir + 3) % 6, true);
@@ -105,11 +103,34 @@ public class GameMap {
         }
     }
 
+    private void generateNeutralStructures() {
+        List<Hex> validFarHexes = new ArrayList<>();
+        for (Hex hex : hexes.getAll()) {
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) >= 6 &&
+                    hex.getTerrainType() != TerrainType.SEA &&
+                    hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE &&
+                    hex.getBuilding() == null) {
+                validFarHexes.add(hex);
+            }
+        }
+
+        int postsToSpawn = 3;
+        int tribesToSpawn = 5;
+
+        for (int i = 0; i < postsToSpawn + tribesToSpawn && !validFarHexes.isEmpty(); i++) {
+            Hex target = validFarHexes.remove(random.nextInt(validFarHexes.size()));
+            if (i < postsToSpawn) {
+                target.setBuilding(BuildingFactory.createBuilding(BuildingType.TRADING_POST));
+            } else {
+                target.setBuilding(BuildingFactory.createBuilding(BuildingType.TRIBE_CAMP));
+            }
+        }
+    }
+
     private TerrainType getRandomTerrain(boolean isNearCenter) {
         TerrainType[] terrains = TerrainType.values();
         TerrainType t = terrains[random.nextInt(terrains.length)];
 
-        // اگر نزدیک مرکز بودیم، رشته‌کوه یا دریا تولید نمی‌کنیم تا بازیکن گیر نیفتد
         if (isNearCenter && (t == TerrainType.SEA || t == TerrainType.MOUNTAIN_RANGE)) {
             return TerrainType.PLAINS;
         }
