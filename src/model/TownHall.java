@@ -9,16 +9,25 @@ public class TownHall extends Building {
     private final int r;
     private final Inventory inventory;
 
-    private int warehouseUpgradeLevel;
+    private int level; // جایگزین warehouseUpgradeLevel
+
+    // تکنولوژی‌های پایه
     private boolean stoneMineUnlocked;
     private boolean ironMineUnlocked;
-    private boolean professionalToolsUnlocked;
-    private boolean settlementUnlocked;
+
+    // تکنولوژی‌های جدید فاز دوم
+    private boolean seafaringUnlocked;
+    private boolean steelToolsUnlocked;
+    private boolean defensiveArchUnlocked;
 
     private final Queue<ProductionCommand> productionQueue;
 
     public TownHall(int q, int r) {
         super(BuildingType.TOWN_HALL.getMaxWorkers());
+        this.setMaxHp(200);
+        this.hp = 200;
+        this.defense = 10;
+
         this.q = q;
         this.r = r;
         this.inventory = new Inventory();
@@ -29,11 +38,12 @@ public class TownHall extends Building {
         this.inventory.addResource(ResourceType.STONE, GameConfig.STARTING_STONE);
         this.inventory.addResource(ResourceType.IRON,  GameConfig.STARTING_IRON);
 
-        this.warehouseUpgradeLevel     = 0;
-        this.stoneMineUnlocked         = false;
-        this.ironMineUnlocked          = false;
-        this.professionalToolsUnlocked = false;
-        this.settlementUnlocked        = false;
+        this.level = 1; // Base Camp
+        this.stoneMineUnlocked = false;
+        this.ironMineUnlocked = false;
+        this.seafaringUnlocked = false;
+        this.steelToolsUnlocked = false;
+        this.defensiveArchUnlocked = false;
     }
 
     @Override
@@ -70,9 +80,7 @@ public class TownHall extends Building {
     }
 
     public boolean queueCommand(ProductionCommand command) {
-        if (!productionQueue.isEmpty()) {
-            return false;
-        }
+        if (!productionQueue.isEmpty()) return false;
         productionQueue.add(command);
         return true;
     }
@@ -89,28 +97,44 @@ public class TownHall extends Building {
         return productionQueue.isEmpty();
     }
 
-    public void upgradeWarehouse() {
-        if (warehouseUpgradeLevel == 0) {
-            warehouseUpgradeLevel = 1;
-            inventory.upgradeToLevel1();
-        } else if (warehouseUpgradeLevel == 1) {
-            warehouseUpgradeLevel = 2;
+    public int getLevel() { return level; }
+
+    public void upgradeLevel() {
+        if (level == 1) {
+            level = 2; // Settlement
             inventory.upgradeToLevel2();
+            heal(50); // Heal 50 HP در لحظه ارتقا
+        } else if (level == 2) {
+            level = 3; // Capital
+            inventory.upgradeToLevel3();
         }
     }
 
-    public int getQ()                     { return q; }
-    public int getR()                     { return r; }
-    public Inventory getInventory()       { return inventory; }
-    public int getWarehouseUpgradeLevel() { return warehouseUpgradeLevel; }
+    // اعمال معماری دفاعی
+    public void applyDefensiveArchitecture() {
+        this.defensiveArchUnlocked = true;
+        this.setMaxHp(350);
+        this.setDefense(30);
+        this.heal(150); // جبران افزایش سقف HP
+    }
+
+    // متدهای مربوط به پشتیبانی از UI قبلی (جلوگیری از کرش)
+    public boolean isSettlementUnlocked() { return level >= 2; }
+    public boolean isProfessionalToolsUnlocked() { return steelToolsUnlocked; }
+
+    public int getQ() { return q; }
+    public int getR() { return r; }
+    public Inventory getInventory() { return inventory; }
     public Queue<ProductionCommand> getProductionQueue() { return productionQueue; }
 
-    public boolean isStoneMineUnlocked()              { return stoneMineUnlocked; }
-    public void setStoneMineUnlocked(boolean v)       { this.stoneMineUnlocked = v; }
-    public boolean isIronMineUnlocked()               { return ironMineUnlocked; }
-    public void setIronMineUnlocked(boolean v)        { this.ironMineUnlocked = v; }
-    public boolean isProfessionalToolsUnlocked()      { return professionalToolsUnlocked; }
-    public void setProfessionalToolsUnlocked(boolean v){ this.professionalToolsUnlocked = v; }
-    public boolean isSettlementUnlocked()             { return settlementUnlocked; }
-    public void setSettlementUnlocked(boolean v)      { this.settlementUnlocked = v; }
+    public boolean isStoneMineUnlocked() { return stoneMineUnlocked; }
+    public void setStoneMineUnlocked(boolean v) { this.stoneMineUnlocked = v; }
+    public boolean isIronMineUnlocked() { return ironMineUnlocked; }
+    public void setIronMineUnlocked(boolean v) { this.ironMineUnlocked = v; }
+
+    public boolean isSeafaringUnlocked() { return seafaringUnlocked; }
+    public void setSeafaringUnlocked(boolean v) { this.seafaringUnlocked = v; }
+    public boolean isSteelToolsUnlocked() { return steelToolsUnlocked; }
+    public void setSteelToolsUnlocked(boolean v) { this.steelToolsUnlocked = v; }
+    public boolean isDefensiveArchUnlocked() { return defensiveArchUnlocked; }
 }

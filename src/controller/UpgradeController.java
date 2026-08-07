@@ -8,7 +8,6 @@ public class UpgradeController {
 
     private final GameMap gameMap;
 
-    // تعریف استراتژی‌های داینامیک برای جایگزینی Switch-Case
     private interface TechStrategy {
         boolean canUnlock(TownHall th, Inventory inv);
         void unlock(TownHall th, Inventory inv);
@@ -40,6 +39,7 @@ public class UpgradeController {
                 })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD); }
             }
         });
+
         techStrategies.put("IRON_MINE", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) { return th.isStoneMineUnlocked() && !th.isIronMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_IRON_MINE_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE); }
             public void unlock(TownHall th, Inventory inv) {
@@ -48,20 +48,43 @@ public class UpgradeController {
                 })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_IRON_MINE_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE); }
             }
         });
-        techStrategies.put("PROF_TOOLS", new TechStrategy() {
-            public boolean canUnlock(TownHall th, Inventory inv) { return th.isStoneMineUnlocked() && th.isIronMineUnlocked() && !th.isProfessionalToolsUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_PROF_TOOLS_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_PROF_TOOLS_IRON); }
+
+        // پشتیبانی از منوی قبلی: Settlement در واقع ارتقای سطح تالار به ۲ است
+        techStrategies.put("SETTLEMENT", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() == 1 && inv.hasEnough(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE); }
             public void unlock(TownHall th, Inventory inv) {
-                if (th.queueCommand(new ProductionCommand("Tech: Prof. Tools", GameConfig.TECH_PROF_TOOLS_TURN_COST, false) {
-                    public void execute() { th.setProfessionalToolsUnlocked(true); }
-                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_PROF_TOOLS_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE); inv.consumeResource(ResourceType.IRON, GameConfig.TECH_PROF_TOOLS_IRON); }
+                if (th.queueCommand(new ProductionCommand("Upgrade to Settlement", GameConfig.TH_UPGRADE_LVL2_TURN, false) {
+                    public void execute() { th.upgradeLevel(); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE); }
             }
         });
-        techStrategies.put("SETTLEMENT", new TechStrategy() {
-            public boolean canUnlock(TownHall th, Inventory inv) { return !th.isSettlementUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_SETTLEMENT_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_SETTLEMENT_IRON); }
+
+        // پشتیبانی از منوی قبلی: Prof Tools در واقع همان Steel Tools فاز دوم است
+        techStrategies.put("PROF_TOOLS", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 2 && !th.isSteelToolsUnlocked() && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON); }
             public void unlock(TownHall th, Inventory inv) {
-                if (th.queueCommand(new ProductionCommand("Tech: Settlement", GameConfig.TECH_SETTLEMENT_TURN_COST, false) {
-                    public void execute() { th.setSettlementUnlocked(true); }
-                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_SETTLEMENT_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE); inv.consumeResource(ResourceType.IRON, GameConfig.TECH_SETTLEMENT_IRON); }
+                if (th.queueCommand(new ProductionCommand("Tech: Steel Tools", GameConfig.TECH_STEEL_TOOLS_TURN, false) {
+                    public void execute() { th.setSteelToolsUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON); }
+            }
+        });
+
+        // تکنولوژی‌های جدید (برای اضافه‌شدن به UI در آینده)
+        techStrategies.put("SEAFARING", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 2 && !th.isSeafaringUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_SEAFARING_WOOD); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Seafaring", GameConfig.TECH_SEAFARING_TURN, false) {
+                    public void execute() { th.setSeafaringUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_SEAFARING_WOOD); }
+            }
+        });
+
+        techStrategies.put("DEFENSIVE_ARCH", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 3 && !th.isDefensiveArchUnlocked() && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_DEFENSIVE_ARCH_STONE); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Defensive Arch", GameConfig.TECH_DEFENSIVE_ARCH_TURN, false) {
+                    public void execute() { th.applyDefensiveArchitecture(); }
+                })) { inv.consumeResource(ResourceType.STONE, GameConfig.TECH_DEFENSIVE_ARCH_STONE); }
             }
         });
 
@@ -96,16 +119,16 @@ public class UpgradeController {
         });
     }
 
+    // متدهای قدیمی Warehouse به منظور جلوگیری از کرش UI نگه داشته شده‌اند اما مسیر را به سمت ارتقای TownHall می‌برند.
     public boolean canAffordWarehouseUpgrade() {
         TownHall th = gameMap.getTownHall();
-        if (th.getWarehouseUpgradeLevel() >= 2) return false;
+        if (th.getLevel() >= 3) return false;
         if (!th.isProductionQueueEmpty()) return false;
 
-        int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
-        int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
-
         Inventory inv = th.getInventory();
-        return inv.hasEnough(ResourceType.WOOD, woodCost) && inv.hasEnough(ResourceType.STONE, stoneCost);
+        if (th.getLevel() == 1) return inv.hasEnough(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE);
+        if (th.getLevel() == 2) return inv.hasEnough(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL3_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TH_UPGRADE_LVL3_IRON);
+        return false;
     }
 
     public void handleWarehouseUpgrade() {
@@ -113,16 +136,20 @@ public class UpgradeController {
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        int woodCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_WOOD : GameConfig.WAREHOUSE_LVL2_WOOD;
-        int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
-
-        ProductionCommand cmd = new ProductionCommand("Warehouse Upgrade", GameConfig.WAREHOUSE_UPGRADE_TURN_COST, false) {
-            @Override public void execute() { th.upgradeWarehouse(); }
-        };
-
-        if (th.queueCommand(cmd)) {
-            inv.consumeResource(ResourceType.WOOD, woodCost);
-            inv.consumeResource(ResourceType.STONE, stoneCost);
+        if (th.getLevel() == 1) {
+            if (th.queueCommand(new ProductionCommand("Upgrade to Settlement", GameConfig.TH_UPGRADE_LVL2_TURN, false) {
+                @Override public void execute() { th.upgradeLevel(); }
+            })) {
+                inv.consumeResource(ResourceType.WOOD, GameConfig.TH_UPGRADE_LVL2_WOOD);
+                inv.consumeResource(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL2_STONE);
+            }
+        } else if (th.getLevel() == 2) {
+            if (th.queueCommand(new ProductionCommand("Upgrade to Capital", GameConfig.TH_UPGRADE_LVL3_TURN, false) {
+                @Override public void execute() { th.upgradeLevel(); }
+            })) {
+                inv.consumeResource(ResourceType.STONE, GameConfig.TH_UPGRADE_LVL3_STONE);
+                inv.consumeResource(ResourceType.IRON, GameConfig.TH_UPGRADE_LVL3_IRON);
+            }
         }
     }
 
@@ -169,7 +196,6 @@ public class UpgradeController {
         int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();
         int targetR = spawnHex != null ? spawnHex.getR() : th.getR();
 
-        // استفاده مستقیم از Factory
         Unit newUnit = UnitFactory.createUnit(strategy.getUnitType(), targetQ, targetR);
         gameMap.addUnit(newUnit);
     }

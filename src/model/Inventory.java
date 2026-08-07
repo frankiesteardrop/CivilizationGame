@@ -18,6 +18,7 @@ public class Inventory {
             }
         }
 
+        // ظرفیت پایه طبق داک دقیقاً ۱۰۰ است
         capacities.put(ResourceType.FOOD,  GameConfig.DEFAULT_FOOD_CAPACITY);
         capacities.put(ResourceType.WOOD,  GameConfig.DEFAULT_WOOD_CAPACITY);
         capacities.put(ResourceType.STONE, GameConfig.DEFAULT_STONE_CAPACITY);
@@ -52,18 +53,18 @@ public class Inventory {
         return resources.getOrDefault(type, 0) >= amount;
     }
 
-    public void upgradeToLevel1() {
-        capacities.put(ResourceType.FOOD,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
-        capacities.put(ResourceType.WOOD,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
-        capacities.put(ResourceType.STONE, GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
-        capacities.put(ResourceType.IRON,  GameConfig.WAREHOUSE_UPGRADE1_CAPACITY);
+    public void upgradeToLevel2() {
+        capacities.put(ResourceType.FOOD,  GameConfig.TH_UPGRADE2_CAPACITY);
+        capacities.put(ResourceType.WOOD,  GameConfig.TH_UPGRADE2_CAPACITY);
+        capacities.put(ResourceType.STONE, GameConfig.TH_UPGRADE2_CAPACITY);
+        capacities.put(ResourceType.IRON,  GameConfig.TH_UPGRADE2_CAPACITY);
     }
 
-    public void upgradeToLevel2() {
-        capacities.put(ResourceType.FOOD,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
-        capacities.put(ResourceType.WOOD,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
-        capacities.put(ResourceType.STONE, GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
-        capacities.put(ResourceType.IRON,  GameConfig.WAREHOUSE_UPGRADE2_CAPACITY);
+    public void upgradeToLevel3() {
+        capacities.put(ResourceType.FOOD,  GameConfig.TH_UPGRADE3_CAPACITY);
+        capacities.put(ResourceType.WOOD,  GameConfig.TH_UPGRADE3_CAPACITY);
+        capacities.put(ResourceType.STONE, GameConfig.TH_UPGRADE3_CAPACITY);
+        capacities.put(ResourceType.IRON,  GameConfig.TH_UPGRADE3_CAPACITY);
     }
 
     public int getResourceAmount(ResourceType type) {
