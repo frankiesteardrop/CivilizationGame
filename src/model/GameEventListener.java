@@ -12,7 +12,8 @@ public interface GameEventListener {
     void onBuildingDestroyed(Hex hex);
     void onBorderExpanded(int centerQ, int centerR);
 
-    // رویدادهای جدید گرافیکی برای نبرد و بلایا
-    void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected);
-    void onCombatTriggered(java.util.List<Integer> attackerDice, java.util.List<Integer> defenderDice, int atkDmg, int defDmg);
+    // رویدادهای جدید با کلمه کلیدی default برای حفظ یکپارچگی معماری و جلوگیری از ارور
+    default void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
+    default void onCombatTriggered(java.util.List<Integer> attackerDice, java.util.List<Integer> defenderDice, int atkDmg, int defDmg) {}
+    default void onNotification(String message) {}
 }

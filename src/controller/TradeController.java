@@ -38,7 +38,6 @@ public class TradeController implements GameEventListener {
     }
 
     @Override public void onTurnEnded(int newTurn) {
-        // Reset trade flags
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() instanceof Bazaar) ((Bazaar) hex.getBuilding()).setTraded(false);
             if (hex.getBuilding() instanceof TradingPost) ((TradingPost) hex.getBuilding()).setTraded(false);
@@ -54,4 +53,7 @@ public class TradeController implements GameEventListener {
     @Override public void onBuildingConstructed(Hex hex) {}
     @Override public void onBuildingDestroyed(Hex hex) {}
     @Override public void onBorderExpanded(int centerQ, int centerR) {}
+    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
+    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}
+    @Override public void onNotification(String message) {}
 }

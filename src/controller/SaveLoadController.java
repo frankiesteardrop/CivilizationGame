@@ -17,7 +17,6 @@ public class SaveLoadController {
         this.mainController = mainController;
         new File(SAVE_DIR).mkdirs();
 
-        // ثبت Adapterهای هوشمند برای پلی‌مورفیسم و گراف اشیاء
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(Building.class, new BuildingAdapter())
                 .registerTypeAdapter(Unit.class, new UnitAdapter())
@@ -34,7 +33,6 @@ public class SaveLoadController {
             String json = gson.toJson(mainController.getGameMap());
             Files.writeString(tempFile.toPath(), json);
 
-            // عملیات Atomic برای جلوگیری از خرابی فایل ذخیره
             if (finalFile.exists()) finalFile.delete();
             tempFile.renameTo(finalFile);
             GameEventDispatcher.fireNotification("Game Saved Successfully in slot: " + slot);
@@ -57,7 +55,6 @@ public class SaveLoadController {
             String json = Files.readString(file.toPath());
             GameMap loadedMap = gson.fromJson(json, GameMap.class);
 
-            // بازسازی متغیرهای Transient و رفرنس‌های حلقوی
             Field randomField = GameMap.class.getDeclaredField("random");
             randomField.setAccessible(true);
             randomField.set(loadedMap, new Random());
@@ -78,8 +75,6 @@ public class SaveLoadController {
     public void autosave() {
         saveGame("autosave");
     }
-
-    // ================== CUSTOM ADAPTERS ==================
 
     private static class BuildingAdapter implements JsonSerializer<Building>, JsonDeserializer<Building> {
         @Override
@@ -167,7 +162,7 @@ public class SaveLoadController {
                     GameMap map = mc.getGameMap();
                     TownHall th = map.getTownHall();
                     switch(name) {
-                        case "Warehouse Upgrade": th.upgradeWarehouse(); break;
+                        case "Warehouse Upgrade": th.upgradeLevel(); break; // <-- اینجا فیکس شد
                         case "Upgrade to Settlement": th.upgradeLevel(); break;
                         case "Upgrade to Capital": th.upgradeLevel(); break;
                         case "Tech: Stone Mine": th.setStoneMineUnlocked(true); break;

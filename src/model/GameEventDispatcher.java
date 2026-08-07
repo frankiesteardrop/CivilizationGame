@@ -59,4 +59,17 @@ public class GameEventDispatcher {
     public static void fireBorderExpanded(int centerQ, int centerR) {
         for (GameEventListener l : listeners) l.onBorderExpanded(centerQ, centerR);
     }
+
+    // متدهای دیباگ شده برای رویدادهای جدید
+    public static void fireDisasterTriggered(String type, Hex center, List<Hex> affected) {
+        for (GameEventListener l : listeners) l.onDisasterTriggered(type, center, affected);
+    }
+
+    public static void fireCombatTriggered(List<Integer> attackerDice, List<Integer> defenderDice, int atkDmg, int defDmg) {
+        for (GameEventListener l : listeners) l.onCombatTriggered(attackerDice, defenderDice, atkDmg, defDmg);
+    }
+
+    public static void fireNotification(String message) {
+        for (GameEventListener l : listeners) l.onNotification(message);
+    }
 }

@@ -72,7 +72,6 @@ public class EconomyController implements GameEventListener {
 
             int production = b.calculateProduction(townHall);
 
-            // اعمال پاداش‌ها و جریمه‌های فصلی
             if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
                 production += 1;
             } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
@@ -266,4 +265,7 @@ public class EconomyController implements GameEventListener {
     @Override public void onBuildingConstructed(Hex hex) {}
     @Override public void onBuildingDestroyed(Hex hex) {}
     @Override public void onBorderExpanded(int centerQ, int centerR) {}
+    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
+    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}
+    @Override public void onNotification(String message) {}
 }
