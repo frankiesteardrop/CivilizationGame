@@ -1,13 +1,37 @@
 package controller;
 
 import model.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class BuildController {
 
     private final GameMap gameMap;
 
+    // استراتژی‌های چک کردن پیش‌نیازها بدون استفاده از switch-case
+    private final Map<BuildingType, Function<TownHall, Boolean>> techRequirements = new HashMap<>();
+    private final Map<BuildingType, Predicate<Hex>> terrainRequirements = new HashMap<>();
+
     public BuildController(GameMap gameMap) {
         this.gameMap = gameMap;
+        initRules();
+    }
+
+    private void initRules() {
+        // قوانین تکنولوژی
+        techRequirements.put(BuildingType.STONE_MINE, TownHall::isStoneMineUnlocked);
+        techRequirements.put(BuildingType.IRON_MINE, TownHall::isIronMineUnlocked);
+        techRequirements.put(BuildingType.SETTLEMENT, TownHall::isSettlementUnlocked);
+
+        // قوانین نوع زمین
+        terrainRequirements.put(BuildingType.LUMBER_MILL, hex -> hex.getTerrainType() == TerrainType.FOREST && hex.hasResource(ResourceType.WOOD));
+        terrainRequirements.put(BuildingType.FARM, hex -> hex.getTerrainType() == TerrainType.MEADOW && hex.hasResource(ResourceType.FOOD) && (hex.getResourceSubtype() == ResourceSubtype.WHEAT || hex.getResourceSubtype() == ResourceSubtype.RICE));
+        terrainRequirements.put(BuildingType.STABLE, hex -> hex.getTerrainType() == TerrainType.PLAINS && hex.hasResource(ResourceType.FOOD) && (hex.getResourceSubtype() == ResourceSubtype.CATTLE || hex.getResourceSubtype() == ResourceSubtype.SHEEP));
+        terrainRequirements.put(BuildingType.STONE_MINE, hex -> hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE));
+        terrainRequirements.put(BuildingType.IRON_MINE, hex -> hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON));
+        terrainRequirements.put(BuildingType.SETTLEMENT, hex -> !hex.hasResource(ResourceType.WOOD) && !hex.hasResource(ResourceType.IRON) && !hex.hasResource(ResourceType.FOOD));
     }
 
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
@@ -43,45 +67,15 @@ public class BuildController {
                 || !inv.hasEnough(ResourceType.IRON, type.getIronCost())) {
             return " [NO RESOURCE]";
         }
-
         return "";
     }
 
     private boolean hasRequiredTech(BuildingType type, TownHall th) {
-        switch (type) {
-            case STONE_MINE: return th.isStoneMineUnlocked();
-            case IRON_MINE: return th.isIronMineUnlocked();
-            case SETTLEMENT: return th.isSettlementUnlocked();
-            default: return true;
-        }
+        return techRequirements.getOrDefault(type, t -> true).apply(th);
     }
 
     private boolean isValidTerrainForBuilding(BuildingType type, Hex hex) {
-        switch (type) {
-            case LUMBER_MILL:
-                return hex.getTerrainType() == TerrainType.FOREST
-                        && hex.hasResource(ResourceType.WOOD);
-            case FARM:
-                return hex.getTerrainType() == TerrainType.MEADOW
-                        && hex.hasResource(ResourceType.FOOD)
-                        && (hex.getResourceSubtype() == ResourceSubtype.WHEAT || hex.getResourceSubtype() == ResourceSubtype.RICE);
-            case STABLE:
-                return hex.getTerrainType() == TerrainType.PLAINS
-                        && hex.hasResource(ResourceType.FOOD)
-                        && (hex.getResourceSubtype() == ResourceSubtype.CATTLE || hex.getResourceSubtype() == ResourceSubtype.SHEEP);
-            case STONE_MINE:
-                return hex.getTerrainType() == TerrainType.MOUNTAIN
-                        && hex.hasResource(ResourceType.STONE);
-            case IRON_MINE:
-                return hex.getTerrainType() == TerrainType.MOUNTAIN
-                        && hex.hasResource(ResourceType.IRON);
-            case SETTLEMENT:
-                return !hex.hasResource(ResourceType.WOOD) &&
-                        !hex.hasResource(ResourceType.IRON) &&
-                        !hex.hasResource(ResourceType.FOOD);
-            default:
-                return false;
-        }
+        return terrainRequirements.getOrDefault(type, h -> false).test(hex);
     }
 
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
@@ -95,7 +89,7 @@ public class BuildController {
         builder.consumeAP(type.getApCost());
         builder.useCharge();
 
-        // Factory Pattern in Action!
+        // ساخت ساختمان دقیقاً با الگوی Factory
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 

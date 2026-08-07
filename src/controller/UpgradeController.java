@@ -1,13 +1,99 @@
 package controller;
 
 import model.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class UpgradeController {
 
     private final GameMap gameMap;
 
+    // تعریف استراتژی‌های داینامیک برای جایگزینی Switch-Case
+    private interface TechStrategy {
+        boolean canUnlock(TownHall th, Inventory inv);
+        void unlock(TownHall th, Inventory inv);
+    }
+
+    private interface UnitStrategy {
+        boolean canTrain(Inventory inv);
+        void consumeResources(Inventory inv);
+        void refundResources(Inventory inv);
+        UnitType getUnitType();
+        int getTurnCost();
+    }
+
+    private final Map<String, TechStrategy> techStrategies = new HashMap<>();
+    private final Map<String, UnitStrategy> unitStrategies = new HashMap<>();
+
     public UpgradeController(GameMap gameMap) {
         this.gameMap = gameMap;
+        initStrategies();
+    }
+
+    private void initStrategies() {
+        // --- Tech Strategies ---
+        techStrategies.put("STONE_MINE", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Stone Mine", GameConfig.TECH_STONE_MINE_TURN_COST, false) {
+                    public void execute() { th.setStoneMineUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD); }
+            }
+        });
+        techStrategies.put("IRON_MINE", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.isStoneMineUnlocked() && !th.isIronMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_IRON_MINE_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Iron Mine", GameConfig.TECH_IRON_MINE_TURN_COST, false) {
+                    public void execute() { th.setIronMineUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_IRON_MINE_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE); }
+            }
+        });
+        techStrategies.put("PROF_TOOLS", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return th.isStoneMineUnlocked() && th.isIronMineUnlocked() && !th.isProfessionalToolsUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_PROF_TOOLS_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_PROF_TOOLS_IRON); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Prof. Tools", GameConfig.TECH_PROF_TOOLS_TURN_COST, false) {
+                    public void execute() { th.setProfessionalToolsUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_PROF_TOOLS_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE); inv.consumeResource(ResourceType.IRON, GameConfig.TECH_PROF_TOOLS_IRON); }
+            }
+        });
+        techStrategies.put("SETTLEMENT", new TechStrategy() {
+            public boolean canUnlock(TownHall th, Inventory inv) { return !th.isSettlementUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_SETTLEMENT_WOOD) && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE) && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_SETTLEMENT_IRON); }
+            public void unlock(TownHall th, Inventory inv) {
+                if (th.queueCommand(new ProductionCommand("Tech: Settlement", GameConfig.TECH_SETTLEMENT_TURN_COST, false) {
+                    public void execute() { th.setSettlementUnlocked(true); }
+                })) { inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_SETTLEMENT_WOOD); inv.consumeResource(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE); inv.consumeResource(ResourceType.IRON, GameConfig.TECH_SETTLEMENT_IRON); }
+            }
+        });
+
+        // --- Unit Strategies ---
+        unitStrategies.put("WORKER", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
+            public UnitType getUnitType() { return UnitType.WORKER; }
+            public int getTurnCost() { return GameConfig.WORKER_TURN_COST; }
+        });
+        unitStrategies.put("BUILDER", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST); inv.addResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST); }
+            public UnitType getUnitType() { return UnitType.BUILDER; }
+            public int getTurnCost() { return GameConfig.BUILDER_TURN_COST; }
+        });
+        unitStrategies.put("EXPLORER", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST); inv.addResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST); }
+            public UnitType getUnitType() { return UnitType.EXPLORER; }
+            public int getTurnCost() { return GameConfig.EXPLORER_TURN_COST; }
+        });
+        unitStrategies.put("BORDER_EXPANDER", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST) && inv.hasEnough(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
+            public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST); inv.consumeResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST); inv.consumeResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
+            public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST); inv.addResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST); inv.addResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST); }
+            public UnitType getUnitType() { return UnitType.BORDER_EXPANDER; }
+            public int getTurnCost() { return GameConfig.BORDER_EXPANDER_TURN_COST; }
+        });
     }
 
     public boolean canAffordWarehouseUpgrade() {
@@ -19,37 +105,7 @@ public class UpgradeController {
         int stoneCost = th.getWarehouseUpgradeLevel() == 0 ? GameConfig.WAREHOUSE_LVL1_STONE : GameConfig.WAREHOUSE_LVL2_STONE;
 
         Inventory inv = th.getInventory();
-        return inv.hasEnough(ResourceType.WOOD, woodCost)
-                && inv.hasEnough(ResourceType.STONE, stoneCost);
-    }
-
-    public boolean canUnlockTech(String techType) {
-        TownHall th  = gameMap.getTownHall();
-        Inventory inv = th.getInventory();
-
-        if (!th.isProductionQueueEmpty()) return false;
-
-        switch (techType) {
-            case "STONE_MINE":
-                return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD);
-            case "IRON_MINE":
-                return th.isStoneMineUnlocked() && !th.isIronMineUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_IRON_MINE_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE);
-            case "PROF_TOOLS":
-                return th.isStoneMineUnlocked() && th.isIronMineUnlocked()
-                        && !th.isProfessionalToolsUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_PROF_TOOLS_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE)
-                        && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
-            case "SETTLEMENT":
-                return !th.isSettlementUnlocked()
-                        && inv.hasEnough(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD)
-                        && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE)
-                        && inv.hasEnough(ResourceType.IRON,  GameConfig.TECH_SETTLEMENT_IRON);
-            default:
-                return false;
-        }
+        return inv.hasEnough(ResourceType.WOOD, woodCost) && inv.hasEnough(ResourceType.STONE, stoneCost);
     }
 
     public void handleWarehouseUpgrade() {
@@ -70,143 +126,51 @@ public class UpgradeController {
         }
     }
 
+    public boolean canUnlockTech(String techType) {
+        TownHall th = gameMap.getTownHall();
+        if (!th.isProductionQueueEmpty()) return false;
+        TechStrategy strategy = techStrategies.get(techType);
+        return strategy != null && strategy.canUnlock(th, th.getInventory());
+    }
+
     public void unlockTech(String techType) {
         if (!canUnlockTech(techType)) return;
-        TownHall th = gameMap.getTownHall();
-        Inventory inv = th.getInventory();
-
-        switch (techType) {
-            case "STONE_MINE":
-                if (th.queueCommand(new ProductionCommand("Tech: Stone Mine", GameConfig.TECH_STONE_MINE_TURN_COST, false) {
-                    @Override public void execute() { th.setStoneMineUnlocked(true); }
-                })) {
-                    inv.consumeResource(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD);
-                }
-                break;
-            case "IRON_MINE":
-                if (th.queueCommand(new ProductionCommand("Tech: Iron Mine", GameConfig.TECH_IRON_MINE_TURN_COST, false) {
-                    @Override public void execute() { th.setIronMineUnlocked(true); }
-                })) {
-                    inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_IRON_MINE_WOOD);
-                    inv.consumeResource(ResourceType.STONE, GameConfig.TECH_IRON_MINE_STONE);
-                }
-                break;
-            case "PROF_TOOLS":
-                if (th.queueCommand(new ProductionCommand("Tech: Prof. Tools", GameConfig.TECH_PROF_TOOLS_TURN_COST, false) {
-                    @Override public void execute() { th.setProfessionalToolsUnlocked(true); }
-                })) {
-                    inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_PROF_TOOLS_WOOD);
-                    inv.consumeResource(ResourceType.STONE, GameConfig.TECH_PROF_TOOLS_STONE);
-                    inv.consumeResource(ResourceType.IRON,  GameConfig.TECH_PROF_TOOLS_IRON);
-                }
-                break;
-            case "SETTLEMENT":
-                if (th.queueCommand(new ProductionCommand("Tech: Settlement", GameConfig.TECH_SETTLEMENT_TURN_COST, false) {
-                    @Override public void execute() { th.setSettlementUnlocked(true); }
-                })) {
-                    inv.consumeResource(ResourceType.WOOD,  GameConfig.TECH_SETTLEMENT_WOOD);
-                    inv.consumeResource(ResourceType.STONE, GameConfig.TECH_SETTLEMENT_STONE);
-                    inv.consumeResource(ResourceType.IRON,  GameConfig.TECH_SETTLEMENT_IRON);
-                }
-                break;
-        }
+        TechStrategy strategy = techStrategies.get(techType);
+        if (strategy != null) strategy.unlock(gameMap.getTownHall(), gameMap.getTownHall().getInventory());
     }
 
     public boolean canTrainUnit(String unitType) {
         TownHall th = gameMap.getTownHall();
-
-        if (!th.isProductionQueueEmpty()) return false;
-        if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return false;
-
-        Inventory inv = th.getInventory();
-
-        switch (unitType) {
-            case "WORKER":
-                return inv.hasEnough(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
-            case "BUILDER":
-                return inv.hasEnough(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
-            case "EXPLORER":
-                return inv.hasEnough(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
-            case "BORDER_EXPANDER":
-                return inv.hasEnough(ResourceType.FOOD,  GameConfig.BORDER_EXPANDER_FOOD_COST) && inv.hasEnough(ResourceType.WOOD,  GameConfig.BORDER_EXPANDER_WOOD_COST) && inv.hasEnough(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
-            default:
-                return false;
-        }
+        if (!th.isProductionQueueEmpty() || gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) return false;
+        UnitStrategy strategy = unitStrategies.get(unitType);
+        return strategy != null && strategy.canTrain(th.getInventory());
     }
 
     public void trainUnit(String unitType) {
         if (!canTrainUnit(unitType)) return;
-
         TownHall th = gameMap.getTownHall();
-        Inventory inv = th.getInventory();
+        UnitStrategy strategy = unitStrategies.get(unitType);
+        if (strategy == null) return;
 
-        switch (unitType) {
-            case "WORKER":
-                if (th.queueCommand(new ProductionCommand("Worker", GameConfig.WORKER_TURN_COST, true) {
-                    @Override public void execute() { spawnSpecificUnit("WORKER"); }
-                })) {
-                    inv.consumeResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
-                }
-                break;
-            case "BUILDER":
-                if (th.queueCommand(new ProductionCommand("Builder", GameConfig.BUILDER_TURN_COST, true) {
-                    @Override public void execute() { spawnSpecificUnit("BUILDER"); }
-                })) {
-                    inv.consumeResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
-                }
-                break;
-            case "EXPLORER":
-                if (th.queueCommand(new ProductionCommand("Explorer", GameConfig.EXPLORER_TURN_COST, true) {
-                    @Override public void execute() { spawnSpecificUnit("EXPLORER"); }
-                })) {
-                    inv.consumeResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
-                }
-                break;
-            case "BORDER_EXPANDER":
-                if (th.queueCommand(new ProductionCommand("Border Expander", GameConfig.BORDER_EXPANDER_TURN_COST, true) {
-                    @Override public void execute() { spawnSpecificUnit("BORDER_EXPANDER"); }
-                })) {
-                    inv.consumeResource(ResourceType.FOOD,  GameConfig.BORDER_EXPANDER_FOOD_COST);
-                    inv.consumeResource(ResourceType.WOOD,  GameConfig.BORDER_EXPANDER_WOOD_COST);
-                    inv.consumeResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
-                }
-                break;
+        if (th.queueCommand(new ProductionCommand(unitType, strategy.getTurnCost(), true) {
+            @Override public void execute() { spawnSpecificUnit(strategy); }
+        })) {
+            strategy.consumeResources(th.getInventory());
         }
     }
 
-    private void spawnSpecificUnit(String unitType) {
+    private void spawnSpecificUnit(UnitStrategy strategy) {
         if (gameMap.getAliveUnitsCount() >= gameMap.getUnitCap()) {
-            Inventory inv = gameMap.getTownHall().getInventory();
-            switch (unitType) {
-                case "WORKER":
-                    inv.addResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST);
-                    break;
-                case "BUILDER":
-                    inv.addResource(ResourceType.FOOD, GameConfig.BUILDER_FOOD_COST);
-                    inv.addResource(ResourceType.WOOD, GameConfig.BUILDER_WOOD_COST);
-                    break;
-                case "EXPLORER":
-                    inv.addResource(ResourceType.FOOD, GameConfig.EXPLORER_FOOD_COST);
-                    inv.addResource(ResourceType.WOOD, GameConfig.EXPLORER_WOOD_COST);
-                    break;
-                case "BORDER_EXPANDER":
-                    inv.addResource(ResourceType.FOOD, GameConfig.BORDER_EXPANDER_FOOD_COST);
-                    inv.addResource(ResourceType.WOOD, GameConfig.BORDER_EXPANDER_WOOD_COST);
-                    inv.addResource(ResourceType.STONE, GameConfig.BORDER_EXPANDER_STONE_COST);
-                    break;
-            }
+            strategy.refundResources(gameMap.getTownHall().getInventory());
             return;
         }
-
         TownHall th = gameMap.getTownHall();
         Hex spawnHex = gameMap.findEmptySpawnHex(th.getQ(), th.getR());
         int targetQ = spawnHex != null ? spawnHex.getQ() : th.getQ();
         int targetR = spawnHex != null ? spawnHex.getR() : th.getR();
 
-        // Factory Pattern in Action!
-        Unit newUnit = UnitFactory.createUnit(unitType, targetQ, targetR);
+        // استفاده مستقیم از Factory
+        Unit newUnit = UnitFactory.createUnit(strategy.getUnitType(), targetQ, targetR);
         gameMap.addUnit(newUnit);
     }
 }
