@@ -13,6 +13,7 @@ public class MainController {
     private final EconomyController economyController;
     private final TradeController tradeController;
     private final TribeController tribeController;
+    private final SaveLoadController saveLoadController; // ثبت سیستم Save
 
     public MainController(GameMap gameMap) {
         this.gameMap = gameMap;
@@ -23,6 +24,7 @@ public class MainController {
         this.unitController = new UnitController();
         this.buildController = new BuildController(gameMap);
         this.upgradeController = new UpgradeController(gameMap);
+        this.saveLoadController = new SaveLoadController(this); // مقداردهی
     }
 
     public GameMap getGameMap() { return gameMap; }
@@ -33,6 +35,7 @@ public class MainController {
     public EconomyController getEconomyController() { return economyController; }
     public TradeController getTradeController() { return tradeController; }
     public TribeController getTribeController() { return tribeController; }
+    public SaveLoadController getSaveLoadController() { return saveLoadController; }
 
     public Unit selectUnitAt(Hex hex) { return unitController.selectUnitAt(hex, gameMap); }
     public boolean canMove(Unit unit, Hex targetHex) { return unitController.canMove(unit, targetHex); }
@@ -76,6 +79,11 @@ public class MainController {
                 upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
         actions.add(new MenuAction(String.format(popPrefix + "🏹 Train Archer (20F, 20W)"),
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
+
+        // دکمه‌های دستی Save در منوی TownHall اضافه شد
+        actions.add(new MenuAction("💾 Save Game (Slot 1)", true, () -> saveLoadController.saveGame("slot1")));
+        actions.add(new MenuAction("💾 Save Game (Slot 2)", true, () -> saveLoadController.saveGame("slot2")));
+        actions.add(new MenuAction("💾 Save Game (Slot 3)", true, () -> saveLoadController.saveGame("slot3")));
 
         return actions;
     }
