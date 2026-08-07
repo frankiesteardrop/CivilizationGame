@@ -1,7 +1,6 @@
 package view;
 
 import controller.MainController;
-import controller.MenuAction;
 import model.*;
 
 import javax.swing.*;
@@ -9,7 +8,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.util.List;
 
 public class GameInputHandler extends MouseAdapter {
     private final GamePanel panel;
@@ -96,7 +94,7 @@ public class GameInputHandler extends MouseAdapter {
 
         if (selectedUnit != null) {
             if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
-                showMenu(e, mainController.getUnitMenuActions(selectedUnit, clickedHex));
+                panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
             } else if (mainController.canMove(selectedUnit, clickedHex)) {
                 Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
                 Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
@@ -106,36 +104,7 @@ public class GameInputHandler extends MouseAdapter {
         }
 
         if (clickedHex.getBuilding() != null && clickedHex.getBuilding().getType() == BuildingType.TOWN_HALL) {
-            showMenu(e, mainController.getTownHallMenuActions());
+            panel.showContextMenu(e.getPoint(), mainController.getTownHallMenuActions());
         }
-    }
-
-    private void showMenu(MouseEvent e, List<MenuAction> actions) {
-        if (actions == null || actions.isEmpty()) return;
-
-        JPopupMenu popup = new JPopupMenu();
-        popup.setBackground(new Color(30, 33, 40));
-        popup.setBorder(BorderFactory.createLineBorder(new Color(70, 130, 180), 1));
-
-        for (MenuAction action : actions) {
-            JMenuItem item = new JMenuItem(action.getLabel());
-            item.setBackground(new Color(30, 33, 40));
-            item.setForeground(Color.WHITE);
-            item.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 13));
-            item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-            if (!action.isEnabled()) {
-                item.setEnabled(false);
-            } else {
-                item.addActionListener(ev -> {
-                    action.execute();
-                    panel.setSelectedUnit(null);
-                    panel.repaint();
-                });
-            }
-            popup.add(item);
-        }
-
-        popup.show(panel, e.getX(), e.getY());
     }
 }

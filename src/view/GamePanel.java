@@ -1,6 +1,7 @@
 package view;
 
 import controller.MainController;
+import controller.MenuAction;
 import model.Hex;
 import model.Unit;
 
@@ -98,6 +99,35 @@ public class GamePanel extends JPanel {
 
         hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
+    }
+
+    public void showContextMenu(Point p, List<MenuAction> actions) {
+        if (actions == null || actions.isEmpty()) return;
+
+        JPopupMenu popup = new JPopupMenu();
+        popup.setBackground(new Color(30, 33, 40));
+        popup.setBorder(BorderFactory.createLineBorder(new Color(70, 130, 180), 1));
+
+        for (MenuAction action : actions) {
+            JMenuItem item = new JMenuItem(action.getLabel());
+            item.setBackground(new Color(30, 33, 40));
+            item.setForeground(Color.WHITE);
+            item.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 13));
+            item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+            if (!action.isEnabled()) {
+                item.setEnabled(false);
+            } else {
+                item.addActionListener(ev -> {
+                    action.execute();
+                    setSelectedUnit(null);
+                    repaint();
+                });
+            }
+            popup.add(item);
+        }
+
+        popup.show(this, p.x, p.y);
     }
 
     public Point getHexPixelCoords(int q, int r) {

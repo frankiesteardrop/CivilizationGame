@@ -15,7 +15,7 @@ public class TownHall extends Building {
     private boolean professionalToolsUnlocked;
     private boolean settlementUnlocked;
 
-    private final Queue<ProductionTask> productionQueue;
+    private final Queue<ProductionCommand> productionQueue;
 
     public TownHall(int q, int r) {
         super(BuildingType.TOWN_HALL.getMaxWorkers());
@@ -49,7 +49,7 @@ public class TownHall extends Building {
     public void advanceProductionQueue(boolean isStarving) {
         if (productionQueue.isEmpty()) return;
 
-        ProductionTask currentTask = productionQueue.peek();
+        ProductionCommand currentTask = productionQueue.peek();
 
         if (isStarving && currentTask.isPopulationTask()) {
             return;
@@ -59,16 +59,16 @@ public class TownHall extends Building {
 
         if (currentTask.isCompleted()) {
             productionQueue.poll();
-            currentTask.complete();
+            currentTask.execute(); // Command Pattern in Action!
             GameEventDispatcher.fireProductionCompleted(currentTask.getName());
         }
     }
 
-    public boolean queueProduction(String itemName, int turnCost, boolean isPopulationTask, Runnable onComplete) {
+    public boolean queueCommand(ProductionCommand command) {
         if (!productionQueue.isEmpty()) {
             return false;
         }
-        productionQueue.add(new ProductionTask(itemName, turnCost, isPopulationTask, onComplete));
+        productionQueue.add(command);
         return true;
     }
 
@@ -90,7 +90,7 @@ public class TownHall extends Building {
     public int getR()                     { return r; }
     public Inventory getInventory()       { return inventory; }
     public int getWarehouseUpgradeLevel() { return warehouseUpgradeLevel; }
-    public Queue<ProductionTask> getProductionQueue() { return productionQueue; }
+    public Queue<ProductionCommand> getProductionQueue() { return productionQueue; }
 
     public boolean isStoneMineUnlocked()              { return stoneMineUnlocked; }
     public void setStoneMineUnlocked(boolean v)       { this.stoneMineUnlocked = v; }
@@ -100,25 +100,4 @@ public class TownHall extends Building {
     public void setProfessionalToolsUnlocked(boolean v){ this.professionalToolsUnlocked = v; }
     public boolean isSettlementUnlocked()             { return settlementUnlocked; }
     public void setSettlementUnlocked(boolean v)      { this.settlementUnlocked = v; }
-
-    public static class ProductionTask {
-        private final String name;
-        private int turnsRemaining;
-        private final boolean isPopulationTask;
-        private final Runnable onComplete;
-
-        public ProductionTask(String name, int turnsRemaining, boolean isPopulationTask, Runnable onComplete) {
-            this.name             = name;
-            this.turnsRemaining   = turnsRemaining;
-            this.isPopulationTask = isPopulationTask;
-            this.onComplete       = onComplete;
-        }
-
-        public String getName()              { return name; }
-        public int getTurnsRemaining()       { return turnsRemaining; }
-        public boolean isPopulationTask()    { return isPopulationTask; }
-        public void decrementTurn()          { turnsRemaining--; }
-        public boolean isCompleted()         { return turnsRemaining <= 0; }
-        public void complete()               { if (onComplete != null) onComplete.run(); }
-    }
 }

@@ -95,22 +95,11 @@ public class BuildController {
         builder.consumeAP(type.getApCost());
         builder.useCharge();
 
-        Building newBuilding = createBuilding(type);
+        // Factory Pattern in Action!
+        Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
         gameMap.updateFogOfWar();
         GameEventDispatcher.fireBuildingConstructed(hex);
-    }
-
-    private Building createBuilding(BuildingType type) {
-        switch (type) {
-            case LUMBER_MILL: return new LumberMill();
-            case STONE_MINE: return new StoneMine();
-            case IRON_MINE: return new IronMine();
-            case FARM: return new Farm();
-            case STABLE: return new Stable();
-            case SETTLEMENT: return new Settlement();
-            default: throw new IllegalArgumentException("Unknown building type: " + type);
-        }
     }
 }
