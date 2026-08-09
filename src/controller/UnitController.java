@@ -16,7 +16,7 @@ public class UnitController {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
 
-        // بررسی terrain غیرقابل عبور
+        // رشته‌کوه: مطلقاً غیرقابل عبور برای همه
         if (targetHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         int dq = targetHex.getQ() - unit.getQ();
@@ -26,17 +26,27 @@ public class UnitController {
         boolean isNeighbor = (Math.max(Math.max(Math.abs(dq), Math.abs(dr)), Math.abs(ds)) == 1);
         if (!isNeighbor) return false;
 
+        // ─── بررسی ویژه دریا ────────────────────────────────────────────────────
+        // دریا فقط با تکنولوژی Seafaring قابل عبور است.
+        // با Seafaring: کافی است یونیت حداقل ۱ AP داشته باشد
+        // (تمام AP باقی‌مانده در لحظه ورود صفر می‌شود — طبق spec).
+        if (targetHex.getTerrainType() == TerrainType.SEA) {
+            if (map == null) return false; // بدون context مپ نمی‌توان بررسی کرد
+            if (!map.getTownHall().isSeafaringUnlocked()) return false;
+            return unit.getCurrentAP() >= 1;
+        }
+
+        // ─── محاسبه هزینه برای terrain‌های خشکی ────────────────────────────────
         int cost;
         if (map != null) {
             Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
             if (fromHex != null) {
                 cost = calculateMoveCost(fromHex, targetHex, dq, dr, map.getCurrentSeason());
             } else {
-                // اگر هکس مبدأ پیدا نشد، fallback به حساب ساده
                 cost = getBaseSeasonalCost(targetHex, map.getCurrentSeason());
             }
         } else {
-            // بدون map: فقط terrain cost پایه (برای highlight)
+            // بدون map: فقط terrain cost پایه (برای highlight قبل از انتخاب)
             cost = targetHex.getTerrainType().getMovementCost();
         }
 
@@ -47,6 +57,15 @@ public class UnitController {
         if (unit == null || targetHex == null || map == null) return;
         if (!canMove(unit, targetHex, map)) return;
 
+        // ─── ورود به دریا: تمام AP ترن مصرف می‌شود (طبق spec) ─────────────────
+        if (targetHex.getTerrainType() == TerrainType.SEA) {
+            // unit.moveTo با currentAP فراخوانی می‌شود تا همه AP صفر شود
+            unit.moveTo(targetHex.getQ(), targetHex.getR(), unit.getCurrentAP());
+            map.updateFogOfWar();
+            return;
+        }
+
+        // ─── حرکت معمولی روی خشکی ──────────────────────────────────────────────
         Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
         int dq = targetHex.getQ() - unit.getQ();
         int dr = targetHex.getR() - unit.getR();
@@ -86,7 +105,7 @@ public class UnitController {
         if (dir >= 0 && fromHex.hasRiver(dir)) {
             if (roadConnected) {
                 // جاده روی هر دو طرف = پل → penalty رودخانه حذف می‌شود
-                // (cost همان ۱ باقی می‌ماند، penalty اضافه نمی‌شود)
+                // (cost همان ۱ باقی می‌ماند)
             } else {
                 // رودخانه بدون پل → +2 AP هزینه اضافه
                 cost += 2;
@@ -133,7 +152,7 @@ public class UnitController {
         if (dq == -1 && dr ==  0) return 3;
         if (dq == -1 && dr ==  1) return 4;
         if (dq ==  0 && dr ==  1) return 5;
-        return -1; // نباید اتفاق بیفتد اگر dq/dr از neighbor معتبر آمده باشد
+        return -1;
     }
 
     public boolean canStation(Worker worker, Hex hex) {
