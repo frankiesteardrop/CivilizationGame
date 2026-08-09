@@ -6,6 +6,7 @@ import model.GameMap;
 import model.Hex;
 import model.Inventory;
 import model.ResourceType;
+import model.Season;
 import model.TownHall;
 import model.Unit;
 import model.Explorer;
@@ -34,6 +35,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final HUDCard queueCard;
     private final HUDCard popCard;
     private final HUDCard turnCard;
+    private final HUDCard happinessCard;   // ← جدید: نمایش رضایت عمومی
+    private final HUDCard seasonCard;      // ← جدید: نمایش فصل جاری
     private final JPanel starvationAlertCard;
 
     private boolean confirmIdleMode = false;
@@ -58,13 +61,15 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn = buildEndTurnButton();
         add(endTurnBtn, BorderLayout.EAST);
 
-        foodCard  = new HUDCard("🍔 Food",  new Color(46, 204, 113),  false);
-        woodCard  = new HUDCard("🪵 Wood",  new Color(211, 84, 0),    false);
-        stoneCard = new HUDCard("🪨 Stone", new Color(149, 165, 166), false);
-        ironCard  = new HUDCard("⚙️ Iron",  new Color(243, 156, 18),  false);
-        queueCard = new HUDCard("🏗️ Queue", new Color(241, 196, 15),  false);
-        popCard   = new HUDCard("👥 Units", new Color(52, 152, 219),  false);
-        turnCard  = new HUDCard("⏳ Turn",  new Color(155, 89, 182),  false);
+        foodCard      = new HUDCard("🍔 Food",     new Color(46, 204, 113),  false);
+        woodCard      = new HUDCard("🪵 Wood",     new Color(211, 84, 0),    false);
+        stoneCard     = new HUDCard("🪨 Stone",    new Color(149, 165, 166), false);
+        ironCard      = new HUDCard("⚙️ Iron",     new Color(243, 156, 18),  false);
+        queueCard     = new HUDCard("🏗️ Queue",    new Color(241, 196, 15),  false);
+        popCard       = new HUDCard("👥 Units",    new Color(52, 152, 219),  false);
+        turnCard      = new HUDCard("⏳ Turn",     new Color(155, 89, 182),  false);
+        happinessCard = new HUDCard("😊 Happiness", new Color(255, 165, 0),  false); // ← جدید
+        seasonCard    = new HUDCard("🌍 Season",   new Color(100, 180, 255), false); // ← جدید
         starvationAlertCard = createStarvationCard();
         starvationAlertCard.setVisible(false);
 
@@ -74,6 +79,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.add(ironCard);
         infoContainer.add(queueCard);
         infoContainer.add(popCard);
+        infoContainer.add(happinessCard);   // ← جدید
+        infoContainer.add(seasonCard);      // ← جدید
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
@@ -161,6 +168,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
         stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
         ironCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.IRON),  maxIron,  netIron));
 
+        // ─── Queue ───────────────────────────────────────────────────────────────
         ProductionCommand currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
             if (isStarving && currentTask.isPopulationTask()) {
@@ -172,27 +180,77 @@ public class HUDPanel extends JPanel implements GameEventListener {
             queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
         }
 
-        // شمارش یونیت‌های نظامی جداگانه از کل یونیت‌ها
-        long milCount = map.getMilitaryUnitCount();
-        int  milCap   = map.getMilitaryUnitCap();
+        // ─── Units (نظامی + کل) ──────────────────────────────────────────────────
+        long milCount  = map.getMilitaryUnitCount();
+        int  milCap    = map.getMilitaryUnitCap();
         long expCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
-        long buildCount= map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
+        long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
         long workCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
-        long expndCount= map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
-
-        // رنگ قرمز وقتی سقف نظامی پر شده
+        long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
         String milColor = (milCount >= milCap) ? "#e74c3c" : "#2ecc71";
-
         String unitText =
                 "<span style='color:" + milColor + ";'>⚔️ " + milCount + "/" + milCap + "</span>"
                         + " | 👥 " + map.getAliveUnitsCount()
                         + " <span style='font-size:10px; color:#bdc3c7;'>"
                         + "(E:" + expCount + " B:" + buildCount + " W:" + workCount + " X:" + expndCount + ")"
                         + "</span>";
-
         popCard.updateValue(unitText);
+
+        // ─── Happiness ───────────────────────────────────────────────────────────
+        int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
+        happinessCard.updateValue(formatHappinessText(happiness));
+
+        // ─── Season ──────────────────────────────────────────────────────────────
+        Season season = map.getCurrentSeason();
+        seasonCard.updateValue(formatSeasonText(season));
+
+        // ─── Turn ────────────────────────────────────────────────────────────────
         turnCard.updateValue(String.valueOf(map.getCurrentTurn()));
+
         starvationAlertCard.setVisible(isStarving);
+    }
+
+    /**
+     * متن نمایش رضایت با رنگ و برچسب سطح فعلی.
+     * سطوح طبق spec فاز دوم:
+     * ≥ +3 → Golden Age (طلایی)
+     * -2 تا +2 → Normal (سبز)
+     * -3 تا -4 → Discontent (نارنجی)
+     * ≤ -5 → Rebellion (قرمز)
+     */
+    private String formatHappinessText(int happiness) {
+        String sign = happiness > 0 ? "+" : "";
+        String levelLabel;
+        String levelColor;
+
+        if (happiness >= 3) {
+            levelLabel = "✨ Golden Age";
+            levelColor = "#f1c40f";
+        } else if (happiness >= -2) {
+            levelLabel = "😊 Normal";
+            levelColor = "#2ecc71";
+        } else if (happiness >= -4) {
+            levelLabel = "😠 Discontent";
+            levelColor = "#e67e22";
+        } else {
+            levelLabel = "🔥 Rebellion";
+            levelColor = "#e74c3c";
+        }
+
+        return sign + happiness
+                + " <span style='color:" + levelColor + "; font-size:11px;'>[" + levelLabel + "]</span>";
+    }
+
+    /**
+     * متن نمایش فصل جاری با رنگ و ایموجی مناسب.
+     */
+    private String formatSeasonText(Season season) {
+        return switch (season) {
+            case SPRING -> "<span style='color:#a8e063;'>🌸 Spring</span>";
+            case SUMMER -> "<span style='color:#f9d423;'>☀️ Summer</span>";
+            case AUTUMN -> "<span style='color:#e67e22;'>🍂 Autumn</span>";
+            case WINTER -> "<span style='color:#a8d8ea;'>❄️ Winter</span>";
+        };
     }
 
     private String formatResourceText(int amount, int max, int net) {

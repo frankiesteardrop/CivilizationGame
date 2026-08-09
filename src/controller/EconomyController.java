@@ -11,20 +11,51 @@ public class EconomyController implements GameEventListener {
         GameEventDispatcher.addListener(this);
     }
 
+    /**
+     * مقدار انباشته رضایت را برمی‌گرداند.
+     * اثرات per-turn (Monument، Military in TH) هر ترن در applyPerTurnHappiness
+     * به مقدار انباشته اضافه می‌شوند، پس این متد همیشه مقدار واقعی و به‌روز را دارد.
+     */
     public int getEffectiveHappiness(GameMap map) {
-        int base = map.getTownHall().getHappiness();
-        boolean hasMilitary = false;
+        return map.getTownHall().getHappiness();
+    }
+
+    /**
+     * رویدادهای per-turn رضایت را در ابتدای هر ترن اعمال می‌کند.
+     * این متد باید قبل از produceResources فراخوانی شود تا اثر Golden Age/Discontent
+     * همان ترن با happiness به‌روزشده محاسبه شود.
+     *
+     * رویدادهای per-turn طبق spec:
+     * - هر Monument فعال (non-destroyed): +2 رضایت
+     * - وجود حداقل یک یونیت نظامی روی هکس TownHall: +1 رضایت
+     */
+    private void applyPerTurnHappiness(GameMap map) {
         TownHall th = map.getTownHall();
+
+        // Monument‌های فعال: هر کدام +2 رضایت در هر ترن
+        for (Hex hex : map.getHexes()) {
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed() && b.getType() == BuildingType.MONUMENT) {
+                th.addHappiness(2);
+            }
+        }
+
+        // یونیت نظامی روی هکس TownHall: +1 رضایت در هر ترن
+        boolean hasMilitaryInTH = false;
         for (Unit u : map.getUnits()) {
             if (u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()) {
-                if (u.getType() != UnitType.WORKER && u.getType() != UnitType.BUILDER &&
-                        u.getType() != UnitType.EXPLORER && u.getType() != UnitType.BORDER_EXPANDER) {
-                    hasMilitary = true;
+                UnitType unitType = u.getType();
+                if (unitType == UnitType.SWORDSMAN ||
+                        unitType == UnitType.ARCHER    ||
+                        unitType == UnitType.CAVALRY) {
+                    hasMilitaryInTH = true;
                     break;
                 }
             }
         }
-        return base + (hasMilitary ? 1 : 0);
+        if (hasMilitaryInTH) {
+            th.addHappiness(1);
+        }
     }
 
     @Override
@@ -42,6 +73,9 @@ public class EconomyController implements GameEventListener {
     }
 
     public boolean processEndTurn(GameMap map) {
+        // ۱. ابتدا رویدادهای per-turn رضایت اعمال می‌شوند (Monument، Military in TH)
+        applyPerTurnHappiness(map);
+        // ۲. سپس تولید منابع با happiness به‌روزشده محاسبه می‌شود
         produceResources(map);
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
@@ -80,21 +114,23 @@ public class EconomyController implements GameEventListener {
 
             if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
                 boolean nearSea = false;
-                for(int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++) {
                     Hex n = map.getNeighbor(hex, i);
                     if (n != null && n.getTerrainType() == TerrainType.SEA) nearSea = true;
                 }
                 if (nearSea) production += 2;
             } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
                 int mCount = 0;
-                for(int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++) {
                     Hex n = map.getNeighbor(hex, i);
                     if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
                 }
                 if (mCount >= 2) production += 1;
             }
 
+            // Discontent: هر کارگر ۱ واحد کمتر تولید می‌کند
             if (happiness <= -3) production -= b.getStationedWorkers();
+            // Golden Age: +10% به کل تولید (Floor)
             if (happiness >= 3) production += production / 10;
 
             production = Math.max(0, production);
@@ -113,7 +149,7 @@ public class EconomyController implements GameEventListener {
             if (!hex.hasResource(targetRes)) ejectWorkersFromHex(map, hex);
 
             if (b.getType() == BuildingType.FARM) {
-                for(int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++) {
                     Hex neighbor = map.getNeighbor(hex, i);
                     if (neighbor != null && neighbor.getBuilding() != null &&
                             !neighbor.getBuilding().isDestroyed() && neighbor.getBuilding().getType() == BuildingType.FARM) {
@@ -206,14 +242,14 @@ public class EconomyController implements GameEventListener {
 
                     if (b.getType() == BuildingType.LUMBER_MILL && type == ResourceType.WOOD) {
                         boolean nearSea = false;
-                        for(int i = 0; i < 6; i++) {
+                        for (int i = 0; i < 6; i++) {
                             Hex n = map.getNeighbor(h, i);
                             if (n != null && n.getTerrainType() == TerrainType.SEA) nearSea = true;
                         }
                         if (nearSea) prod += 2;
                     } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
                         int mCount = 0;
-                        for(int i = 0; i < 6; i++) {
+                        for (int i = 0; i < 6; i++) {
                             Hex n = map.getNeighbor(h, i);
                             if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
                         }
@@ -230,7 +266,7 @@ public class EconomyController implements GameEventListener {
             }
 
             if (b.getType() == BuildingType.FARM && type == ResourceType.FOOD) {
-                for(int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++) {
                     Hex neighbor = map.getNeighbor(h, i);
                     if (neighbor != null && neighbor.getBuilding() != null &&
                             !neighbor.getBuilding().isDestroyed() && neighbor.getBuilding().getType() == BuildingType.FARM) {

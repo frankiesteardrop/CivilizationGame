@@ -112,11 +112,11 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
-        // اعمال رویدادهای لحظه‌ای رضایت
+        // اعمال رویدادهای لحظه‌ای رضایت:
+        // فقط Settlement یک رویداد فوری دارد (-1).
+        // Monument اثر per-turn دارد و در applyPerTurnHappiness پردازش می‌شود.
         if (type == BuildingType.SETTLEMENT) {
             gameMap.getTownHall().addHappiness(-1);
-        } else if (type == BuildingType.MONUMENT) {
-            gameMap.getTownHall().addHappiness(2);
         }
 
         gameMap.updateFogOfWar();
@@ -183,10 +183,8 @@ public class BuildController {
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
 
-            // حذف اثر رضایت بنای یادبود در زمان تخریب
-            if (b.getType() == BuildingType.MONUMENT) {
-                gameMap.getTownHall().addHappiness(-2);
-            }
+            // Monument اثر per-turn دارد؛ با تخریب ساختمان، دیگر در applyPerTurnHappiness
+            // شمرده نمی‌شود (چون b.isDestroyed() == true خواهد بود). هیچ adjustment فوری لازم نیست.
 
             gameMap.getUnits().stream()
                     .filter(u -> u instanceof Worker && ((Worker) u).getStationedBuilding() == b)
