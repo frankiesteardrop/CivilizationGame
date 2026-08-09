@@ -165,7 +165,8 @@ public class GameMap {
                         hex.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
                     }
                 }
-                if (hex.getTerrainType() != TerrainType.MOUNTAIN && hex.getTerrainType() != TerrainType.FOREST && hex.getTerrainType() != TerrainType.SEA && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                if (hex.getTerrainType() != TerrainType.MOUNTAIN && hex.getTerrainType() != TerrainType.FOREST
+                        && hex.getTerrainType() != TerrainType.SEA && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
                     availableCandidates.add(hex);
                 }
             }
@@ -260,7 +261,9 @@ public class GameMap {
         sortedHexes.sort(Comparator.comparingInt(h -> getHexDistance(startQ, startR, h.getQ(), h.getR())));
 
         for (Hex hex : sortedHexes) {
-            if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR()) && hex.getTerrainType() != TerrainType.SEA && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+            if ((hex.isExplored() || hex.isVisible()) && !hasUnitAt(hex.getQ(), hex.getR())
+                    && hex.getTerrainType() != TerrainType.SEA
+                    && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
                 return hex;
             }
         }
@@ -271,15 +274,27 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
-    public int getUnitCap() {
-        int cap = GameConfig.UNIT_CAP_BASE;
-        for (Hex h : hexes.getAll()) {
-            Building b = h.getBuilding();
-            if (b != null && b.getType() == BuildingType.SETTLEMENT && !b.isDestroyed()) {
-                cap += GameConfig.UNIT_CAP_SETTLEMENT_BONUS;
-            }
-        }
-        return cap;
+    /**
+     * سقف یونیت‌های نظامی بر اساس سطح TownHall (طبق spec فاز دوم).
+     * سطح ۱ → ۵ یونیت، سطح ۲ → ۱۰ یونیت، سطح ۳ → ۱۵ یونیت
+     */
+    public int getMilitaryUnitCap() {
+        return switch (townHall.getLevel()) {
+            case 1 -> GameConfig.UNIT_CAP_TH_LEVEL_1;
+            case 2 -> GameConfig.UNIT_CAP_TH_LEVEL_2;
+            default -> GameConfig.UNIT_CAP_TH_LEVEL_3;
+        };
+    }
+
+    /**
+     * تعداد یونیت‌های نظامی فعال بازیکن: شمشیرزن، کماندار، سواره‌نظام.
+     * Bear و یونیت‌های غیرنظامی در این شمارش نیستند.
+     */
+    public long getMilitaryUnitCount() {
+        return units.stream().filter(u -> u.isAlive() &&
+                (u.getType() == UnitType.SWORDSMAN ||
+                        u.getType() == UnitType.ARCHER   ||
+                        u.getType() == UnitType.CAVALRY)).count();
     }
 
     public int getHexDistance(int q1, int r1, int q2, int r2) {

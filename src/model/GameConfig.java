@@ -9,7 +9,7 @@ public class GameConfig {
     public static final int TH_UPGRADE2_CAPACITY = 500;
     public static final int TH_UPGRADE3_CAPACITY = 1000;
 
-    // هزینه‌های ارتقای Town Hall (جایگزین انبار)
+    // هزینه‌های ارتقای Town Hall
     public static final int TH_UPGRADE_LVL2_WOOD = 50;
     public static final int TH_UPGRADE_LVL2_STONE = 50;
     public static final int TH_UPGRADE_LVL2_TURN = 3;
@@ -28,7 +28,7 @@ public class GameConfig {
     public static final int TECH_DEFENSIVE_ARCH_STONE = 100;
     public static final int TECH_DEFENSIVE_ARCH_TURN = 4;
 
-    // هزینه‌های فاز اول (برای معدن سنگ و آهن که همچنان نیاز هستند)
+    // هزینه‌های فاز اول
     public static final int TECH_STONE_MINE_WOOD = 50;
     public static final int TECH_IRON_MINE_WOOD = 100;
     public static final int TECH_IRON_MINE_STONE = 50;
@@ -68,8 +68,11 @@ public class GameConfig {
     public static final int STARTING_STONE = 40;
     public static final int STARTING_IRON = 0;
 
-    public static final int UNIT_CAP_BASE = 10;
-    public static final int UNIT_CAP_SETTLEMENT_BONUS = 5;
+    // سقف یونیت نظامی بر اساس سطح Town Hall — طبق spec فاز دوم
+    // سطح ۱: ۵ یونیت، سطح ۲: ۱۰ یونیت، سطح ۳: ۱۵ یونیت
+    public static final int UNIT_CAP_TH_LEVEL_1 = 5;
+    public static final int UNIT_CAP_TH_LEVEL_2 = 10;
+    public static final int UNIT_CAP_TH_LEVEL_3 = 15;
 
     public static final double CHANCE_MOUNTAIN_IRON = 0.3;
     public static final double CHANCE_MEADOW_FOOD = 0.5;

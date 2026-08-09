@@ -13,7 +13,7 @@ public class MainController {
     private final EconomyController economyController;
     private final TradeController tradeController;
     private final TribeController tribeController;
-    private final SaveLoadController saveLoadController; // ثبت سیستم Save
+    private final SaveLoadController saveLoadController;
 
     public MainController(GameMap gameMap) {
         this.gameMap = gameMap;
@@ -24,7 +24,7 @@ public class MainController {
         this.unitController = new UnitController();
         this.buildController = new BuildController(gameMap);
         this.upgradeController = new UpgradeController(gameMap);
-        this.saveLoadController = new SaveLoadController(this); // مقداردهی
+        this.saveLoadController = new SaveLoadController(this);
     }
 
     public GameMap getGameMap() { return gameMap; }
@@ -45,42 +45,68 @@ public class MainController {
         List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
 
+        // prefix برای وضعیت صف تولید (همه یونیت‌ها)
         boolean qEmpty = th.isProductionQueueEmpty();
         String prefix = qEmpty ? "" : "⏳ [BUSY] ";
-        boolean isPopCapped = gameMap.getAliveUnitsCount() >= gameMap.getUnitCap();
-        String popPrefix = isPopCapped ? "👥 [CAP REACHED] " : prefix;
 
-        int whWoodCost = th.getLevel() == 1 ? GameConfig.TH_UPGRADE_LVL2_WOOD : 0;
-        int whStoneCost = th.getLevel() == 1 ? GameConfig.TH_UPGRADE_LVL2_STONE : GameConfig.TH_UPGRADE_LVL3_STONE;
+        // prefix مخصوص یونیت‌های نظامی: نمایش سقف نظامی
+        boolean isMilCapped = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
+        String milPrefix = isMilCapped ? "⚔️ [CAP REACHED] " : prefix;
+
+        // ─── آپگرید TownHall ──────────────────────────────────────────────────
         String whLabel = th.getLevel() >= 3
                 ? "✅ Capital MAXED"
                 : String.format(prefix + "📦 Upgrade TownHall Level %d", th.getLevel() + 1);
+        actions.add(new MenuAction(whLabel, upgradeController.canAffordWarehouseUpgrade(),
+                () -> upgradeController.handleWarehouseUpgrade()));
 
-        actions.add(new MenuAction(whLabel, upgradeController.canAffordWarehouseUpgrade(), () -> upgradeController.handleWarehouseUpgrade()));
-
-        actions.add(new MenuAction(th.isStoneMineUnlocked() ? "✅ ⛏️ Tech: Stone Mine" : String.format(prefix + "⛏️ Tech: Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
+        // ─── تکنولوژی‌ها ──────────────────────────────────────────────────────
+        actions.add(new MenuAction(th.isStoneMineUnlocked()
+                ? "✅ ⛏️ Tech: Stone Mine"
+                : String.format(prefix + "⛏️ Tech: Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
                 upgradeController.canUnlockTech("STONE_MINE"), () -> upgradeController.unlockTech("STONE_MINE")));
-        actions.add(new MenuAction(th.isIronMineUnlocked() ? "✅ 🔩 Tech: Iron Mine" : String.format(prefix + "🔩 Tech: Iron Mine (%dW, %dS)", GameConfig.TECH_IRON_MINE_WOOD, GameConfig.TECH_IRON_MINE_STONE),
+
+        actions.add(new MenuAction(th.isIronMineUnlocked()
+                ? "✅ 🔩 Tech: Iron Mine"
+                : String.format(prefix + "🔩 Tech: Iron Mine (%dW, %dS)", GameConfig.TECH_IRON_MINE_WOOD, GameConfig.TECH_IRON_MINE_STONE),
                 upgradeController.canUnlockTech("IRON_MINE"), () -> upgradeController.unlockTech("IRON_MINE")));
-        actions.add(new MenuAction(th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools" : String.format(prefix + "🔧 Tech: Steel Tools (%dI)", GameConfig.TECH_STEEL_TOOLS_IRON),
+
+        actions.add(new MenuAction(th.isProfessionalToolsUnlocked()
+                ? "✅ 🔧 Tech: Steel Tools"
+                : String.format(prefix + "🔧 Tech: Steel Tools (%dI)", GameConfig.TECH_STEEL_TOOLS_IRON),
                 upgradeController.canUnlockTech("PROF_TOOLS"), () -> upgradeController.unlockTech("PROF_TOOLS")));
-        actions.add(new MenuAction(th.isSeafaringUnlocked() ? "✅ ⛵ Tech: Seafaring" : String.format(prefix + "⛵ Tech: Seafaring (%dW)", GameConfig.TECH_SEAFARING_WOOD),
+
+        actions.add(new MenuAction(th.isSeafaringUnlocked()
+                ? "✅ ⛵ Tech: Seafaring"
+                : String.format(prefix + "⛵ Tech: Seafaring (%dW)", GameConfig.TECH_SEAFARING_WOOD),
                 upgradeController.canUnlockTech("SEAFARING"), () -> upgradeController.unlockTech("SEAFARING")));
-        actions.add(new MenuAction(th.isDefensiveArchUnlocked() ? "✅ 🏰 Tech: Defensive Arch" : String.format(prefix + "🏰 Tech: Defensive Arch (%dS)", GameConfig.TECH_DEFENSIVE_ARCH_STONE),
+
+        actions.add(new MenuAction(th.isDefensiveArchUnlocked()
+                ? "✅ 🏰 Tech: Defensive Arch"
+                : String.format(prefix + "🏰 Tech: Defensive Arch (%dS)", GameConfig.TECH_DEFENSIVE_ARCH_STONE),
                 upgradeController.canUnlockTech("DEFENSIVE_ARCH"), () -> upgradeController.unlockTech("DEFENSIVE_ARCH")));
 
-        actions.add(new MenuAction(String.format(popPrefix + "👷 Train Worker (%dF)", GameConfig.WORKER_FOOD_COST),
+        // ─── یونیت‌های غیرنظامی (prefix — فقط صف تولید بررسی می‌شود) ─────────
+        actions.add(new MenuAction(String.format(prefix + "👷 Train Worker (%dF)", GameConfig.WORKER_FOOD_COST),
                 upgradeController.canTrainUnit("WORKER"), () -> upgradeController.trainUnit("WORKER")));
-        actions.add(new MenuAction(String.format(popPrefix + "🔨 Train Builder (%dF, %dW)", GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST),
+
+        actions.add(new MenuAction(String.format(prefix + "🔨 Train Builder (%dF, %dW)", GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST),
                 upgradeController.canTrainUnit("BUILDER"), () -> upgradeController.trainUnit("BUILDER")));
-        actions.add(new MenuAction(String.format(popPrefix + "🧭 Train Explorer (%dF, %dW)", GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
+
+        actions.add(new MenuAction(String.format(prefix + "🧭 Train Explorer (%dF, %dW)", GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
                 upgradeController.canTrainUnit("EXPLORER"), () -> upgradeController.trainUnit("EXPLORER")));
-        actions.add(new MenuAction(String.format(popPrefix + "⚔️ Train Swordsman (20F, 10W)"),
+
+        // ─── یونیت‌های نظامی (milPrefix — صف تولید + سقف نظامی بررسی می‌شود) ─
+        actions.add(new MenuAction(milPrefix + "⚔️ Train Swordsman (20F, 10W)",
                 upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
-        actions.add(new MenuAction(String.format(popPrefix + "🏹 Train Archer (20F, 20W)"),
+
+        actions.add(new MenuAction(milPrefix + "🏹 Train Archer (20F, 20W) [Req: TH L2]",
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
 
-        // دکمه‌های دستی Save در منوی TownHall اضافه شد
+        actions.add(new MenuAction(milPrefix + "🏇 Train Cavalry (30F, 20I) [Req: TH L2 + Stable]",
+                upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
+
+        // ─── Save Manual ──────────────────────────────────────────────────────
         actions.add(new MenuAction("💾 Save Game (Slot 1)", true, () -> saveLoadController.saveGame("slot1")));
         actions.add(new MenuAction("💾 Save Game (Slot 2)", true, () -> saveLoadController.saveGame("slot2")));
         actions.add(new MenuAction("💾 Save Game (Slot 3)", true, () -> saveLoadController.saveGame("slot3")));
@@ -97,15 +123,15 @@ public class MainController {
             } else if (!hex.isInsideBorder()) {
                 actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
             } else {
-                actions.add(createBuildAction(builder, hex, BuildingType.LUMBER_MILL, "🌲 Build Lumber Mill"));
-                actions.add(createBuildAction(builder, hex, BuildingType.FARM, "🌾 Build Farm"));
-                actions.add(createBuildAction(builder, hex, BuildingType.STABLE, "🐄 Build Stable"));
-                actions.add(createBuildAction(builder, hex, BuildingType.STONE_MINE, "⛏️ Build Stone Mine"));
-                actions.add(createBuildAction(builder, hex, BuildingType.IRON_MINE, "🔩 Build Iron Mine"));
-                actions.add(createBuildAction(builder, hex, BuildingType.SETTLEMENT, "🏘️ Build Settlement"));
-                actions.add(createBuildAction(builder, hex, BuildingType.DOCK, "⚓ Build Dock"));
-                actions.add(createBuildAction(builder, hex, BuildingType.MONUMENT, "🏛️ Build Monument"));
-                actions.add(createBuildAction(builder, hex, BuildingType.BAZAAR, "⚖️ Build Bazaar"));
+                actions.add(createBuildAction(builder, hex, BuildingType.LUMBER_MILL,  "🌲 Build Lumber Mill"));
+                actions.add(createBuildAction(builder, hex, BuildingType.FARM,         "🌾 Build Farm"));
+                actions.add(createBuildAction(builder, hex, BuildingType.STABLE,       "🐄 Build Stable"));
+                actions.add(createBuildAction(builder, hex, BuildingType.STONE_MINE,   "⛏️ Build Stone Mine"));
+                actions.add(createBuildAction(builder, hex, BuildingType.IRON_MINE,    "🔩 Build Iron Mine"));
+                actions.add(createBuildAction(builder, hex, BuildingType.SETTLEMENT,   "🏘️ Build Settlement"));
+                actions.add(createBuildAction(builder, hex, BuildingType.DOCK,         "⚓ Build Dock [Req: TH L2]"));
+                actions.add(createBuildAction(builder, hex, BuildingType.MONUMENT,     "🏛️ Build Monument"));
+                actions.add(createBuildAction(builder, hex, BuildingType.BAZAAR,       "⚖️ Build Bazaar [Req: TH L2]"));
             }
         } else if (selectedUnit.getType() == UnitType.WORKER) {
             Worker worker = (Worker) selectedUnit;
