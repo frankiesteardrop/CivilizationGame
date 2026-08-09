@@ -60,6 +60,24 @@ public class HexRenderer {
             }
         }
 
+
+        // ── در HexRenderer.renderAll، بعد از بلوک flood overlay ──────────────────
+
+// افکت flash حمله خرس (قهوه‌ای)
+        List<Hex> bearHexes = panel.getBearAttackHexes();
+        if (bearHexes != null && !bearHexes.isEmpty() && panel.getBearAlpha() > 0) {
+            g2d.setColor(new Color(101, 55, 0, (int)(panel.getBearAlpha() * 255)));
+            for (Hex hex : bearHexes) {
+                if (visibleHexes.contains(hex)) {
+                    Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+                    g2d.translate(pt.x, pt.y);
+                    g2d.fillPolygon(cachedHexBase);
+                    g2d.translate(-pt.x, -pt.y);
+                }
+            }
+        }
+
+
         for (Hex hex : visibleHexes) {
             if (hex.isExplored() && !hex.isVisible()) {
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -70,6 +88,8 @@ public class HexRenderer {
             }
         }
     }
+
+
 
     private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, List<Hex> visibleHexes) {
         Unit selectedUnit = panel.getSelectedUnit();

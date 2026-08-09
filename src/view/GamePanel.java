@@ -34,8 +34,15 @@ public class GamePanel extends JPanel implements GameEventListener {
     // افکت‌های بلایای طبیعی
     private int shakeDuration = 0;
     private int shakeX = 0, shakeY = 0;
+
+    // سیل (آبی)
     private List<Hex> floodedHexes = new ArrayList<>();
     private float floodAlpha = 0f;
+
+    // حمله خرس (قهوه‌ای — flash کوتاه)
+    private List<Hex> bearAttackHexes = new ArrayList<>();
+    private float bearAlpha = 0f;
+    private int bearFlashTimer = 0;
 
     private final Timer animationTimer;
     private final HexRenderer hexRenderer;
@@ -69,6 +76,7 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
+            // انیمیشن لرزش زلزله
             if (shakeDuration > 0) {
                 shakeX = (int)((Math.random() - 0.5) * 15);
                 shakeY = (int)((Math.random() - 0.5) * 15);
@@ -77,9 +85,21 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
+            // انیمیشن fade-in سیل
             if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
                 floodAlpha += 0.02f;
                 if (floodAlpha > 0.6f) floodAlpha = 0.6f;
+                needsRepaint = true;
+            }
+
+            // انیمیشن flash حمله خرس
+            if (bearFlashTimer > 0) {
+                bearAlpha = Math.min(0.55f, bearAlpha + 0.04f);
+                bearFlashTimer--;
+                if (bearFlashTimer == 0) {
+                    bearAlpha = 0f;
+                    bearAttackHexes.clear();
+                }
                 needsRepaint = true;
             }
 
@@ -143,7 +163,7 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (!action.isEnabled()) {
                 item.setEnabled(false);
                 if (action.getDisabledReason() != null) {
-                    item.setToolTipText(action.getDisabledReason()); // افزودن ToolTip برای دلیل خاموشی
+                    item.setToolTipText(action.getDisabledReason());
                 }
             } else {
                 item.addActionListener(ev -> {
@@ -155,6 +175,45 @@ public class GamePanel extends JPanel implements GameEventListener {
             popup.add(item);
         }
         popup.show(this, p.x, p.y);
+    }
+
+    // ─── پیاده‌سازی رویدادهای بلایای طبیعی ────────────────────────────────────
+
+    @Override
+    public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
+        SwingUtilities.invokeLater(() -> {
+            // طبق spec: اگر محل رویداد در دید پلیر نباشد، فقط alert متنی نمایش داده می‌شود
+            // و هیچ انیمیشنی روی مپ اعمال نمی‌شود.
+            if (center == null || !center.isVisible()) return;
+
+            switch (type) {
+                case "EARTHQUAKE" -> {
+                    // لرزش دوربین: ۳۰ فریم × ۱۶ms = حدود ۰.۵ ثانیه لرزش
+                    shakeDuration = 30;
+                }
+                case "FLOOD" -> {
+                    // fade-in overlay آبی روی هکس‌های سیل‌زده
+                    floodedHexes = new ArrayList<>(affected);
+                    floodAlpha = 0f;
+                }
+                case "BEAR_ATTACK" -> {
+                    // flash قهوه‌ای روی هکس‌های جنگل (۴۰ فریم)
+                    bearAttackHexes = new ArrayList<>(affected);
+                    bearAlpha = 0f;
+                    bearFlashTimer = 40;
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
+        SwingUtilities.invokeLater(() -> {
+            new CombatVisualizerDialog(
+                    (JFrame) SwingUtilities.getWindowAncestor(this),
+                    atk, def, atkDmg, defDmg
+            ).setVisible(true);
+        });
     }
 
     // متدهای واسط (Getter/Setter)
@@ -201,6 +260,8 @@ public class GamePanel extends JPanel implements GameEventListener {
     public int getAnimTargetY() { return animTargetY; }
     public List<Hex> getFloodedHexes() { return floodedHexes; }
     public float getFloodAlpha() { return floodAlpha; }
+    public List<Hex> getBearAttackHexes() { return bearAttackHexes; }
+    public float getBearAlpha() { return bearAlpha; }
 
     public void startAnimation(Unit unit, Hex targetHex, int startX, int startY, int targetX, int targetY) {
         this.animatingUnit = unit;
@@ -213,35 +274,23 @@ public class GamePanel extends JPanel implements GameEventListener {
         this.animProgress = 0.0;
     }
 
-    // پیاده سازی متدهای GameEventListener
-    @Override public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
-        SwingUtilities.invokeLater(() -> {
-            if ("EARTHQUAKE".equals(type)) {
-                shakeDuration = 30; // 30 فریم لرزش
-            } else if ("FLOOD".equals(type)) {
-                floodedHexes = affected;
-                floodAlpha = 0f;
-            }
-        });
-    }
-
-    @Override public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
-        SwingUtilities.invokeLater(() -> {
-            new CombatVisualizerDialog((JFrame)SwingUtilities.getWindowAncestor(this), atk, def, atkDmg, defDmg).setVisible(true);
-        });
-    }
-
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { repaint(); }
     @Override public void onUnitKilled(Unit unit) { repaint(); }
     @Override public void onProductionCompleted(String itemName) {}
-    @Override public void onTurnEnded(int newTurn) {
-        floodedHexes.clear(); // پاک کردن سیل با شروع ترن جدید
+
+    @Override
+    public void onTurnEnded(int newTurn) {
+        // پاک‌سازی overlay‌های بلایا در شروع ترن جدید
+        floodedHexes.clear();
+        floodAlpha = 0f;
         repaint();
     }
+
     @Override public void onStarvationChanged(boolean isStarving) {}
     @Override public void onUnitStateChanged(Unit unit) { repaint(); }
     @Override public void onBuildingConstructed(Hex hex) { repaint(); }
     @Override public void onBuildingDestroyed(Hex hex) { repaint(); }
     @Override public void onBorderExpanded(int centerQ, int centerR) { repaint(); }
+    @Override public void onNotification(String message) {}
 }

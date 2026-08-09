@@ -20,6 +20,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.List;
 
 public class HUDPanel extends JPanel implements GameEventListener {
 
@@ -35,8 +36,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final HUDCard queueCard;
     private final HUDCard popCard;
     private final HUDCard turnCard;
-    private final HUDCard happinessCard;   // ← جدید: نمایش رضایت عمومی
-    private final HUDCard seasonCard;      // ← جدید: نمایش فصل جاری
+    private final HUDCard happinessCard;
+    private final HUDCard seasonCard;
     private final JPanel starvationAlertCard;
 
     private boolean confirmIdleMode = false;
@@ -61,15 +62,15 @@ public class HUDPanel extends JPanel implements GameEventListener {
         endTurnBtn = buildEndTurnButton();
         add(endTurnBtn, BorderLayout.EAST);
 
-        foodCard      = new HUDCard("🍔 Food",     new Color(46, 204, 113),  false);
-        woodCard      = new HUDCard("🪵 Wood",     new Color(211, 84, 0),    false);
-        stoneCard     = new HUDCard("🪨 Stone",    new Color(149, 165, 166), false);
-        ironCard      = new HUDCard("⚙️ Iron",     new Color(243, 156, 18),  false);
-        queueCard     = new HUDCard("🏗️ Queue",    new Color(241, 196, 15),  false);
-        popCard       = new HUDCard("👥 Units",    new Color(52, 152, 219),  false);
-        turnCard      = new HUDCard("⏳ Turn",     new Color(155, 89, 182),  false);
-        happinessCard = new HUDCard("😊 Happiness", new Color(255, 165, 0),  false); // ← جدید
-        seasonCard    = new HUDCard("🌍 Season",   new Color(100, 180, 255), false); // ← جدید
+        foodCard      = new HUDCard("🍔 Food",      new Color(46, 204, 113),  false);
+        woodCard      = new HUDCard("🪵 Wood",      new Color(211, 84, 0),    false);
+        stoneCard     = new HUDCard("🪨 Stone",     new Color(149, 165, 166), false);
+        ironCard      = new HUDCard("⚙️ Iron",      new Color(243, 156, 18),  false);
+        queueCard     = new HUDCard("🏗️ Queue",     new Color(241, 196, 15),  false);
+        popCard       = new HUDCard("👥 Units",     new Color(52, 152, 219),  false);
+        turnCard      = new HUDCard("⏳ Turn",      new Color(155, 89, 182),  false);
+        happinessCard = new HUDCard("😊 Happiness", new Color(255, 165, 0),   false);
+        seasonCard    = new HUDCard("🌍 Season",    new Color(100, 180, 255), false);
         starvationAlertCard = createStarvationCard();
         starvationAlertCard.setVisible(false);
 
@@ -79,8 +80,8 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.add(ironCard);
         infoContainer.add(queueCard);
         infoContainer.add(popCard);
-        infoContainer.add(happinessCard);   // ← جدید
-        infoContainer.add(seasonCard);      // ← جدید
+        infoContainer.add(happinessCard);
+        infoContainer.add(seasonCard);
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
@@ -145,6 +146,26 @@ public class HUDPanel extends JPanel implements GameEventListener {
     @Override public void onBuildingDestroyed(Hex hex) { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
     @Override public void onBorderExpanded(int centerQ, int centerR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
 
+    /**
+     * نمایش اعلان بلای طبیعی در HUD.
+     * طبق spec: اگر بلا در تاریکی رخ داده، پلیر فقط alert متنی دریافت می‌کند.
+     * (حالت visible توسط DisasterController بررسی شده و notification fire شده)
+     */
+    @Override
+    public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
+        // هیچ کاری نمی‌کند — نمایش alert به عهده onNotification است
+        // که توسط DisasterController برای رویدادهای خارج از دید fire می‌شود.
+    }
+
+    /**
+     * نمایش پیام‌های سیستمی (بلایای طبیعی در تاریکی، اعلان‌های مهم) به صورت toast.
+     * رنگ نارنجی تیره برای تمایز از پیام‌های تولید (سبز).
+     */
+    @Override
+    public void onNotification(String message) {
+        SwingUtilities.invokeLater(() -> showDisasterNotification(message));
+    }
+
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
             resetEndTurnButton();
@@ -181,11 +202,11 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
 
         // ─── Units (نظامی + کل) ──────────────────────────────────────────────────
-        long milCount  = map.getMilitaryUnitCount();
-        int  milCap    = map.getMilitaryUnitCap();
-        long expCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
+        long milCount   = map.getMilitaryUnitCount();
+        int  milCap     = map.getMilitaryUnitCap();
+        long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
         long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
-        long workCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
+        long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
         long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
         String milColor = (milCount >= milCap) ? "#e74c3c" : "#2ecc71";
         String unitText =
@@ -210,14 +231,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         starvationAlertCard.setVisible(isStarving);
     }
 
-    /**
-     * متن نمایش رضایت با رنگ و برچسب سطح فعلی.
-     * سطوح طبق spec فاز دوم:
-     * ≥ +3 → Golden Age (طلایی)
-     * -2 تا +2 → Normal (سبز)
-     * -3 تا -4 → Discontent (نارنجی)
-     * ≤ -5 → Rebellion (قرمز)
-     */
     private String formatHappinessText(int happiness) {
         String sign = happiness > 0 ? "+" : "";
         String levelLabel;
@@ -241,9 +254,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 + " <span style='color:" + levelColor + "; font-size:11px;'>[" + levelLabel + "]</span>";
     }
 
-    /**
-     * متن نمایش فصل جاری با رنگ و ایموجی مناسب.
-     */
     private String formatSeasonText(Season season) {
         return switch (season) {
             case SPRING -> "<span style='color:#a8e063;'>🌸 Spring</span>";
@@ -324,6 +334,34 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.start();
     }
 
+    /**
+     * toast برای بلایای طبیعی در تاریکی و سایر اعلان‌های سیستمی.
+     * رنگ نارنجی تیره برای تمایز از تولید (سبز) و خطر (قرمز).
+     */
+    private void showDisasterNotification(String message) {
+        JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
+        notif.setUndecorated(true);
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(120, 60, 0));
+        panel.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
+        JLabel msg = new JLabel(
+                "<html><center><span style='color:white; font-family:Segoe UI; font-size:13px;'>"
+                        + message
+                        + "</span></center></html>", SwingConstants.CENTER
+        );
+        msg.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
+        panel.add(msg, BorderLayout.CENTER);
+        notif.setContentPane(panel);
+        notif.pack();
+        // موقعیت: گوشه چپ-پایین (برای تمایز از تولید که گوشه راست-پایین است)
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        notif.setLocation(20, screen.height - notif.getHeight() - 60);
+        notif.setVisible(true);
+        Timer closeTimer = new Timer(3500, e -> notif.dispose());
+        closeTimer.setRepeats(false);
+        closeTimer.start();
+    }
+
     private void handleEndTurn() {
         if (gamePanel.isAnimating()) return;
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
@@ -361,7 +399,4 @@ public class HUDPanel extends JPanel implements GameEventListener {
                     + "</body></html>");
         }
     }
-
-    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
-    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}
 }
