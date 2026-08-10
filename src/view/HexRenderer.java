@@ -46,7 +46,6 @@ public class HexRenderer {
         for (Hex hex : visibleHexes)
             if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
 
-        // افکت سیل (Flood Overlay)
         List<Hex> flooded = panel.getFloodedHexes();
         if (flooded != null && !flooded.isEmpty() && panel.getFloodAlpha() > 0) {
             g2d.setColor(new Color(52, 152, 219, (int)(panel.getFloodAlpha() * 255)));
@@ -60,10 +59,6 @@ public class HexRenderer {
             }
         }
 
-
-        // ── در HexRenderer.renderAll، بعد از بلوک flood overlay ──────────────────
-
-// افکت flash حمله خرس (قهوه‌ای)
         List<Hex> bearHexes = panel.getBearAttackHexes();
         if (bearHexes != null && !bearHexes.isEmpty() && panel.getBearAlpha() > 0) {
             g2d.setColor(new Color(101, 55, 0, (int)(panel.getBearAlpha() * 255)));
@@ -77,7 +72,6 @@ public class HexRenderer {
             }
         }
 
-
         for (Hex hex : visibleHexes) {
             if (hex.isExplored() && !hex.isVisible()) {
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -89,27 +83,35 @@ public class HexRenderer {
         }
     }
 
-
-
     private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, List<Hex> visibleHexes) {
         Unit selectedUnit = panel.getSelectedUnit();
         if (selectedUnit == null || panel.isAnimating()) return;
         if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
 
+        // تشخیص نظامی بودن یونیت
+        UnitType t = selectedUnit.getType();
+        boolean isMilitary = (t == UnitType.SWORDSMAN || t == UnitType.ARCHER || t == UnitType.CAVALRY);
+
         for (Hex hex : visibleHexes) {
             int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
-            if (dist > selectedUnit.getAttackRange()) continue;
+
+            // رفع باگ 28: عدم رندر هایلایت حمله (قرمز) برای غیرنظامیان
+            boolean withinAttackRange = isMilitary && dist <= selectedUnit.getAttackRange();
+            boolean canMove = unitController.canMove(selectedUnit, hex);
+
+            // اگر نه می‌تواند حرکت کند و نه در برد حمله است (برای رزمی‌ها) یا اصلاً مجاور نیست (غیررزمی‌ها)، رد شو
+            if (!canMove && !withinAttackRange && dist != 1) continue;
 
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             g2d.translate(pt.x, pt.y);
 
-            if (unitController.canMove(selectedUnit, hex)) {
+            if (canMove) {
                 g2d.setColor(UIConfig.MOVE_VALID_FILL);
                 g2d.fillPolygon(cachedHexBase);
                 g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor())));
                 g2d.setColor(UIConfig.MOVE_VALID_BORDER);
                 g2d.drawPolygon(cachedHexBase);
-            } else if (dist == 1) {
+            } else if (withinAttackRange || dist == 1) { // قرمز رنگ برای حمله، یا برای نمایش همسایه‌های مسدود
                 g2d.setColor(UIConfig.MOVE_INVALID_FILL);
                 g2d.fillPolygon(cachedHexBase);
                 g2d.setStroke(new BasicStroke((float)(2.0 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10.0f, new float[]{6.0f, 6.0f}, 0.0f));
@@ -219,7 +221,6 @@ public class HexRenderer {
     }
 
     private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt, ResourceType rt, double zoomFactor) {
-        // [محتوای قبلی drawResourceIcon بدون تغییر باقی می‌ماند]
         if (rt == ResourceType.NONE) return;
 
         int iconSize = Math.max(8, (int)(20 * zoomFactor));
@@ -274,7 +275,6 @@ public class HexRenderer {
     }
 
     private void drawBuildingIcon(Graphics2D g2d, Building b, Point pt, int size, double zoomFactor) {
-        // [محتوای قبلی drawBuildingIcon بدون تغییر باقی می‌ماند. به دلیل محدودیت فضا آن را تکرار نمی‌کنم ولی تو آن را دست نخورده نگه دار و فقط ساختمان‌های جدید مثل BAZAAR را اضافه کن]
         if (b.getType() == BuildingType.TOWN_HALL) {
             int w = (int)(40 * zoomFactor);
             int h = (int)(40 * zoomFactor);

@@ -63,6 +63,28 @@ public class SaveLoadController {
             Hex thHex = loadedMap.getHexAt(th.getQ(), th.getR());
             if (thHex != null) thHex.setBuilding(th);
 
+            // رفع باگ 08: اتصال مجدد (Reconnection) رفرنس‌های کارگران به ساختمان‌های روی نقشه
+            for (Unit unit : loadedMap.getUnits()) {
+                if (unit instanceof Worker) {
+                    Worker worker = (Worker) unit;
+                    if (worker.isStationed()) {
+                        Hex workerHex = loadedMap.getHexAt(worker.getQ(), worker.getR());
+                        if (workerHex != null && workerHex.getBuilding() != null && !workerHex.getBuilding().isDestroyed()) {
+                            // ست کردن دستی رفرنس‌ها از طریق Reflection (برای دور زدن محدودیت‌های کپسوله‌سازی در لود)
+                            try {
+                                Field stationedBuildingField = Worker.class.getDeclaredField("stationedBuilding");
+                                stationedBuildingField.setAccessible(true);
+                                stationedBuildingField.set(worker, workerHex.getBuilding());
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        } else {
+                            worker.eject(); // اگر ساختمان پیدا نشد، کارگر از حالت استقرار خارج می‌شود
+                        }
+                    }
+                }
+            }
+
             GameEventDispatcher.fireNotification("Game Loaded Successfully from: " + slot);
             return loadedMap;
         } catch (Exception e) {
@@ -162,7 +184,7 @@ public class SaveLoadController {
                     GameMap map = mc.getGameMap();
                     TownHall th = map.getTownHall();
                     switch(name) {
-                        case "Warehouse Upgrade": th.upgradeLevel(); break; // <-- اینجا فیکس شد
+                        case "Warehouse Upgrade": th.upgradeLevel(); break;
                         case "Upgrade to Settlement": th.upgradeLevel(); break;
                         case "Upgrade to Capital": th.upgradeLevel(); break;
                         case "Tech: Stone Mine": th.setStoneMineUnlocked(true); break;

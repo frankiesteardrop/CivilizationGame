@@ -18,7 +18,6 @@ public class Inventory {
             }
         }
 
-        // ظرفیت پایه طبق داک دقیقاً ۱۰۰ است
         capacities.put(ResourceType.FOOD,  GameConfig.DEFAULT_FOOD_CAPACITY);
         capacities.put(ResourceType.WOOD,  GameConfig.DEFAULT_WOOD_CAPACITY);
         capacities.put(ResourceType.STONE, GameConfig.DEFAULT_STONE_CAPACITY);
@@ -32,8 +31,11 @@ public class Inventory {
         int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
 
-        resources.put(type, updated);
-        GameEventDispatcher.fireResourceChanged(type, updated);
+        // رفع باگ 29: فقط اگر تغییری صورت گرفت، رویداد شلیک شود
+        if (updated != current) {
+            resources.put(type, updated);
+            GameEventDispatcher.fireResourceChanged(type, updated);
+        }
     }
 
     public boolean consumeResource(ResourceType type, int amount) {

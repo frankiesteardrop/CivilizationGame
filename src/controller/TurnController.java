@@ -5,6 +5,7 @@ import model.GameMap;
 import model.Hex;
 import model.Unit;
 import model.Worker;
+import model.UnitType;
 
 public class TurnController {
 
@@ -33,13 +34,18 @@ public class TurnController {
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
+
+                // رفع باگ 14: فیلتر کردن پنالتیِ شورش فقط برای کارگران و نظامیان
                 if (effectiveHappiness <= -5) {
-                    unit.consumeAP(1);
+                    UnitType t = unit.getType();
+                    if (t == UnitType.WORKER || t == UnitType.SWORDSMAN || t == UnitType.ARCHER || t == UnitType.CAVALRY) {
+                        unit.consumeAP(1);
+                    }
                 }
             }
         }
 
-        // رفع باگ 24: کاهش تایمر توقف تولید ناشی از سیل در هر نوبت
+        // کاهش تایمر توقف تولید ناشی از سیل در هر نوبت
         for (Hex hex : gameMap.getHexes()) {
             if (hex.getBuilding() != null) {
                 hex.getBuilding().decrementFloodHalt();
@@ -55,7 +61,7 @@ public class TurnController {
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // اطلاع‌رسانی پایان نوبت به رویدادها (که EconomyController در اینجا تولید را محاسبه می‌کند)
+        // اطلاع‌رسانی پایان نوبت به رویدادها
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
 
         mainController.getTribeController().processTribesTurn();
