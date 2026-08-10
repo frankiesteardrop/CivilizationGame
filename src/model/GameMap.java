@@ -115,15 +115,12 @@ public class GameMap {
         }
 
         int postsToSpawn = 3;
-        int tribesToSpawn = 5;
 
-        for (int i = 0; i < postsToSpawn + tribesToSpawn && !validFarHexes.isEmpty(); i++) {
+        // اصلاح معماری: متد قدیمی که قبیله‌ها را به اشتباه و بدون نوع می‌ساخت حذف شد.
+        // مسئولیت اسپاون 5 قبیله به صورت کامل به TribeController سپرده شده است.
+        for (int i = 0; i < postsToSpawn && !validFarHexes.isEmpty(); i++) {
             Hex target = validFarHexes.remove(random.nextInt(validFarHexes.size()));
-            if (i < postsToSpawn) {
-                target.setBuilding(BuildingFactory.createBuilding(BuildingType.TRADING_POST));
-            } else {
-                target.setBuilding(BuildingFactory.createBuilding(BuildingType.TRIBE_CAMP));
-            }
+            target.setBuilding(BuildingFactory.createBuilding(BuildingType.TRADING_POST));
         }
     }
 

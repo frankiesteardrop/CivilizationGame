@@ -17,9 +17,14 @@ public class BuildingFactory {
         registry.put(BuildingType.SETTLEMENT, Settlement::new);
         registry.put(BuildingType.DOCK, Dock::new);
         registry.put(BuildingType.MONUMENT, Monument::new);
+        // ساختمان‌های تجاری و قبیله‌ای
         registry.put(BuildingType.BAZAAR, Bazaar::new);
         registry.put(BuildingType.TRADING_POST, TradingPost::new);
-        registry.put(BuildingType.TRIBE_CAMP, () -> new TribeCamp(50));
+
+        // رفع ارور کامپایل: سازنده‌ی TribeCamp اکنون یک TribeType می‌گیرد، نه یک int.
+        // در اینجا به عنوان Factory پیش‌فرض، نوع FARMER قرار داده شده است.
+        // (تولید قبایل واقعی با انواع مختلف توسط TribeController انجام می‌شود).
+        registry.put(BuildingType.TRIBE_CAMP, () -> new TribeCamp(TribeType.FARMER));
     }
 
     public static Building createBuilding(BuildingType type) {
