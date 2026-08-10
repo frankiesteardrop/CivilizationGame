@@ -10,6 +10,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 
 public class GameInputHandler extends MouseAdapter {
+
     private final GamePanel panel;
     private final MainController mainController;
     private Point lastMousePosition;
@@ -30,7 +31,8 @@ public class GameInputHandler extends MouseAdapter {
     @Override
     public void mouseReleased(MouseEvent e) {
         if (!isDragging) {
-            Hex clickedHex = panel.getHexAtPixel(e.getPoint(), mainController.getGameMap().getHexes());
+            Hex clickedHex = panel.getHexAtPixel(e.getPoint(),
+                    mainController.getGameMap().getHexes());
             if (clickedHex == null) return;
 
             if (SwingUtilities.isLeftMouseButton(e)) {
@@ -62,19 +64,20 @@ public class GameInputHandler extends MouseAdapter {
 
     @Override
     public void mouseMoved(MouseEvent e) {
-        Hex currentHover = panel.getHexAtPixel(e.getPoint(), mainController.getGameMap().getHexes());
-        if (currentHover != panel.getHoveredHex()) {
-            panel.setHoveredHex(currentHover);
+        Hex current = panel.getHexAtPixel(e.getPoint(), mainController.getGameMap().getHexes());
+        if (current != panel.getHoveredHex()) {
+            panel.setHoveredHex(current);
             panel.repaint();
         }
     }
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
-        int zoomIndex = panel.getZoomIndex();
+        int zoomIndex    = panel.getZoomIndex();
         int oldZoomIndex = zoomIndex;
+
         if (e.getWheelRotation() < 0 && zoomIndex < GamePanel.ZOOM_LEVELS.length - 1) zoomIndex++;
-        else if (e.getWheelRotation() > 0 && zoomIndex > 0) zoomIndex--;
+        else if (e.getWheelRotation() > 0 && zoomIndex > 0)                           zoomIndex--;
 
         if (oldZoomIndex != zoomIndex) {
             double oldZoom = panel.getZoomFactor();
@@ -92,46 +95,76 @@ public class GameInputHandler extends MouseAdapter {
 
         Unit selectedUnit = panel.getSelectedUnit();
 
-        // 1. اولویت تعامل با ساختمان‌های ویژه (لغو انتخاب خودکار برای راحتی کلیک)
-        if (clickedHex.getBuilding() != null) {
+        // ─── ۱. ساختمان‌های ویژه روی hex کلیک‌شده ────────────────────────────
+        if (clickedHex.getBuilding() != null && !clickedHex.getBuilding().isDestroyed()) {
             BuildingType bType = clickedHex.getBuilding().getType();
-            if (bType == BuildingType.TOWN_HALL || bType == BuildingType.TRIBE_CAMP) {
 
-                boolean isWorkerOnHex = (selectedUnit instanceof Worker && selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR());
-                boolean isMilitaryTargeting = (selectedUnit != null && selectedUnit.getAttackRange() > 0 && bType == BuildingType.TRIBE_CAMP);
-
-                // اگر یونیت رزمی روی کمپ کلیک راست کند، قصد حمله دارد نه تعامل صلح‌آمیز!
-                if (!isWorkerOnHex && !isMilitaryTargeting) {
+            if (bType == BuildingType.TOWN_HALL) {
+                // کلیک روی TH: اگر یونیت نظامی انتخاب‌شده نیست → باز کردن TH menu
+                boolean isMilitarySelected = selectedUnit != null && selectedUnit.getAttackRange() > 0;
+                if (!isMilitarySelected) {
                     panel.setSelectedUnit(null);
-                    selectedUnit = null;
-
-                    if (bType == BuildingType.TOWN_HALL) {
-                        panel.showContextMenu(e.getPoint(), mainController.getTownHallMenuActions());
-                    } else {
-                        // اجرای هوک UI تعامل صلح‌آمیز با قبیله (باگ 01)
-                        panel.onTribeInteractionTriggered(clickedHex);
-                    }
+                    panel.showContextMenu(e.getPoint(), mainController.getTownHallMenuActions());
                     return;
                 }
             }
+
+            if (bType == BuildingType.TRIBE_CAMP) {
+                TribeCamp camp = (TribeCamp) clickedHex.getBuilding();
+                boolean isEnemy = camp.getTribe().getRelationship() <= -50;
+
+                // یونیت نظامی + کمپ دشمن → Attack menu
+                if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && isEnemy) {
+                    panel.showContextMenu(e.getPoint(),
+                            mainController.getUnitMenuActions(selectedUnit, clickedHex));
+                    return;
+                }
+
+                // غیر دشمن یا بدون یونیت نظامی → Tribe interaction
+                panel.setSelectedUnit(null);
+                panel.onTribeInteractionTriggered(clickedHex);
+                return;
+            }
         }
 
-        // 2. مدیریت منوی یونیت‌ها، حمله، یا حرکت
+        // ─── ۲. یونیت انتخاب‌شده وجود دارد ───────────────────────────────────
         if (selectedUnit != null) {
-            if (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR()) {
-                panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
+            boolean isSameHex = (selectedUnit.getQ() == clickedHex.getQ()
+                    && selectedUnit.getR() == clickedHex.getR());
+
+            if (isSameHex) {
+                // کلیک روی hex خود یونیت → منوی actions
+                panel.showContextMenu(e.getPoint(),
+                        mainController.getUnitMenuActions(selectedUnit, clickedHex));
+
             } else {
-                // بررسی وجود دشمن در هکس هدف برای باز کردن منوی حمله (باگ 04)
-                boolean hasEnemy = clickedHex.getBuilding() instanceof TribeCamp ||
-                        mainController.getGameMap().getUnits().stream().anyMatch(u -> u.getQ() == clickedHex.getQ() && u.getR() == clickedHex.getR() &&
-                                (u.getClass().getSimpleName().equals("Bear") || u.getClass().getSimpleName().equals("Barbarian")));
+                // کلیک روی hex دیگر
+                // F-28: استفاده از getType() به جای getSimpleName() — امن و type-safe
+                boolean hasEnemyUnit = mainController.getGameMap().getUnits().stream()
+                        .anyMatch(u -> u.isAlive()
+                                && u.getQ() == clickedHex.getQ()
+                                && u.getR() == clickedHex.getR()
+                                && u.getType() == UnitType.BEAR);
+
+                // F-28: TribeCamp فقط اگر رابطه دشمنانه باشد enemy حساب می‌شود
+                boolean hasEnemyBuilding =
+                        (clickedHex.getBuilding() instanceof TribeCamp)
+                                && ((TribeCamp) clickedHex.getBuilding())
+                                .getTribe().getRelationship() <= -50;
+
+                boolean hasEnemy = hasEnemyUnit || hasEnemyBuilding;
 
                 if (hasEnemy && selectedUnit.getAttackRange() > 0) {
-                    panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
+                    // F-09: باز کردن attack menu
+                    panel.showContextMenu(e.getPoint(),
+                            mainController.getUnitMenuActions(selectedUnit, clickedHex));
+
                 } else if (mainController.canMove(selectedUnit, clickedHex)) {
-                    Point startPt = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
+                    // F-10: canMove اکنون map را پاس می‌دهد
+                    Point startPt  = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
                     Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
-                    panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
+                    panel.startAnimation(selectedUnit, clickedHex,
+                            startPt.x, startPt.y, targetPt.x, targetPt.y);
                 }
             }
         }
