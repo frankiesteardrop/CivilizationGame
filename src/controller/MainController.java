@@ -15,16 +15,21 @@ public class MainController {
     private final TribeController tribeController;
     private final SaveLoadController saveLoadController;
 
+    // اضافه شدن CombatController برای رفع ارور کامپایل (باگ 04)
+    private final CombatController combatController;
+
     public MainController(GameMap gameMap) {
         this.gameMap = gameMap;
+        this.tribeController = new TribeController(gameMap);
+        this.tribeController.spawnInitialTribes();
         this.economyController = new EconomyController(this);
         this.tradeController = new TradeController(gameMap);
-        this.tribeController = new TribeController(gameMap);
         this.turnController = new TurnController(this, gameMap);
         this.unitController = new UnitController();
         this.buildController = new BuildController(gameMap);
         this.upgradeController = new UpgradeController(gameMap);
         this.saveLoadController = new SaveLoadController(this);
+        this.combatController = new CombatController(gameMap);
     }
 
     public GameMap getGameMap() { return gameMap; }
@@ -36,6 +41,7 @@ public class MainController {
     public TradeController getTradeController() { return tradeController; }
     public TribeController getTribeController() { return tribeController; }
     public SaveLoadController getSaveLoadController() { return saveLoadController; }
+    public CombatController getCombatController() { return combatController; }
 
     public Unit selectUnitAt(Hex hex) { return unitController.selectUnitAt(hex, gameMap); }
     public boolean canMove(Unit unit, Hex targetHex) { return unitController.canMove(unit, targetHex); }
@@ -45,22 +51,18 @@ public class MainController {
         List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
 
-        // prefix برای وضعیت صف تولید (همه یونیت‌ها)
         boolean qEmpty = th.isProductionQueueEmpty();
         String prefix = qEmpty ? "" : "⏳ [BUSY] ";
 
-        // prefix مخصوص یونیت‌های نظامی: نمایش سقف نظامی
         boolean isMilCapped = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
         String milPrefix = isMilCapped ? "⚔️ [CAP REACHED] " : prefix;
 
-        // ─── آپگرید TownHall ──────────────────────────────────────────────────
         String whLabel = th.getLevel() >= 3
                 ? "✅ Capital MAXED"
                 : String.format(prefix + "📦 Upgrade TownHall Level %d", th.getLevel() + 1);
         actions.add(new MenuAction(whLabel, upgradeController.canAffordWarehouseUpgrade(),
                 () -> upgradeController.handleWarehouseUpgrade()));
 
-        // ─── تکنولوژی‌ها ──────────────────────────────────────────────────────
         actions.add(new MenuAction(th.isStoneMineUnlocked()
                 ? "✅ ⛏️ Tech: Stone Mine"
                 : String.format(prefix + "⛏️ Tech: Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
@@ -86,7 +88,6 @@ public class MainController {
                 : String.format(prefix + "🏰 Tech: Defensive Arch (%dS)", GameConfig.TECH_DEFENSIVE_ARCH_STONE),
                 upgradeController.canUnlockTech("DEFENSIVE_ARCH"), () -> upgradeController.unlockTech("DEFENSIVE_ARCH")));
 
-        // ─── یونیت‌های غیرنظامی (prefix — فقط صف تولید بررسی می‌شود) ─────────
         actions.add(new MenuAction(String.format(prefix + "👷 Train Worker (%dF)", GameConfig.WORKER_FOOD_COST),
                 upgradeController.canTrainUnit("WORKER"), () -> upgradeController.trainUnit("WORKER")));
 
@@ -96,7 +97,6 @@ public class MainController {
         actions.add(new MenuAction(String.format(prefix + "🧭 Train Explorer (%dF, %dW)", GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
                 upgradeController.canTrainUnit("EXPLORER"), () -> upgradeController.trainUnit("EXPLORER")));
 
-        // ─── یونیت‌های نظامی (milPrefix — صف تولید + سقف نظامی بررسی می‌شود) ─
         actions.add(new MenuAction(milPrefix + "⚔️ Train Swordsman (20F, 10W)",
                 upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
 
@@ -106,7 +106,6 @@ public class MainController {
         actions.add(new MenuAction(milPrefix + "🏇 Train Cavalry (30F, 20I) [Req: TH L2 + Stable]",
                 upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
 
-        // ─── Save Manual ──────────────────────────────────────────────────────
         actions.add(new MenuAction("💾 Save Game (Slot 1)", true, () -> saveLoadController.saveGame("slot1")));
         actions.add(new MenuAction("💾 Save Game (Slot 2)", true, () -> saveLoadController.saveGame("slot2")));
         actions.add(new MenuAction("💾 Save Game (Slot 3)", true, () -> saveLoadController.saveGame("slot3")));
@@ -147,6 +146,29 @@ public class MainController {
                 }
             }
         }
+
+        // بررسی و ایجاد دکمه حمله (باگ 04) - انطباق دقیق با نام متغیر selectedUnit و سازنده MenuAction
+        boolean hasEnemyBuilding = hex.getBuilding() instanceof TribeCamp && !hex.getBuilding().isDestroyed();
+        boolean hasEnemyUnit = gameMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && (u.getClass().getSimpleName().equals("Bear") || u.getClass().getSimpleName().equals("Barbarian")));
+
+        if (hasEnemyBuilding || hasEnemyUnit) {
+            int dist = gameMap.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
+            boolean canAttack = selectedUnit.getCurrentAP() >= 1 && selectedUnit.getAttackRange() >= dist;
+            String reason = canAttack ? "" : "Not enough AP or Target out of range";
+
+            // استفاده از امضای صحیح سازنده MenuAction
+            MenuAction attackAction = new MenuAction("⚔️ Attack Target (-1 AP)", canAttack, reason, () -> {
+                java.util.List<Unit> attackers = new java.util.ArrayList<>();
+                attackers.add(selectedUnit);
+                boolean hasWall = hex.getBuilding() != null && hex.getBuilding().getMaxHp() > 100;
+                combatController.executeAttack(
+                        attackers, gameMap.getHexAt(selectedUnit.getQ(), selectedUnit.getR()), hex,
+                        hasEnemyUnit && !hasEnemyBuilding, hasEnemyUnit, hasWall
+                );
+            });
+            actions.add(attackAction);
+        }
+
         return actions;
     }
 

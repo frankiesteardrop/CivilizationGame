@@ -181,7 +181,7 @@ public class UpgradeController {
     }
 
     public void handleWarehouseUpgrade() {
-        if (!canAffordWarehouseUpgrade()) return false;
+        if (!canAffordWarehouseUpgrade()) return; // فیکس شده: بازگشت صحیح بدون false
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
@@ -215,16 +215,10 @@ public class UpgradeController {
         if (strategy != null) strategy.unlock(gameMap.getTownHall(), gameMap.getTownHall().getInventory());
     }
 
-    /**
-     * بررسی امکان آموزش یونیت.
-     * یونیت‌های نظامی → مشمول سقف نظامی (getMilitaryUnitCap).
-     * یونیت‌های غیرنظامی → فقط بررسی صف تولید و منابع.
-     */
     public boolean canTrainUnit(String unitType) {
         TownHall th = gameMap.getTownHall();
         if (!th.isProductionQueueEmpty()) return false;
 
-        // سقف یونیت نظامی فقط برای یونیت‌های جنگی اعمال می‌شود
         if (MILITARY_UNIT_TYPES.contains(unitType)) {
             if (gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap()) return false;
         }
@@ -249,7 +243,6 @@ public class UpgradeController {
     private void spawnSpecificUnit(UnitStrategy strategy) {
         boolean isMilitary = MILITARY_UNIT_TYPES.contains(strategy.getUnitType().name());
 
-        // Safety check: اگر از زمان queue تا spawn سقف پر شده، منابع برگردانده شوند
         if (isMilitary && gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap()) {
             strategy.refundResources(gameMap.getTownHall().getInventory());
             return;
@@ -263,7 +256,6 @@ public class UpgradeController {
         Unit newUnit = UnitFactory.createUnit(strategy.getUnitType(), targetQ, targetR);
         gameMap.addUnit(newUnit);
 
-        // رسیدن به سقف یونیت نظامی → -۱ رضایت (رویداد لحظه‌ای، یک‌بار)
         if (isMilitary && gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap()) {
             gameMap.getTownHall().addHappiness(-1);
         }
