@@ -86,7 +86,21 @@ public class UpgradeController {
             public boolean canUnlock(TownHall th, Inventory inv) { return th.getLevel() >= 3 && !th.isDefensiveArchUnlocked() && inv.hasEnough(ResourceType.STONE, GameConfig.TECH_DEFENSIVE_ARCH_STONE); }
             public void unlock(TownHall th, Inventory inv) {
                 if (th.queueCommand(new ProductionCommand("Tech: Defensive Arch", GameConfig.TECH_DEFENSIVE_ARCH_TURN, false) {
-                    public void execute() { th.applyDefensiveArchitecture(); }
+                    public void execute() {
+                        th.applyDefensiveArchitecture();
+
+                        // رفع باگ 15: پیاده‌سازی دیوارکشی فیزیکی دور تا دور تاون‌هال
+                        Hex thHex = gameMap.getHexAt(th.getQ(), th.getR());
+                        if (thHex != null) {
+                            for (int i = 0; i < 6; i++) {
+                                thHex.setWall(i, true, 150); // ساخت دیوار از داخل
+                                Hex neighbor = gameMap.getNeighbor(thHex, i);
+                                if (neighbor != null) {
+                                    neighbor.setWall((i + 3) % 6, true, 150); // بازتاب دیوار در هکس همسایه
+                                }
+                            }
+                        }
+                    }
                 })) { inv.consumeResource(ResourceType.STONE, GameConfig.TECH_DEFENSIVE_ARCH_STONE); }
             }
         });
@@ -167,7 +181,7 @@ public class UpgradeController {
     }
 
     public void handleWarehouseUpgrade() {
-        if (!canAffordWarehouseUpgrade()) return;
+        if (!canAffordWarehouseUpgrade()) return false;
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 

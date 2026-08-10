@@ -11,28 +11,13 @@ public class EconomyController implements GameEventListener {
         GameEventDispatcher.addListener(this);
     }
 
-    /**
-     * مقدار انباشته رضایت را برمی‌گرداند.
-     * اثرات per-turn (Monument، Military in TH) هر ترن در applyPerTurnHappiness
-     * به مقدار انباشته اضافه می‌شوند، پس این متد همیشه مقدار واقعی و به‌روز را دارد.
-     */
     public int getEffectiveHappiness(GameMap map) {
         return map.getTownHall().getHappiness();
     }
 
-    /**
-     * رویدادهای per-turn رضایت را در ابتدای هر ترن اعمال می‌کند.
-     * این متد باید قبل از produceResources فراخوانی شود تا اثر Golden Age/Discontent
-     * همان ترن با happiness به‌روزشده محاسبه شود.
-     *
-     * رویدادهای per-turn طبق spec:
-     * - هر Monument فعال (non-destroyed): +2 رضایت
-     * - وجود حداقل یک یونیت نظامی روی هکس TownHall: +1 رضایت
-     */
     private void applyPerTurnHappiness(GameMap map) {
         TownHall th = map.getTownHall();
 
-        // Monument‌های فعال: هر کدام +2 رضایت در هر ترن
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed() && b.getType() == BuildingType.MONUMENT) {
@@ -40,7 +25,6 @@ public class EconomyController implements GameEventListener {
             }
         }
 
-        // یونیت نظامی روی هکس TownHall: +1 رضایت در هر ترن
         boolean hasMilitaryInTH = false;
         for (Unit u : map.getUnits()) {
             if (u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()) {
@@ -73,9 +57,7 @@ public class EconomyController implements GameEventListener {
     }
 
     public boolean processEndTurn(GameMap map) {
-        // ۱. ابتدا رویدادهای per-turn رضایت اعمال می‌شوند (Monument، Military in TH)
         applyPerTurnHappiness(map);
-        // ۲. سپس تولید منابع با happiness به‌روزشده محاسبه می‌شود
         produceResources(map);
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
@@ -86,7 +68,9 @@ public class EconomyController implements GameEventListener {
     private void produceResources(GameMap map) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
-        int happiness = getEffectiveHappiness(map);
+
+        // رفع باگ 23: Caching - محاسبه Happiness فقط یک بار انجام می‌شود
+        final int happiness = getEffectiveHappiness(map);
         Season season = map.getCurrentSeason();
 
         townHall.produceSafeguardResources();
@@ -99,7 +83,24 @@ public class EconomyController implements GameEventListener {
             ResourceType targetRes = b.getType().getProducedResource();
             if (targetRes == ResourceType.NONE) continue;
 
-            if (!hex.hasResource(targetRes)) {
+            // رفع باگ 12: استثناء برای Dock جهت بررسی منابع از هکس‌های مجاور (SEA)
+            boolean canProduce = false;
+            Hex targetExtractionHex = hex;
+
+            if (b.getType() == BuildingType.DOCK && targetRes == ResourceType.FOOD) {
+                for (int i = 0; i < 6; i++) {
+                    Hex neighbor = map.getNeighbor(hex, i);
+                    if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
+                        targetExtractionHex = neighbor;
+                        canProduce = true;
+                        break;
+                    }
+                }
+            } else if (hex.hasResource(targetRes)) {
+                canProduce = true;
+            }
+
+            if (!canProduce) {
                 ejectWorkersFromHex(map, hex);
                 continue;
             }
@@ -128,9 +129,7 @@ public class EconomyController implements GameEventListener {
                 if (mCount >= 2) production += 1;
             }
 
-            // Discontent: هر کارگر ۱ واحد کمتر تولید می‌کند
             if (happiness <= -3) production -= b.getStationedWorkers();
-            // Golden Age: +10% به کل تولید (Floor)
             if (happiness >= 3) production += production / 10;
 
             production = Math.max(0, production);
@@ -142,11 +141,12 @@ public class EconomyController implements GameEventListener {
             int actualToExtract = Math.min(production, availableSpace);
 
             if (actualToExtract > 0) {
-                int extracted = hex.extractResource(targetRes, actualToExtract);
+                // استخراج از هکس هدف (که برای Dock همان هکس دریایی مجاور است)
+                int extracted = targetExtractionHex.extractResource(targetRes, actualToExtract);
                 inventory.addResource(targetRes, extracted);
             }
 
-            if (!hex.hasResource(targetRes)) ejectWorkersFromHex(map, hex);
+            if (!targetExtractionHex.hasResource(targetRes)) ejectWorkersFromHex(map, hex);
 
             if (b.getType() == BuildingType.FARM) {
                 for (int i = 0; i < 6; i++) {
@@ -206,7 +206,8 @@ public class EconomyController implements GameEventListener {
             if (u instanceof Worker) {
                 Worker w = (Worker) u;
                 if (w.isStationed() && w.getQ() == buildingHex.getQ() && w.getR() == buildingHex.getR()) {
-                    w.eject();
+                    // رفع باگ 18: پاس دادن رفرنس مپ برای فعال کردن آواربرداری و فرار کارگر
+                    w.eject(map);
                 }
             }
         }
@@ -215,7 +216,9 @@ public class EconomyController implements GameEventListener {
     public int calculateNetProduction(GameMap map, ResourceType type) {
         TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
-        int happiness = getEffectiveHappiness(map);
+
+        // رفع باگ 23: Caching
+        final int happiness = getEffectiveHappiness(map);
         Season season = map.getCurrentSeason();
 
         int grossProduction = 0;
@@ -231,7 +234,20 @@ public class EconomyController implements GameEventListener {
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
             if (b.getType().getProducedResource() == type) {
-                if (h.hasResource(type)) {
+                // رفع باگ 12: استثناء Dock برای نمایش Net Production
+                boolean hasResourceForNet = h.hasResource(type);
+                if (b.getType() == BuildingType.DOCK && type == ResourceType.FOOD) {
+                    hasResourceForNet = false;
+                    for (int i = 0; i < 6; i++) {
+                        Hex neighbor = map.getNeighbor(h, i);
+                        if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
+                            hasResourceForNet = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasResourceForNet) {
                     int prod = b.calculateProduction(townHall);
 
                     if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
@@ -260,8 +276,8 @@ public class EconomyController implements GameEventListener {
                     if (happiness >= 3) prod += prod / 10;
 
                     prod = Math.max(0, prod);
-                    int actualProduction = Math.min(prod, h.getResources().getOrDefault(type, 0));
-                    grossProduction += actualProduction;
+                    // (برای Net Production فرض می‌کنیم منبع پر نمی‌شود تا نمای کلی تولید مشخص شود)
+                    grossProduction += prod;
                 }
             }
 

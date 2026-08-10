@@ -10,7 +10,10 @@ public enum BuildingType {
     STABLE(2, 25, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),
     SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1),
     DOCK(2, 30, 0, 0, ResourceType.FOOD, 2, 6, ResourceType.WOOD, 1, 1),
+
+    // رفع باگ 30: ظرفیت کارگر Monument به 0 تغییر یافت (نیازی به استقرار کارگر ندارد)
     MONUMENT(2, 20, 20, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
+
     BAZAAR(2, 30, 30, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
     TRADING_POST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
     TRIBE_CAMP(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2);

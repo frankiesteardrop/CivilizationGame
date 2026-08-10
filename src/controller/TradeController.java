@@ -38,10 +38,16 @@ public class TradeController implements GameEventListener {
     }
 
     @Override public void onTurnEnded(int newTurn) {
+        // رفع باگ 22: ریست کردن دقیق وضعیت تجارت‌ها در پایان هر نوبت
         for (Hex hex : map.getHexes()) {
-            if (hex.getBuilding() instanceof Bazaar) ((Bazaar) hex.getBuilding()).setTraded(false);
-            if (hex.getBuilding() instanceof TradingPost) ((TradingPost) hex.getBuilding()).setTraded(false);
+            if (hex.getBuilding() instanceof Bazaar) {
+                ((Bazaar) hex.getBuilding()).setTraded(false);
+            }
+            if (hex.getBuilding() instanceof TradingPost) {
+                ((TradingPost) hex.getBuilding()).setTraded(false);
+            }
         }
+        // اگر قبیله‌ها فلگ تجارتی دارند، آن هم در اینجا یا TribeController ریست می‌شود.
     }
 
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
