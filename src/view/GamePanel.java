@@ -34,15 +34,15 @@ public class GamePanel extends JPanel implements GameEventListener {
     // افکت‌های بلایای طبیعی
     private int shakeDuration = 0;
     private int shakeX = 0, shakeY = 0;
-
-    // سیل (آبی)
     private List<Hex> floodedHexes = new ArrayList<>();
     private float floodAlpha = 0f;
-
-    // حمله خرس (قهوه‌ای — flash کوتاه)
     private List<Hex> bearAttackHexes = new ArrayList<>();
     private float bearAlpha = 0f;
     private int bearFlashTimer = 0;
+
+    // رفع باگ 17: سیستم ذرات گرافیکی برای فصل‌ها
+    private final List<WeatherParticle> weatherParticles = new ArrayList<>();
+    private static final int MAX_PARTICLES = 150;
 
     private final Timer animationTimer;
     private final HexRenderer hexRenderer;
@@ -63,6 +63,9 @@ public class GamePanel extends JPanel implements GameEventListener {
 
         GameEventDispatcher.addListener(this);
 
+        // راه‌اندازی اولیه ذرات
+        initWeatherParticles();
+
         animationTimer = new Timer(16, e -> {
             boolean needsRepaint = false;
 
@@ -76,7 +79,6 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
-            // انیمیشن لرزش زلزله
             if (shakeDuration > 0) {
                 shakeX = (int)((Math.random() - 0.5) * 15);
                 shakeY = (int)((Math.random() - 0.5) * 15);
@@ -85,14 +87,12 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
-            // انیمیشن fade-in سیل
             if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
                 floodAlpha += 0.02f;
                 if (floodAlpha > 0.6f) floodAlpha = 0.6f;
                 needsRepaint = true;
             }
 
-            // انیمیشن flash حمله خرس
             if (bearFlashTimer > 0) {
                 bearAlpha = Math.min(0.55f, bearAlpha + 0.04f);
                 bearFlashTimer--;
@@ -103,10 +103,84 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
+            // آپدیت انیمیشن سیستم ذرات فصلی
+            Season currentSeason = mainController.getGameMap().getCurrentSeason();
+            if (currentSeason == Season.AUTUMN || currentSeason == Season.WINTER) {
+                updateWeatherParticles(currentSeason);
+                needsRepaint = true;
+            }
+
             if (needsRepaint) repaint();
         });
         animationTimer.start();
     }
+
+    // ─── سیستم ذرات آب و هوا (Particle System) ─────────────────────────
+
+    private void initWeatherParticles() {
+        for (int i = 0; i < MAX_PARTICLES; i++) {
+            weatherParticles.add(new WeatherParticle());
+        }
+    }
+
+    private void updateWeatherParticles(Season season) {
+        int width = getWidth() > 0 ? getWidth() : 1280;
+        int height = getHeight() > 0 ? getHeight() : 800;
+
+        for (WeatherParticle p : weatherParticles) {
+            if (season == Season.AUTUMN) {
+                // باران شدید مورب
+                p.x += 4;
+                p.y += 12;
+            } else if (season == Season.WINTER) {
+                // برف ملایم سینوسی
+                p.y += p.speed;
+                p.x += Math.sin(p.y / 20.0) * 1.5;
+            }
+
+            // بازیافت ذرات خارج شده از صفحه
+            if (p.y > height || p.x > width) {
+                p.x = Math.random() * width;
+                p.y = -Math.random() * 100;
+                p.speed = 2 + Math.random() * 3;
+            }
+        }
+    }
+
+    private class WeatherParticle {
+        double x, y;
+        double speed;
+
+        WeatherParticle() {
+            x = Math.random() * 1280;
+            y = Math.random() * 800;
+            speed = 2 + Math.random() * 3;
+        }
+    }
+
+    private void drawWeather(Graphics2D g2d) {
+        Season currentSeason = mainController.getGameMap().getCurrentSeason();
+        if (currentSeason == Season.SPRING || currentSeason == Season.SUMMER) return;
+
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        if (currentSeason == Season.AUTUMN) {
+            g2d.setColor(new Color(135, 206, 235, 120)); // آبی بارانی نیمه‌شفاف
+            g2d.setStroke(new BasicStroke(1.5f));
+            for (WeatherParticle p : weatherParticles) {
+                g2d.drawLine((int)p.x, (int)p.y, (int)p.x + 2, (int)p.y + 6);
+            }
+            g2d.setStroke(new BasicStroke(1f));
+        } else if (currentSeason == Season.WINTER) {
+            g2d.setColor(new Color(255, 255, 255, 180)); // سفید برفی
+            for (WeatherParticle p : weatherParticles) {
+                int size = (int)(p.speed); // اندازه دانه‌های برف بر اساس سرعت سقوط
+                g2d.fillOval((int)p.x, (int)p.y, size, size);
+            }
+        }
+    }
+
+    // ─── ادامه متدهای GamePanel ──────────────────────────────────────────
 
     private void updateAnimation() {
         if (animatingUnit == null) return;
@@ -137,13 +211,15 @@ public class GamePanel extends JPanel implements GameEventListener {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // اعمال لرزش زلزله به تمام دوربین
         g2d.translate(shakeX, shakeY);
 
         hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
 
         g2d.translate(-shakeX, -shakeY);
+
+        // رندر سیستم ذرات فصلی به عنوان بالاترین لایه (روی همه چیز)
+        drawWeather(g2d);
     }
 
     public void showContextMenu(Point p, List<MenuAction> actions) {
@@ -157,7 +233,7 @@ public class GamePanel extends JPanel implements GameEventListener {
             JMenuItem item = new JMenuItem(action.getLabel());
             item.setBackground(new Color(30, 33, 40));
             item.setForeground(Color.WHITE);
-            item.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 13));
+            item.setFont(new Font("Segoe UI", Font.PLAIN, 13));
             item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
             if (!action.isEnabled()) {
@@ -177,27 +253,18 @@ public class GamePanel extends JPanel implements GameEventListener {
         popup.show(this, p.x, p.y);
     }
 
-    // ─── پیاده‌سازی رویدادهای بلایای طبیعی ────────────────────────────────────
-
     @Override
     public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
         SwingUtilities.invokeLater(() -> {
-            // طبق spec: اگر محل رویداد در دید پلیر نباشد، فقط alert متنی نمایش داده می‌شود
-            // و هیچ انیمیشنی روی مپ اعمال نمی‌شود.
             if (center == null || !center.isVisible()) return;
 
             switch (type) {
-                case "EARTHQUAKE" -> {
-                    // لرزش دوربین: ۳۰ فریم × ۱۶ms = حدود ۰.۵ ثانیه لرزش
-                    shakeDuration = 30;
-                }
+                case "EARTHQUAKE" -> shakeDuration = 30;
                 case "FLOOD" -> {
-                    // fade-in overlay آبی روی هکس‌های سیل‌زده
                     floodedHexes = new ArrayList<>(affected);
                     floodAlpha = 0f;
                 }
                 case "BEAR_ATTACK" -> {
-                    // flash قهوه‌ای روی هکس‌های جنگل (۴۰ فریم)
                     bearAttackHexes = new ArrayList<>(affected);
                     bearAlpha = 0f;
                     bearFlashTimer = 40;
@@ -213,6 +280,18 @@ public class GamePanel extends JPanel implements GameEventListener {
                     (JFrame) SwingUtilities.getWindowAncestor(this),
                     atk, def, atkDmg, defDmg
             ).setVisible(true);
+        });
+    }
+
+    @Override
+    public void onTribeInteractionTriggered(Hex campHex) {
+        SwingUtilities.invokeLater(() -> {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Tribe Interaction Menu (Relationship, Quests, Alliance) will open here!",
+                    "Tribe Camp",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
         });
     }
 
@@ -281,7 +360,6 @@ public class GamePanel extends JPanel implements GameEventListener {
 
     @Override
     public void onTurnEnded(int newTurn) {
-        // پاک‌سازی overlay‌های بلایا در شروع ترن جدید
         floodedHexes.clear();
         floodAlpha = 0f;
         repaint();

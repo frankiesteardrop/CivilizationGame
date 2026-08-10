@@ -11,6 +11,9 @@ public abstract class Building {
     protected int maxHp;
     protected int defense;
 
+    // رفع باگ 24: اضافه شدن تایمر توقف تولید ناشی از سیل
+    protected int floodHaltTurns;
+
     public Building(int baseWorkerCapacity) {
         this.baseWorkerCapacity = baseWorkerCapacity;
         this.stationedWorkers = 0;
@@ -19,6 +22,7 @@ public abstract class Building {
         this.maxHp = 100; // مقدار پیش‌فرض
         this.hp = 100;
         this.defense = 0;
+        this.floodHaltTurns = 0;
     }
 
     public abstract BuildingType getType();
@@ -49,6 +53,17 @@ public abstract class Building {
         }
     }
 
+    // رفع باگ 24: متد اختصاصی برای آسیب سیل که تایمر توقف را فعال می‌کند
+    public void takeFloodDamage(int amount) {
+        takeDamage(amount);
+        this.floodHaltTurns = 2; // نوبت فعلی و نوبت بعد
+    }
+
+    // متد کمکی برای کاهش تایمر در پایان هر نوبت
+    public void decrementFloodHalt() {
+        if (floodHaltTurns > 0) floodHaltTurns--;
+    }
+
     public void addWorker() {
         if (stationedWorkers < baseWorkerCapacity) stationedWorkers++;
     }
@@ -59,6 +74,9 @@ public abstract class Building {
 
     public int calculateProduction(TownHall townHall) {
         if (isDestroyed) return 0;
+        // رفع باگ 24: صفر شدن تولید در صورت آسیب‌دیدگی از سیل
+        if (floodHaltTurns > 0) return 0;
+
         return stationedWorkers * getType().getBaseProduction();
     }
 

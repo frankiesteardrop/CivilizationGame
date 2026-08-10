@@ -10,13 +10,16 @@ public class DisasterController {
     private final GameMap map;
     private final Random random;
 
+    private static int bearCooldown = 0;
+
     public DisasterController(GameMap map) {
         this.map = map;
         this.random = new Random();
     }
 
     public void checkAndTriggerDisasters() {
-        // ۵٪ احتمال وقوع بلای طبیعی در ابتدای هر ترن
+        if (bearCooldown > 0) bearCooldown--;
+
         if (random.nextDouble() > 0.05) return;
 
         boolean isAutumn = map.getCurrentSeason() == Season.AUTUMN;
@@ -28,6 +31,41 @@ public class DisasterController {
         else triggerFlood();
     }
 
+    public void processBearAI() {
+        List<Unit> bears = map.getUnits().stream()
+                .filter(u -> u.isAlive() && u.getClass().getSimpleName().equals("Bear"))
+                .collect(Collectors.toList());
+
+        for (Unit bear : bears) {
+            if (bear.getCurrentAP() <= 0) continue;
+
+            Unit target = null;
+            int minDist = Integer.MAX_VALUE;
+
+            for (Unit u : map.getUnits()) {
+                if (u.isAlive() && (u instanceof Worker || u instanceof Builder)) {
+                    int d = map.getHexDistance(bear.getQ(), bear.getR(), u.getQ(), u.getR());
+                    if (d < minDist) {
+                        minDist = d;
+                        target = u;
+                    }
+                }
+            }
+
+            if (target != null) {
+                if (minDist <= 1) {
+                    target.takeDamage(20);
+                    bear.consumeAP(bear.getCurrentAP());
+                    GameEventDispatcher.fireNotification("⚠️ A Bear attacked your citizens!");
+                } else {
+                    int dq = Integer.signum(target.getQ() - bear.getQ());
+                    int dr = Integer.signum(target.getR() - bear.getR());
+                    bear.moveTo(bear.getQ() + dq, bear.getR() + dr, 1);
+                }
+            }
+        }
+    }
+
     private void triggerEarthquake() {
         List<Hex> landHexes = map.getHexes().stream()
                 .filter(h -> h.getTerrainType() != TerrainType.SEA)
@@ -36,22 +74,18 @@ public class DisasterController {
         if (landHexes.isEmpty()) return;
 
         Hex center = landHexes.get(random.nextInt(landHexes.size()));
-
-        // جمع‌آوری هکس‌های آسیب‌دیده برای نمایش گرافیکی
         List<Hex> affectedHexes = new ArrayList<>();
 
         for (Hex h : map.getHexes()) {
             if (map.getHexDistance(center.getQ(), center.getR(), h.getQ(), h.getR()) <= 2) {
                 affectedHexes.add(h);
 
-                // آسیب کم به یونیت‌ها (-10 HP)
                 for (Unit u : map.getUnits()) {
                     if (u.isAlive() && u.getQ() == h.getQ() && u.getR() == h.getR()) {
                         u.takeDamage(10);
                     }
                 }
 
-                // آسیب سنگین به تالار شهر (-50 HP تا حداقل 1)
                 Building b = h.getBuilding();
                 if (b != null && !b.isDestroyed() && b instanceof TownHall) {
                     int currentHp = b.getHp();
@@ -61,38 +95,39 @@ public class DisasterController {
             }
         }
 
-        // ارسال رویداد به سیستم UI
         GameEventDispatcher.fireDisasterTriggered("EARTHQUAKE", center, affectedHexes);
 
-        // اگر در دید پلیر بود → نمایش انیمیشن (توسط GamePanel)
-        // اگر در تاریکی بود → نمایش پیام متنی در HUD
         if (!center.isVisible()) {
             GameEventDispatcher.fireNotification("⚠️ An Earthquake struck a distant region!");
         }
     }
 
     private void triggerFlood() {
+        // رفع باگ 27: اصلاح منطق هدف‌گیری هکس‌ها (چک کردن رودخانه در یال‌ها)
         List<Hex> candidates = map.getHexes().stream()
                 .filter(h -> h.getTerrainType() == TerrainType.PLAINS
                         || h.getTerrainType() == TerrainType.MEADOW
                         || h.getTerrainType() == TerrainType.FOREST)
                 .filter(h -> {
+                    // بررسی اینکه آیا خود هکس یا همسایه‌های مستقیم آن، یالِ رودخانه دارند
                     for (int i = 0; i < 6; i++) {
+                        if (h.hasRiver(i)) return true;
                         Hex n = map.getNeighbor(h, i);
-                        if (n != null && (n.getTerrainType() == TerrainType.SEA || h.hasRiver(i))) return true;
+                        if (n != null) {
+                            for (int j = 0; j < 6; j++) {
+                                if (n.hasRiver(j)) return true;
+                            }
+                        }
                     }
                     return false;
                 }).collect(Collectors.toList());
 
         if (candidates.isEmpty()) return;
         Hex center = candidates.get(random.nextInt(candidates.size()));
-
-        // جمع‌آوری هکس‌های آسیب‌دیده برای نمایش گرافیکی
         List<Hex> affectedHexes = new ArrayList<>();
 
         for (Hex h : map.getHexes()) {
             if (map.getHexDistance(center.getQ(), center.getR(), h.getQ(), h.getR()) <= 1) {
-                // کوهستان و رشته‌کوه مصون هستند
                 if (h.getTerrainType() == TerrainType.MOUNTAIN
                         || h.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
 
@@ -101,24 +136,24 @@ public class DisasterController {
                 for (Unit u : map.getUnits()) {
                     if (u.isAlive() && u.getQ() == h.getQ() && u.getR() == h.getR()) {
                         u.takeDamage(20);
-                        u.consumeAP(u.getCurrentAP()); // صفر شدن AP
+                        u.consumeAP(u.getCurrentAP());
                     }
                 }
 
-                h.setRoad(false); // تخریب جاده
+                h.setRoad(false);
 
                 Building b = h.getBuilding();
                 if (b != null && !b.isDestroyed()) {
                     if (b.getType() == BuildingType.FARM) {
-                        b.takeDamage(9999); // نابودی کامل مزرعه
+                        b.takeFloodDamage(9999);
                     } else {
-                        b.takeDamage(30);
+                        // رفع باگ 24: فراخوانی متد جدید برای اعمال توقف تولید
+                        b.takeFloodDamage(30);
                     }
                 }
             }
         }
 
-        // ارسال رویداد به سیستم UI
         GameEventDispatcher.fireDisasterTriggered("FLOOD", center, affectedHexes);
 
         if (!center.isVisible()) {
@@ -127,15 +162,17 @@ public class DisasterController {
     }
 
     private void triggerBearAttack() {
+        if (bearCooldown > 0) return;
+
         List<Hex> forests = map.getHexes().stream()
                 .filter(h -> h.getTerrainType() == TerrainType.FOREST)
                 .collect(Collectors.toList());
 
         if (forests.isEmpty()) return;
 
+        bearCooldown = 5;
         Hex forestHex = forests.get(random.nextInt(forests.size()));
 
-        // شمارش یونیت‌های بازیکن در شعاع ۳ هکسی
         long nearbyUnits = map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && map.getHexDistance(forestHex.getQ(), forestHex.getR(), u.getQ(), u.getR()) <= 3)
@@ -147,7 +184,6 @@ public class DisasterController {
             map.addUnit(bear);
         }
 
-        // لیست affected: هکس جنگل + هکس‌های مجاور در شعاع ۳ (برای flash گرافیکی)
         List<Hex> affectedHexes = new ArrayList<>();
         for (Hex h : map.getHexes()) {
             if (map.getHexDistance(forestHex.getQ(), forestHex.getR(), h.getQ(), h.getR()) <= 3
@@ -157,7 +193,6 @@ public class DisasterController {
         }
         if (affectedHexes.isEmpty()) affectedHexes.add(forestHex);
 
-        // ارسال رویداد به سیستم UI
         GameEventDispatcher.fireDisasterTriggered("BEAR_ATTACK", forestHex, affectedHexes);
 
         if (!forestHex.isVisible()) {

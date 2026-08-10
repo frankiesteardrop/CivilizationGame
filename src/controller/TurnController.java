@@ -2,6 +2,7 @@ package controller;
 
 import model.GameEventDispatcher;
 import model.GameMap;
+import model.Hex;
 import model.Unit;
 import model.Worker;
 
@@ -28,6 +29,7 @@ public class TurnController {
     public void forceEndTurn() {
         int effectiveHappiness = mainController.getEconomyController().getEffectiveHappiness(gameMap);
 
+        // ۱. تجدید AP یونیت‌ها و اعمال پنالتی‌های Happiness
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
@@ -37,12 +39,23 @@ public class TurnController {
             }
         }
 
+        // رفع باگ 24: کاهش تایمر توقف تولید ناشی از سیل در هر نوبت
+        for (Hex hex : gameMap.getHexes()) {
+            if (hex.getBuilding() != null) {
+                hex.getBuilding().decrementFloodHalt();
+            }
+        }
+
         gameMap.removeDeadUnits();
         gameMap.incrementTurn();
         gameMap.updateFogOfWar();
 
-        new DisasterController(gameMap).checkAndTriggerDisasters();
+        // اتصال چرخه بلایا به هوش مصنوعی (Bear AI و بلایا)
+        DisasterController disasterController = new DisasterController(gameMap);
+        disasterController.processBearAI();
+        disasterController.checkAndTriggerDisasters();
 
+        // اطلاع‌رسانی پایان نوبت به رویدادها (که EconomyController در اینجا تولید را محاسبه می‌کند)
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
 
         mainController.getTribeController().processTribesTurn();
