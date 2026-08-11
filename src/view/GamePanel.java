@@ -34,17 +34,14 @@ public class GamePanel extends JPanel implements GameEventListener {
     // افکت‌های بلایای طبیعی
     private int shakeDuration = 0;
     private int shakeX = 0, shakeY = 0;
-    private List<Hex> floodedHexes = new ArrayList<>();
-    private float floodAlpha = 0f;
+
+    private List<Hex> floodedHexes    = new ArrayList<>();
+    private float     floodAlpha      = 0f;
     private List<Hex> bearAttackHexes = new ArrayList<>();
-    private float bearAlpha = 0f;
-    private int bearFlashTimer = 0;
+    private float     bearAlpha       = 0f;
+    private int       bearFlashTimer  = 0;
 
-    // رفع باگ 17: سیستم ذرات گرافیکی برای فصل‌ها
-    private final List<WeatherParticle> weatherParticles = new ArrayList<>();
-    private static final int MAX_PARTICLES = 150;
-
-    private final Timer animationTimer;
+    private final Timer       animationTimer;
     private final HexRenderer hexRenderer;
     private final UnitRenderer unitRenderer;
 
@@ -53,7 +50,7 @@ public class GamePanel extends JPanel implements GameEventListener {
         setBackground(new Color(15, 18, 22));
         setFocusable(true);
 
-        this.hexRenderer = new HexRenderer();
+        this.hexRenderer  = new HexRenderer();
         this.unitRenderer = new UnitRenderer();
 
         GameInputHandler inputHandler = new GameInputHandler(this, mainController);
@@ -63,21 +60,11 @@ public class GamePanel extends JPanel implements GameEventListener {
 
         GameEventDispatcher.addListener(this);
 
-        // راه‌اندازی اولیه ذرات
-        initWeatherParticles();
-
         animationTimer = new Timer(16, e -> {
             boolean needsRepaint = false;
 
-            if (animatingUnit != null) {
-                updateAnimation();
-                needsRepaint = true;
-            }
-
-            if (selectedUnit != null) {
-                updatePulseEffect();
-                needsRepaint = true;
-            }
+            if (animatingUnit != null) { updateAnimation(); needsRepaint = true; }
+            if (selectedUnit  != null) { updatePulseEffect(); needsRepaint = true; }
 
             if (shakeDuration > 0) {
                 shakeX = (int)((Math.random() - 0.5) * 15);
@@ -96,17 +83,7 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (bearFlashTimer > 0) {
                 bearAlpha = Math.min(0.55f, bearAlpha + 0.04f);
                 bearFlashTimer--;
-                if (bearFlashTimer == 0) {
-                    bearAlpha = 0f;
-                    bearAttackHexes.clear();
-                }
-                needsRepaint = true;
-            }
-
-            // آپدیت انیمیشن سیستم ذرات فصلی
-            Season currentSeason = mainController.getGameMap().getCurrentSeason();
-            if (currentSeason == Season.AUTUMN || currentSeason == Season.WINTER) {
-                updateWeatherParticles(currentSeason);
+                if (bearFlashTimer == 0) { bearAlpha = 0f; bearAttackHexes.clear(); }
                 needsRepaint = true;
             }
 
@@ -115,80 +92,14 @@ public class GamePanel extends JPanel implements GameEventListener {
         animationTimer.start();
     }
 
-    // ─── سیستم ذرات آب و هوا (Particle System) ─────────────────────────
-
-    private void initWeatherParticles() {
-        for (int i = 0; i < MAX_PARTICLES; i++) {
-            weatherParticles.add(new WeatherParticle());
-        }
-    }
-
-    private void updateWeatherParticles(Season season) {
-        int width = getWidth() > 0 ? getWidth() : 1280;
-        int height = getHeight() > 0 ? getHeight() : 800;
-
-        for (WeatherParticle p : weatherParticles) {
-            if (season == Season.AUTUMN) {
-                // باران شدید مورب
-                p.x += 4;
-                p.y += 12;
-            } else if (season == Season.WINTER) {
-                // برف ملایم سینوسی
-                p.y += p.speed;
-                p.x += Math.sin(p.y / 20.0) * 1.5;
-            }
-
-            // بازیافت ذرات خارج شده از صفحه
-            if (p.y > height || p.x > width) {
-                p.x = Math.random() * width;
-                p.y = -Math.random() * 100;
-                p.speed = 2 + Math.random() * 3;
-            }
-        }
-    }
-
-    private class WeatherParticle {
-        double x, y;
-        double speed;
-
-        WeatherParticle() {
-            x = Math.random() * 1280;
-            y = Math.random() * 800;
-            speed = 2 + Math.random() * 3;
-        }
-    }
-
-    private void drawWeather(Graphics2D g2d) {
-        Season currentSeason = mainController.getGameMap().getCurrentSeason();
-        if (currentSeason == Season.SPRING || currentSeason == Season.SUMMER) return;
-
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        if (currentSeason == Season.AUTUMN) {
-            g2d.setColor(new Color(135, 206, 235, 120)); // آبی بارانی نیمه‌شفاف
-            g2d.setStroke(new BasicStroke(1.5f));
-            for (WeatherParticle p : weatherParticles) {
-                g2d.drawLine((int)p.x, (int)p.y, (int)p.x + 2, (int)p.y + 6);
-            }
-            g2d.setStroke(new BasicStroke(1f));
-        } else if (currentSeason == Season.WINTER) {
-            g2d.setColor(new Color(255, 255, 255, 180)); // سفید برفی
-            for (WeatherParticle p : weatherParticles) {
-                int size = (int)(p.speed); // اندازه دانه‌های برف بر اساس سرعت سقوط
-                g2d.fillOval((int)p.x, (int)p.y, size, size);
-            }
-        }
-    }
-
-    // ─── ادامه متدهای GamePanel ──────────────────────────────────────────
-
     private void updateAnimation() {
         if (animatingUnit == null) return;
         animProgress += 0.08;
         if (animProgress >= 1.0) {
             animProgress = 1.0;
             Hex targetHex = mainController.getGameMap().getHexAt(animTargetQ, animTargetR);
-            mainController.getUnitController().executeMove(animatingUnit, targetHex, mainController.getGameMap());
+            mainController.getUnitController().executeMove(
+                    animatingUnit, targetHex, mainController.getGameMap());
             animatingUnit = null;
         }
     }
@@ -207,19 +118,15 @@ public class GamePanel extends JPanel implements GameEventListener {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,      RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING,         RenderingHints.VALUE_RENDER_QUALITY);
 
         g2d.translate(shakeX, shakeY);
-
-        hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
+        hexRenderer.renderAll(g2d, this, mainController.getGameMap(),
+                mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
-
         g2d.translate(-shakeX, -shakeY);
-
-        // رندر سیستم ذرات فصلی به عنوان بالاترین لایه (روی همه چیز)
-        drawWeather(g2d);
     }
 
     public void showContextMenu(Point p, List<MenuAction> actions) {
@@ -233,14 +140,13 @@ public class GamePanel extends JPanel implements GameEventListener {
             JMenuItem item = new JMenuItem(action.getLabel());
             item.setBackground(new Color(30, 33, 40));
             item.setForeground(Color.WHITE);
-            item.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            item.setFont(new Font(UIConfig.FONT_SEGOE_UI, java.awt.Font.PLAIN, 13));
             item.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
             if (!action.isEnabled()) {
                 item.setEnabled(false);
-                if (action.getDisabledReason() != null) {
+                if (action.getDisabledReason() != null)
                     item.setToolTipText(action.getDisabledReason());
-                }
             } else {
                 item.addActionListener(ev -> {
                     action.execute();
@@ -253,6 +159,31 @@ public class GamePanel extends JPanel implements GameEventListener {
         popup.show(this, p.x, p.y);
     }
 
+    /**
+     * F-05: نمایش TribeInteractionDialog وقتی بازیکن روی کمپ قبیله کلیک راست می‌کند.
+     * GameInputHandler این متد را صدا می‌زند.
+     */
+    public void onTribeInteractionTriggered(Hex campHex) {
+        if (campHex == null || !(campHex.getBuilding() instanceof TribeCamp)) return;
+        if (campHex.getBuilding().isDestroyed()) return;
+
+        TribeCamp camp = (TribeCamp) campHex.getBuilding();
+
+        // اگر کمپ کشف نشده، تعامل مجاز نیست
+        if (!campHex.isExplored()) {
+            GameEventDispatcher.fireNotification("⚠️ This tribe has not been discovered yet.");
+            return;
+        }
+
+        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+        TribeInteractionDialog dialog = new TribeInteractionDialog(
+                parent, camp, mainController, this::repaint);
+        dialog.setVisible(true);
+        repaint();
+    }
+
+    // ─── رویدادهای بلایای طبیعی ──────────────────────────────────────────────
+
     @Override
     public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
         SwingUtilities.invokeLater(() -> {
@@ -262,12 +193,12 @@ public class GamePanel extends JPanel implements GameEventListener {
                 case "EARTHQUAKE" -> shakeDuration = 30;
                 case "FLOOD" -> {
                     floodedHexes = new ArrayList<>(affected);
-                    floodAlpha = 0f;
+                    floodAlpha   = 0f;
                 }
                 case "BEAR_ATTACK" -> {
                     bearAttackHexes = new ArrayList<>(affected);
-                    bearAlpha = 0f;
-                    bearFlashTimer = 40;
+                    bearAlpha       = 0f;
+                    bearFlashTimer  = 40;
                 }
             }
         });
@@ -275,36 +206,23 @@ public class GamePanel extends JPanel implements GameEventListener {
 
     @Override
     public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
-        SwingUtilities.invokeLater(() -> {
-            new CombatVisualizerDialog(
-                    (JFrame) SwingUtilities.getWindowAncestor(this),
-                    atk, def, atkDmg, defDmg
-            ).setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new CombatVisualizerDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this),
+                atk, def, atkDmg, defDmg).setVisible(true));
     }
 
-    @Override
-    public void onTribeInteractionTriggered(Hex campHex) {
-        SwingUtilities.invokeLater(() -> {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Tribe Interaction Menu (Relationship, Quests, Alliance) will open here!",
-                    "Tribe Camp",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        });
-    }
+    // ─── Coordinates ─────────────────────────────────────────────────────────
 
-    // متدهای واسط (Getter/Setter)
     public Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
         double y = HEX_SIZE * 3.0 / 2.0 * r;
-        return new Point((int)(x * zoomFactor) + offsetX, (int)(y * zoomFactor) + offsetY);
+        return new Point((int)(x * zoomFactor) + offsetX,
+                (int)(y * zoomFactor) + offsetY);
     }
 
     public Hex getHexAtPixel(Point p, List<Hex> hexes) {
-        double rawX = (p.x - offsetX) / zoomFactor;
-        double rawY = (p.y - offsetY) / zoomFactor;
+        double rawX   = (p.x - offsetX) / zoomFactor;
+        double rawY   = (p.y - offsetY) / zoomFactor;
         double qExact = (Math.sqrt(3.0)/3.0 * rawX - 1.0/3.0 * rawY) / HEX_SIZE;
         double rExact = (2.0/3.0 * rawY) / HEX_SIZE;
         int hexQ = (int) Math.round(qExact);
@@ -314,61 +232,63 @@ public class GamePanel extends JPanel implements GameEventListener {
         double rDiff = Math.abs(hexR - rExact);
         double sDiff = Math.abs(hexS - (-qExact - rExact));
         if (qDiff > rDiff && qDiff > sDiff) hexQ = -hexR - hexS;
-        else if (rDiff > sDiff) hexR = -hexQ - hexS;
+        else if (rDiff > sDiff)             hexR = -hexQ - hexS;
         return mainController.getGameMap().getHexAt(hexQ, hexR);
     }
 
-    public boolean isAnimating() { return animatingUnit != null; }
-    public Unit getSelectedUnit() { return selectedUnit; }
-    public void setSelectedUnit(Unit u) { this.selectedUnit = u; }
-    public Unit getAnimatingUnit() { return animatingUnit; }
-    public Hex getHoveredHex() { return hoveredHex; }
-    public void setHoveredHex(Hex h) { this.hoveredHex = h; }
-    public double getZoomFactor() { return zoomFactor; }
-    public int getZoomIndex() { return zoomIndex; }
-    public void setZoomIndex(int idx) { this.zoomIndex = idx; this.zoomFactor = ZOOM_LEVELS[idx]; }
-    public int getOffsetX() { return offsetX; }
-    public void setOffsetX(int x) { this.offsetX = x; }
-    public int getOffsetY() { return offsetY; }
-    public void setOffsetY(int y) { this.offsetY = y; }
-    public double getPulseScale() { return pulseScale; }
-    public double getAnimProgress() { return animProgress; }
-    public int getAnimStartX() { return animStartX; }
-    public int getAnimStartY() { return animStartY; }
-    public int getAnimTargetX() { return animTargetX; }
-    public int getAnimTargetY() { return animTargetY; }
-    public List<Hex> getFloodedHexes() { return floodedHexes; }
-    public float getFloodAlpha() { return floodAlpha; }
-    public List<Hex> getBearAttackHexes() { return bearAttackHexes; }
-    public float getBearAlpha() { return bearAlpha; }
+    // ─── Getters / Setters ────────────────────────────────────────────────────
 
-    public void startAnimation(Unit unit, Hex targetHex, int startX, int startY, int targetX, int targetY) {
+    public boolean   isAnimating()      { return animatingUnit != null; }
+    public Unit      getSelectedUnit()  { return selectedUnit; }
+    public void      setSelectedUnit(Unit u) { this.selectedUnit = u; }
+    public Unit      getAnimatingUnit() { return animatingUnit; }
+    public Hex       getHoveredHex()    { return hoveredHex; }
+    public void      setHoveredHex(Hex h) { this.hoveredHex = h; }
+    public double    getZoomFactor()    { return zoomFactor; }
+    public int       getZoomIndex()     { return zoomIndex; }
+    public void      setZoomIndex(int i){ this.zoomIndex = i; this.zoomFactor = ZOOM_LEVELS[i]; }
+    public int       getOffsetX()       { return offsetX; }
+    public void      setOffsetX(int x)  { this.offsetX = x; }
+    public int       getOffsetY()       { return offsetY; }
+    public void      setOffsetY(int y)  { this.offsetY = y; }
+    public double    getPulseScale()    { return pulseScale; }
+    public double    getAnimProgress()  { return animProgress; }
+    public int       getAnimStartX()    { return animStartX; }
+    public int       getAnimStartY()    { return animStartY; }
+    public int       getAnimTargetX()   { return animTargetX; }
+    public int       getAnimTargetY()   { return animTargetY; }
+    public List<Hex> getFloodedHexes()     { return floodedHexes; }
+    public float     getFloodAlpha()        { return floodAlpha; }
+    public List<Hex> getBearAttackHexes()   { return bearAttackHexes; }
+    public float     getBearAlpha()         { return bearAlpha; }
+
+    public void startAnimation(Unit unit, Hex targetHex,
+                               int startX, int startY, int targetX, int targetY) {
         this.animatingUnit = unit;
-        this.animStartX = startX;
-        this.animStartY = startY;
-        this.animTargetX = targetX;
-        this.animTargetY = targetY;
-        this.animTargetQ = targetHex.getQ();
-        this.animTargetR = targetHex.getR();
-        this.animProgress = 0.0;
+        this.animStartX    = startX;
+        this.animStartY    = startY;
+        this.animTargetX   = targetX;
+        this.animTargetY   = targetY;
+        this.animTargetQ   = targetHex.getQ();
+        this.animTargetR   = targetHex.getR();
+        this.animProgress  = 0.0;
     }
+
+    // ─── Event listener ───────────────────────────────────────────────────────
 
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { repaint(); }
     @Override public void onUnitKilled(Unit unit) { repaint(); }
     @Override public void onProductionCompleted(String itemName) {}
-
-    @Override
-    public void onTurnEnded(int newTurn) {
+    @Override public void onTurnEnded(int newTurn) {
         floodedHexes.clear();
         floodAlpha = 0f;
         repaint();
     }
-
-    @Override public void onStarvationChanged(boolean isStarving) {}
+    @Override public void onStarvationChanged(boolean s) {}
     @Override public void onUnitStateChanged(Unit unit) { repaint(); }
     @Override public void onBuildingConstructed(Hex hex) { repaint(); }
     @Override public void onBuildingDestroyed(Hex hex) { repaint(); }
-    @Override public void onBorderExpanded(int centerQ, int centerR) { repaint(); }
+    @Override public void onBorderExpanded(int cq, int cr) { repaint(); }
     @Override public void onNotification(String message) {}
 }
