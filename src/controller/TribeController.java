@@ -22,10 +22,8 @@ public class TribeController {
      * - حداقل ۶ هکس از TownHall بازیکن
      * - روی هکس‌های قابل سکونت (نه دریا، نه رشته‌کوه)
      * - بدون ساختمان موجود
-     * - حداقل ۴ هکس فاصله بین کمپ‌ها (جلوگیری از تداخل قلمرو)
+     * - حداقل ۴ هکس فاصله بین کمپ‌ها
      * - اولویت terrain متناسب با نوع قبیله
-     *
-     * این متد فقط برای بازی جدید صدا زده می‌شود (چک hasNoTribes در MainController).
      */
     public void spawnInitialTribes() {
         List<Hex> candidates = map.getHexes().stream()
@@ -39,12 +37,10 @@ public class TribeController {
 
         Collections.shuffle(candidates);
 
-        // یک نمونه از هر نوع قبیله spawn می‌شود
         TribeType[] types = TribeType.values();
         List<Hex>   spawnedLocations = new ArrayList<>();
 
         for (TribeType type : types) {
-            // اولویت terrain متناسب با نوع قبیله
             Hex bestHex = findBestHexForTribe(type, candidates, spawnedLocations);
             if (bestHex == null) continue;
 
@@ -54,65 +50,52 @@ public class TribeController {
         }
     }
 
-    /**
-     * پیدا کردن بهترین هکس برای قبیله با توجه به terrain و فاصله از سایر کمپ‌ها.
-     * حداقل فاصله ۴ هکس از سایر کمپ‌ها الزامی است.
-     */
     private Hex findBestHexForTribe(TribeType type, List<Hex> candidates, List<Hex> occupied) {
-        // ابتدا terrain ایده‌آل جستجو می‌شود
         TerrainType preferred = getPreferredTerrain(type);
 
-        // جستجو در terrain ترجیحی با رعایت inter-camp distance
+        // اولویت: terrain ترجیحی + فاصله کافی
         for (Hex h : candidates) {
-            if (h.getTerrainType() == preferred && isFarEnoughFromOthers(h, occupied)) {
-                return h;
-            }
+            if (h.getTerrainType() == preferred && isFarEnoughFromOthers(h, occupied)) return h;
         }
 
-        // اگر terrain ترجیحی پیدا نشد، هر هکس مجاز با فاصله کافی
+        // fallback: هر terrain قابل قبول با فاصله کافی
         for (Hex h : candidates) {
-            if (isFarEnoughFromOthers(h, occupied)) {
-                return h;
-            }
+            if (isFarEnoughFromOthers(h, occupied)) return h;
         }
 
         return null;
     }
 
-    /**
-     * حداقل فاصله ۴ هکس از سایر کمپ‌های قبلاً spawn‌شده.
-     * طبق spec، هر کمپ قلمرو خود (کمپ + هکس‌های مجاور) را دارد.
-     */
+    /** حداقل فاصله ۴ هکس از سایر کمپ‌های spawn‌شده. */
     private boolean isFarEnoughFromOthers(Hex candidate, List<Hex> occupied) {
         for (Hex o : occupied) {
-            if (map.getHexDistance(candidate.getQ(), candidate.getR(), o.getQ(), o.getR()) < 4) {
+            if (map.getHexDistance(candidate.getQ(), candidate.getR(), o.getQ(), o.getR()) < 4)
                 return false;
-            }
         }
         return true;
     }
 
     /**
-     * Terrain ترجیحی برای هر نوع قبیله بر اساس spec:
-     * - Farmer → دشت/چمنزار (MEADOW/PLAINS)
-     * - Warrior → دشت (PLAINS)
-     * - Mountain → کوهستان (MOUNTAIN)
-     * - Merchant → دشت یا جنگل (PLAINS/FOREST)
-     * - Nomad (Coastal) → هر terrain ساحلی
+     * Terrain ترجیحی برای هر نوع قبیله طبق spec:
+     * - FARMER    → چمنزار (MEADOW)
+     * - WARRIOR   → دشت (PLAINS)
+     * - MOUNTAIN  → کوهستان (MOUNTAIN)
+     * - COMMERCIAL → دشت یا جنگل (PLAINS) — اصلاح F-37
+     * - COASTAL   → دشت ساحلی (PLAINS) — اصلاح F-37
      */
     private TerrainType getPreferredTerrain(TribeType type) {
         return switch (type) {
-            case FARMER   -> TerrainType.MEADOW;
-            case WARRIOR  -> TerrainType.PLAINS;
-            case MOUNTAIN -> TerrainType.MOUNTAIN;
-            case MERCHANT -> TerrainType.PLAINS;
-            case NOMAD    -> TerrainType.PLAINS;
+            case FARMER     -> TerrainType.MEADOW;
+            case WARRIOR    -> TerrainType.PLAINS;
+            case MOUNTAIN   -> TerrainType.MOUNTAIN;
+            case COMMERCIAL -> TerrainType.PLAINS;   // اصلاح: قبلاً MERCHANT
+            case COASTAL    -> TerrainType.PLAINS;   // اصلاح: قبلاً NOMAD
         };
     }
 
     /**
      * رفتار نوبتی قبایل — اجرا بعد از End Turn بازیکن.
-     * اولویت‌بندی طبق spec: دفاع از کمپ > تولید گارد (دشمن) > پیشنهاد مأموریت (دوستانه) > ماندن
+     * اولویت طبق spec: دفاع > تولید گارد (دشمن) > mission (دوستانه) > ماندن
      */
     public void processTribesTurn() {
         for (Hex hex : map.getHexes()) {
@@ -122,83 +105,100 @@ public class TribeController {
             TribeCamp camp  = (TribeCamp) hex.getBuilding();
             Tribe     tribe = camp.getTribe();
 
-            int rel = tribe.getRelationship();
-
-            if (rel <= -50) {
-                // دشمن: رفتار تدافعی (اسپاون گارد در توسعه‌های بعدی)
-                processEnemyTribeTurn(camp, hex);
-            } else if (tribe.isAllied()) {
-                // متحد: اعمال permanent bonus هر ترن
-                processAlliedTribeTurn(tribe);
-            } else if (rel >= 20) {
-                // دوستانه: پردازش مأموریت‌های فعال
-                processFriendlyTribeTurn(tribe);
+            // F-03: استفاده از getStatus() با بازه‌های صحیح
+            switch (tribe.getStatus()) {
+                case "Enemy"     -> processEnemyTribeTurn(camp, hex);
+                case "Allied"    -> processAlliedTribeTurn(tribe);
+                case "Friendly"  -> processFriendlyTribeTurn(tribe);
+                // Neutral و Displeased: بدون رفتار فعال
             }
-            // Neutral و Displeased: هیچ رفتار فعالی ندارند
         }
     }
 
     private void processEnemyTribeTurn(TribeCamp camp, Hex campHex) {
-        // در توسعه‌های بعدی: spawn guard units هر ۳ ترن
+        // توسعه بعدی: spawn guard units هر ۳ ترن
+        // Warrior: تا ۵ گارد؛ بقیه: تا ۳ گارد
     }
 
+    /**
+     * Permanent bonus قبایل متحد هر ترن — طبق spec:
+     * - FARMER    → +۵ غذا/ترن
+     * - MOUNTAIN  → +۵ سنگ/ترن
+     * - COMMERCIAL → +۱۰٪ نرخ تجارت (نمادین: +۳ چوب تا پیاده‌سازی کامل TradeController)
+     * - COASTAL   → bonus ماهیگیری (نمادین: +۳ غذا تا پیاده‌سازی Dock bonus)
+     * - WARRIOR   → attack bonus نزدیک کمپ (در CombatController اعمال می‌شود)
+     *
+     * اصلاح F-37: MERCHANT → COMMERCIAL، NOMAD → COASTAL
+     */
     private void processAlliedTribeTurn(Tribe tribe) {
-        // Permanent bonus بر اساس نوع قبیله — طبق spec
         switch (tribe.getType()) {
-            case FARMER -> map.getTownHall().getInventory().addResource(ResourceType.FOOD, 5);
-            case MOUNTAIN -> map.getTownHall().getInventory().addResource(ResourceType.STONE, 5);
-            case MERCHANT -> {
-                // COMMERCIAL: bonus تجاری (+10% نرخ) — در TradeController پیاده‌سازی می‌شود
-                // فعلاً یک منبع نمادین
-                map.getTownHall().getInventory().addResource(ResourceType.WOOD, 3);
-            }
-            case NOMAD -> {
-                // COASTAL: bonus ماهیگیری
-                map.getTownHall().getInventory().addResource(ResourceType.FOOD, 3);
-            }
+            case FARMER -> map.getTownHall().getInventory()
+                    .addResource(ResourceType.FOOD, 5);
+
+            case MOUNTAIN -> map.getTownHall().getInventory()
+                    .addResource(ResourceType.STONE, 5);
+
+            case COMMERCIAL ->
+                // اصلاح F-37 + F-26: COMMERCIAL bonus تجاری
+                // در پیاده‌سازی کامل TradeController، نرخ تجارت +۱۰٪ می‌شود.
+                // فعلاً یک منبع نمادین تا وقتی TradeController این flag را بررسی کند.
+                    map.getTownHall().getInventory()
+                            .addResource(ResourceType.WOOD, 3);
+
+            case COASTAL ->
+                // اصلاح F-37 + F-26: COASTAL bonus ماهیگیری
+                // در پیاده‌سازی کامل: Dock production افزایش می‌یابد.
+                    map.getTownHall().getInventory()
+                            .addResource(ResourceType.FOOD, 3);
+
             case WARRIOR -> {
-                // Warrior alliance bonus: attack bonus (در combat اعمال می‌شود)
+                // Warrior alliance: attack bonus نزدیک کمپ
+                // این در CombatController پیاده‌سازی می‌شود.
             }
         }
     }
 
     private void processFriendlyTribeTurn(Tribe tribe) {
-        // در توسعه‌های بعدی: هر ۵ ترن پیشنهاد مأموریت جدید
+        // توسعه بعدی: هر ۵ ترن پیشنهاد مأموریت جدید
     }
+
+    // ─── اعمال رابطه ─────────────────────────────────────────────────────────
 
     /**
      * تشکیل اتحاد با قبیله.
      * پیش‌نیازها طبق spec:
-     * - رابطه ≥ 70
+     * - رابطه ≥ ۷۰ (اصلاح F-04: قبلاً ۵۰ بود)
      * - نه در حال جنگ
-     * - رعایت محدودیت‌های همزمانی (کشاورز+کوهستانی ممنوع؛ جنگجو با هیچکس)
+     * - رعایت محدودیت‌های همزمانی:
+     *   جنگجو با هیچکس؛ کشاورز + کوهستانی باهم ممنوع
      */
     public boolean formAlliance(Tribe targetTribe) {
-        // F-04: threshold صحیح طبق spec — باید ≥ 70 باشد
-        if (targetTribe.getRelationship() < 70) return false;
+        if (!targetTribe.canFormAlliance()) return false;
 
-        boolean hasFarmer  = false;
+        boolean hasFarmer   = false;
         boolean hasMountain = false;
-        boolean hasWarrior = false;
+        boolean hasWarrior  = false;
 
         for (Hex h : map.getHexes()) {
             if (!(h.getBuilding() instanceof TribeCamp)) continue;
             if (h.getBuilding().isDestroyed()) continue;
             Tribe t = ((TribeCamp) h.getBuilding()).getTribe();
             if (!t.isAllied()) continue;
-            if (t.getType() == TribeType.FARMER)   hasFarmer   = true;
-            if (t.getType() == TribeType.MOUNTAIN)  hasMountain = true;
-            if (t.getType() == TribeType.WARRIOR)   hasWarrior  = true;
+            if (t.getType() == TribeType.FARMER)     hasFarmer   = true;
+            if (t.getType() == TribeType.MOUNTAIN)   hasMountain = true;
+            if (t.getType() == TribeType.WARRIOR)    hasWarrior  = true;
         }
 
         // محدودیت‌های همزمانی طبق spec
-        if (hasWarrior) return false; // جنگجو با هیچکس همزمان ممکن نیست
+        if (hasWarrior) return false;
         if (targetTribe.getType() == TribeType.WARRIOR
                 && (hasFarmer || hasMountain)) return false;
-        if (targetTribe.getType() == TribeType.FARMER && hasMountain) return false;
-        if (targetTribe.getType() == TribeType.MOUNTAIN && hasFarmer) return false;
+        if (targetTribe.getType() == TribeType.FARMER   && hasMountain) return false;
+        if (targetTribe.getType() == TribeType.MOUNTAIN && hasFarmer)   return false;
 
         targetTribe.setAllied(true);
+        GameEventDispatcher.fireNotification(
+                "🤝 Alliance formed with " + targetTribe.getType().getDisplayName() + "!");
         return true;
     }
 
@@ -207,15 +207,14 @@ public class TribeController {
      * - 10 غذا/چوب → +2 رابطه
      * - 10 سنگ → +3 رابطه
      * - 5 آهن → +3 رابطه
-     * فقط در وضعیت غیر دشمن مجاز است.
+     * فقط در وضعیت غیر دشمن مجاز است (F-06).
      */
-    public boolean sendGift(Tribe tribe, ResourceType resourceType, int amount) {
-        if (tribe.getRelationship() <= -50) return false; // دشمن: gift مجاز نیست
+    public boolean sendGift(Tribe tribe, ResourceType resourceType) {
+        if (!tribe.canReceiveGift()) return false;
 
-        int relationGain;
         int requiredAmount;
+        int relationGain;
 
-        // نرخ‌های هدیه طبق spec
         if (resourceType == ResourceType.IRON) {
             requiredAmount = 5;
             relationGain   = 3;
@@ -229,42 +228,61 @@ public class TribeController {
             return false;
         }
 
-        if (amount < requiredAmount) return false;
-
         if (!map.getTownHall().getInventory().consumeResource(resourceType, requiredAmount)) {
             return false;
         }
 
         tribe.addRelationship(relationGain);
-        GameEventDispatcher.fireNotification(
-                "🎁 Gift sent! Relation +" + relationGain + " with " + tribe.getType().name());
+        GameEventDispatcher.fireNotification(String.format(
+                "🎁 Gift sent to %s! Relation +%d → %s",
+                tribe.getType().getDisplayName(),
+                relationGain,
+                tribe.getStatus()));
         return true;
     }
 
     /**
      * اعلام جنگ با قبیله.
-     * confirmation dialog باید در View نمایش داده شده باشد قبل از فراخوانی.
+     * confirmation dialog باید قبل از فراخوانی در View نمایش داده شده باشد.
+     * اثر Happiness بر اساس وضعیت قبلی (طبق spec).
      */
     public void declareWar(Tribe tribe) {
-        tribe.setAllied(false);
-        tribe.addRelationship(-100); // رابطه → حداقل (-100)
+        // جریمه happiness بر اساس وضعیت قبلی (باید قبل از reset رابطه محاسبه شود)
+        String previousStatus = tribe.getStatus();
+        boolean wasAllied   = tribe.isAllied() || tribe.getRelationship() >= 70;
+        boolean wasFriendly = tribe.getRelationship() >= 20 && !wasAllied;
 
-        // جریمه happiness بر اساس وضعیت قبلی (طبق spec)
-        // توجه: این قبل از reset رابطه باید بررسی شود — فعلاً اعمال ساده
+        tribe.setAllied(false);
+        // رابطه → -100 (بدترین حالت)
+        tribe.addRelationship(-200); // بعد از clamp در Tribe.addRelationship → -100
+
+        // جریمه happiness طبق spec:
+        // حمله به Friendly: -5 happiness
+        // حمله به Allied: -15 happiness
+        if (wasAllied) {
+            map.getTownHall().addHappiness(-15);
+            GameEventDispatcher.fireNotification("⚠️ Alliance broken! -15 Happiness.");
+        } else if (wasFriendly) {
+            map.getTownHall().addHappiness(-5);
+            GameEventDispatcher.fireNotification("⚠️ Friendly tribe attacked! -5 Happiness.");
+        }
+
         GameEventDispatcher.fireNotification(
-                "⚔️ War declared with " + tribe.getType().name() + "!");
+                "⚔️ War declared with " + tribe.getType().getDisplayName() + "!");
     }
 
     /**
      * درخواست صلح با قبیله دشمن.
-     * هزینه: 30 غذا + 30 چوب + 30 آهن (طبق spec)
+     * هزینه: 30 غذا + 30 چوب + 30 آهن (طبق spec).
+     * نتیجه: رابطه -100 → -10، وضعیت Enemy → Displeased.
      */
     public boolean requestPeace(Tribe tribe) {
-        if (tribe.getRelationship() > -50) return false; // فقط در حالت دشمن
+        if (!tribe.canRequestPeace()) return false;
 
         if (!map.getTownHall().getInventory().hasEnough(ResourceType.FOOD, 30)
                 || !map.getTownHall().getInventory().hasEnough(ResourceType.WOOD, 30)
                 || !map.getTownHall().getInventory().hasEnough(ResourceType.IRON, 30)) {
+            GameEventDispatcher.fireNotification("❌ Peace requires 30 Food + 30 Wood + 30 Iron!");
             return false;
         }
 
@@ -272,13 +290,63 @@ public class TribeController {
         map.getTownHall().getInventory().consumeResource(ResourceType.WOOD, 30);
         map.getTownHall().getInventory().consumeResource(ResourceType.IRON, 30);
 
-        // -100 → -10 رابطه، وضعیت از Enemy → Displeased
-        tribe.addRelationship(90); // از -100 به -10
+        // -100 → -10: اضافه کردن ۹۰ به رابطه
+        tribe.addRelationship(90);
+        // ceiling at -10 برای اطمینان
         if (tribe.getRelationship() > -10) {
-            // ceiling at -10
+            tribe.addRelationship(-10 - tribe.getRelationship());
         }
+
         GameEventDispatcher.fireNotification(
-                "🕊️ Peace requested with " + tribe.getType().name() + ". Status: Displeased.");
+                "🕊️ Peace with " + tribe.getType().getDisplayName() + ". Status: Displeased.");
         return true;
+    }
+
+    /**
+     * تجارت با قبیله — طبق spec (F-07).
+     * نرخ‌ها:
+     *   FARMER    → هر منبع → غذا، 75%
+     *   MOUNTAIN  → هر منبع → سنگ یا آهن، 75%
+     *   COMMERCIAL → هر منبع → هر منبع، 80% — اصلاح F-37
+     *   COASTAL   → هر منبع → غذا، 75% — اصلاح F-37
+     *   WARRIOR   → (بدون تجارت ترجیحی، طبق spec تجارت ندارد)
+     * ۱ تراکنش/ترن — ریست در TradeController.onTurnEnded.
+     */
+    public boolean tradeWithTribe(TribeCamp camp, ResourceType give, int amount,
+                                  ResourceType get) {
+        if (camp == null || camp.isDestroyed()) return false;
+        Tribe tribe = camp.getTribe();
+
+        if (!tribe.canTrade()) return false;
+        if (camp.hasTraded()) return false;
+
+        double rate = getTribeTradeRate(tribe.getType(), get);
+        if (rate <= 0) return false;
+
+        if (!map.getTownHall().getInventory().consumeResource(give, amount)) return false;
+
+        int received = (int) Math.floor(amount * rate);
+        map.getTownHall().getInventory().addResource(get, received);
+        camp.setTraded(true);
+
+        GameEventDispatcher.fireNotification(String.format(
+                "💱 Trade with %s: %d %s → %d %s",
+                tribe.getType().getDisplayName(),
+                amount, give.name(), received, get.name()));
+        return true;
+    }
+
+    /**
+     * نرخ تجارت هر قبیله بر اساس منبع دریافتی — طبق spec.
+     * اصلاح F-37: COMMERCIAL(80%) و COASTAL(75%) به جای MERCHANT و NOMAD.
+     */
+    private double getTribeTradeRate(TribeType type, ResourceType get) {
+        return switch (type) {
+            case FARMER -> (get == ResourceType.FOOD) ? 0.75 : 0.0;
+            case MOUNTAIN -> (get == ResourceType.STONE || get == ResourceType.IRON) ? 0.75 : 0.0;
+            case COMMERCIAL -> 0.80;     // اصلاح F-37: هر منبع، ۸۰٪
+            case COASTAL -> (get == ResourceType.FOOD) ? 0.75 : 0.0; // اصلاح F-37
+            case WARRIOR -> 0.0;         // Warrior تجارت ندارد
+        };
     }
 }
