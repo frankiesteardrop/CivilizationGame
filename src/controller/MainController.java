@@ -29,34 +29,25 @@ public class MainController {
         this.upgradeController  = new UpgradeController(gameMap);
         this.saveLoadController = new SaveLoadController(this);
 
-        // F-01: spawn قبایل فقط برای بازی جدید
         boolean hasNoTribes = gameMap.getHexes().stream()
                 .noneMatch(h -> h.getBuilding() instanceof TribeCamp);
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
     // ─── Getters ──────────────────────────────────────────────────────────────
-    public GameMap            getGameMap()              { return gameMap; }
-    public TurnController     getTurnController()       { return turnController; }
-    public UnitController     getUnitController()       { return unitController; }
-    public BuildController    getBuildController()       { return buildController; }
-    public UpgradeController  getUpgradeController()    { return upgradeController; }
-    public EconomyController  getEconomyController()    { return economyController; }
-    public TradeController    getTradeController()      { return tradeController; }
-    public TribeController    getTribeController()      { return tribeController; }
-    public SaveLoadController getSaveLoadController()   { return saveLoadController; }
+    public GameMap            getGameMap()             { return gameMap; }
+    public TurnController     getTurnController()      { return turnController; }
+    public UnitController     getUnitController()      { return unitController; }
+    public BuildController    getBuildController()     { return buildController; }
+    public UpgradeController  getUpgradeController()  { return upgradeController; }
+    public EconomyController  getEconomyController()  { return economyController; }
+    public TradeController    getTradeController()    { return tradeController; }
+    public TribeController    getTribeController()    { return tribeController; }
+    public SaveLoadController getSaveLoadController() { return saveLoadController; }
 
-    // ─── Unit helpers ─────────────────────────────────────────────────────────
-    public Unit selectUnitAt(Hex hex) { return unitController.selectUnitAt(hex, gameMap); }
-
-    /** F-10: map پاس داده می‌شود تا River، Road و Seafaring اثر کنند. */
-    public boolean canMove(Unit unit, Hex targetHex) {
-        return unitController.canMove(unit, targetHex, gameMap);
-    }
-
-    public void executeMove(Unit unit, Hex targetHex) {
-        unitController.executeMove(unit, targetHex, gameMap);
-    }
+    public Unit    selectUnitAt(Hex hex)               { return unitController.selectUnitAt(hex, gameMap); }
+    public boolean canMove(Unit unit, Hex targetHex)   { return unitController.canMove(unit, targetHex, gameMap); }
+    public void    executeMove(Unit unit, Hex targetHex) { unitController.executeMove(unit, targetHex, gameMap); }
 
     // ─── TownHall menu ────────────────────────────────────────────────────────
     public List<MenuAction> getTownHallMenuActions() {
@@ -68,79 +59,53 @@ public class MainController {
         boolean isMilCap  = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
         String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
 
-        // ─── Upgrade TH ──────────────────────────────────────────────────────
-        String whLabel = th.getLevel() >= 3
-                ? "✅ Capital MAXED"
+        String whLabel = th.getLevel() >= 3 ? "✅ Capital MAXED"
                 : String.format(prefix + "📦 Upgrade TH → Level %d", th.getLevel() + 1);
-        actions.add(new MenuAction(whLabel,
-                upgradeController.canAffordWarehouseUpgrade(),
+        actions.add(new MenuAction(whLabel, upgradeController.canAffordWarehouseUpgrade(),
                 () -> upgradeController.handleWarehouseUpgrade()));
 
-        // ─── Technologies ─────────────────────────────────────────────────────
-        actions.add(new MenuAction(
-                th.isStoneMineUnlocked() ? "✅ ⛏️ Tech: Stone Mine"
-                        : String.format(prefix + "⛏️ Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
+        actions.add(new MenuAction(th.isStoneMineUnlocked() ? "✅ ⛏️ Tech: Stone Mine"
+                : String.format(prefix + "⛏️ Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
                 upgradeController.canUnlockTech("STONE_MINE"),
                 () -> upgradeController.unlockTech("STONE_MINE")));
 
-        actions.add(new MenuAction(
-                th.isIronMineUnlocked() ? "✅ 🔩 Tech: Iron Mine"
-                        : String.format(prefix + "🔩 Iron Mine (%dW, %dS)",
-                        GameConfig.TECH_IRON_MINE_WOOD, GameConfig.TECH_IRON_MINE_STONE),
+        actions.add(new MenuAction(th.isIronMineUnlocked() ? "✅ 🔩 Tech: Iron Mine"
+                : String.format(prefix + "🔩 Iron Mine (%dW, %dS)",
+                GameConfig.TECH_IRON_MINE_WOOD, GameConfig.TECH_IRON_MINE_STONE),
                 upgradeController.canUnlockTech("IRON_MINE"),
                 () -> upgradeController.unlockTech("IRON_MINE")));
 
-        actions.add(new MenuAction(
-                th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools"
-                        : String.format(prefix + "🔧 Steel Tools (%dI)", GameConfig.TECH_STEEL_TOOLS_IRON),
+        actions.add(new MenuAction(th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools"
+                : String.format(prefix + "🔧 Steel Tools (%dI)", GameConfig.TECH_STEEL_TOOLS_IRON),
                 upgradeController.canUnlockTech("PROF_TOOLS"),
                 () -> upgradeController.unlockTech("PROF_TOOLS")));
 
-        actions.add(new MenuAction(
-                th.isSeafaringUnlocked() ? "✅ ⛵ Tech: Seafaring"
-                        : String.format(prefix + "⛵ Seafaring (%dW)", GameConfig.TECH_SEAFARING_WOOD),
+        actions.add(new MenuAction(th.isSeafaringUnlocked() ? "✅ ⛵ Tech: Seafaring"
+                : String.format(prefix + "⛵ Seafaring (%dW)", GameConfig.TECH_SEAFARING_WOOD),
                 upgradeController.canUnlockTech("SEAFARING"),
                 () -> upgradeController.unlockTech("SEAFARING")));
 
-        actions.add(new MenuAction(
-                th.isDefensiveArchUnlocked() ? "✅ 🏰 Tech: Defensive Arch"
-                        : String.format(prefix + "🏰 Defensive Arch (%dS)",
-                        GameConfig.TECH_DEFENSIVE_ARCH_STONE),
+        actions.add(new MenuAction(th.isDefensiveArchUnlocked() ? "✅ 🏰 Tech: Defensive Arch"
+                : String.format(prefix + "🏰 Defensive Arch (%dS)", GameConfig.TECH_DEFENSIVE_ARCH_STONE),
                 upgradeController.canUnlockTech("DEFENSIVE_ARCH"),
                 () -> upgradeController.unlockTech("DEFENSIVE_ARCH")));
 
-        // ─── Non-military units ───────────────────────────────────────────────
-        actions.add(new MenuAction(
-                String.format(prefix + "👷 Worker (%dF)", GameConfig.WORKER_FOOD_COST),
-                upgradeController.canTrainUnit("WORKER"),
-                () -> upgradeController.trainUnit("WORKER")));
+        actions.add(new MenuAction(String.format(prefix + "👷 Worker (%dF)", GameConfig.WORKER_FOOD_COST),
+                upgradeController.canTrainUnit("WORKER"), () -> upgradeController.trainUnit("WORKER")));
+        actions.add(new MenuAction(String.format(prefix + "🔨 Builder (%dF, %dW)",
+                GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST),
+                upgradeController.canTrainUnit("BUILDER"), () -> upgradeController.trainUnit("BUILDER")));
+        actions.add(new MenuAction(String.format(prefix + "🧭 Explorer (%dF, %dW)",
+                GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
+                upgradeController.canTrainUnit("EXPLORER"), () -> upgradeController.trainUnit("EXPLORER")));
 
-        actions.add(new MenuAction(
-                String.format(prefix + "🔨 Builder (%dF, %dW)",
-                        GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST),
-                upgradeController.canTrainUnit("BUILDER"),
-                () -> upgradeController.trainUnit("BUILDER")));
-
-        actions.add(new MenuAction(
-                String.format(prefix + "🧭 Explorer (%dF, %dW)",
-                        GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
-                upgradeController.canTrainUnit("EXPLORER"),
-                () -> upgradeController.trainUnit("EXPLORER")));
-
-        // ─── Military units ───────────────────────────────────────────────────
         actions.add(new MenuAction(milPrefix + "⚔️ Swordsman (20F, 10W)",
-                upgradeController.canTrainUnit("SWORDSMAN"),
-                () -> upgradeController.trainUnit("SWORDSMAN")));
-
+                upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
-                upgradeController.canTrainUnit("ARCHER"),
-                () -> upgradeController.trainUnit("ARCHER")));
-
+                upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
         actions.add(new MenuAction(milPrefix + "🏇 Cavalry (30F, 20I) [TH L2 + Stable]",
-                upgradeController.canTrainUnit("CAVALRY"),
-                () -> upgradeController.trainUnit("CAVALRY")));
+                upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
 
-        // ─── Save ─────────────────────────────────────────────────────────────
         actions.add(new MenuAction("💾 Save Slot 1", true, () -> saveLoadController.saveGame("slot1")));
         actions.add(new MenuAction("💾 Save Slot 2", true, () -> saveLoadController.saveGame("slot2")));
         actions.add(new MenuAction("💾 Save Slot 3", true, () -> saveLoadController.saveGame("slot3")));
@@ -155,49 +120,34 @@ public class MainController {
         boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ()
                 && selectedUnit.getR() == targetHex.getR());
 
-        // حمله: یونیت نظامی روی hex متفاوت
         if (!isSameHex && selectedUnit.getAttackRange() > 0) {
             return buildAttackMenu(selectedUnit, targetHex);
         }
 
-        // ─── منوی Builder ────────────────────────────────────────────────────
         if (selectedUnit.getType() == UnitType.BUILDER) {
-            Builder builder = (Builder) selectedUnit;
-            Building existingBuilding = targetHex.getBuilding();
+            Builder  builder  = (Builder) selectedUnit;
+            Building existing = targetHex.getBuilding();
 
-            if (existingBuilding != null && !existingBuilding.isDestroyed()) {
-                // F-20: گزینه Destroy با confirmation dialog اجباری
+            if (existing != null && !existing.isDestroyed()) {
                 boolean canDestroy = buildController.canDestroy(targetHex, "BUILDING", 0, builder);
-                BuildingType bType = existingBuilding.getType();
-
-                String destroyLabel   = "🗑️ Destroy " + bType.name() + " (-1 AP, no refund)";
-                String destroyDisabled = getDestroyDisabledReason(bType, builder);
-
-                actions.add(new MenuAction(
-                        destroyLabel,
+                BuildingType bType = existing.getType();
+                actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
                         canDestroy,
-                        canDestroy ? null : destroyDisabled,
+                        getDestroyDisabledReason(bType, builder),
                         () -> {
-                            // F-20: spec الزام می‌کند dialog تأیید قبل از تخریب نمایش داده شود
-                            int confirm = JOptionPane.showConfirmDialog(
-                                    null,
+                            int confirm = JOptionPane.showConfirmDialog(null,
                                     "Destroy " + bType.name() + "?\n\n"
                                             + "⚠️ No resources will be refunded.\n"
                                             + "Workers inside will be relocated.",
                                     "Confirm Destruction",
                                     JOptionPane.YES_NO_OPTION,
                                     JOptionPane.WARNING_MESSAGE);
-
-                            if (confirm == JOptionPane.YES_OPTION) {
+                            if (confirm == JOptionPane.YES_OPTION)
                                 buildController.destroyStructure(builder, targetHex, "BUILDING", 0);
-                            }
                         }));
-
             } else if (!targetHex.isInsideBorder()) {
                 actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
-
             } else {
-                // هکس خالی — گزینه‌های ساخت
                 actions.add(createBuildAction(builder, targetHex, BuildingType.LUMBER_MILL, "🌲 Lumber Mill"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.FARM,        "🌾 Farm"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.STABLE,      "🐄 Stable"));
@@ -209,7 +159,6 @@ public class MainController {
                 actions.add(createBuildAction(builder, targetHex, BuildingType.BAZAAR,      "⚖️ Bazaar [TH L2]"));
             }
 
-            // ─── منوی Worker ─────────────────────────────────────────────────────
         } else if (selectedUnit.getType() == UnitType.WORKER) {
             Worker worker = (Worker) selectedUnit;
             if (worker.isStationed()) {
@@ -234,15 +183,15 @@ public class MainController {
         return actions;
     }
 
-    /** دلیل غیرفعال بودن Destroy بر اساس نوع ساختمان. */
     private String getDestroyDisabledReason(BuildingType type, Builder builder) {
         if (type == BuildingType.TOWN_HALL)    return "Cannot destroy Town Hall";
         if (type == BuildingType.TRIBE_CAMP)   return "Cannot destroy Tribe Camp";
         if (type == BuildingType.TRADING_POST) return "Cannot destroy Trading Post";
         if (builder.getCurrentAP() < 1)        return "Not enough AP (need 1)";
-        if (builder.getCharges() <= 0)         return "Builder has no charges left";
-        return "Builder must be adjacent or on the hex";
+        return "Builder must be on or adjacent to the hex";
     }
+
+    // ─── Attack / Capture menu ────────────────────────────────────────────────
 
     private List<MenuAction> buildAttackMenu(Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
@@ -276,7 +225,8 @@ public class MainController {
         boolean hasTribeEnemy = (targetHex.getBuilding() instanceof TribeCamp)
                 && ((TribeCamp) targetHex.getBuilding()).getTribe().getRelationship() <= -50;
 
-        boolean isMilTarget = hasAnimal || hasTribeEnemy;
+        boolean hasAnyEnemy = hasAnimal || hasTribeEnemy;
+        boolean isMilTarget = hasAnyEnemy;
 
         boolean hasWall = false;
         if (dist == 1) {
@@ -286,32 +236,59 @@ public class MainController {
             if (dir >= 0) hasWall = sourceHex.hasWall(dir);
         }
 
-        boolean hasReadyAttacker = attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
-        boolean hasValidForDist  = (dist == 1) || attackers.stream()
-                .anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
-        boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
+        // ─── Attack action (دشمن دارد) ────────────────────────────────────────
+        if (hasAnyEnemy) {
+            boolean hasReadyAttacker = attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
+            boolean hasValidForDist  = (dist == 1) || attackers.stream()
+                    .anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
+            boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
-        String typeLabel = isMilTarget ? "🎲 Dice" : "🏰 Siege";
-        String wallLabel = (hasWall && dist == 1) ? " [🧱 Wall +2 def]" : "";
-        String label     = String.format("⚔️ Attack! [%s] dist:%d%s", typeLabel, dist, wallLabel);
+            String typeLabel = isMilTarget ? "🎲 Dice" : "🏰 Siege";
+            String wallLabel = (hasWall && dist == 1) ? " [🧱 Wall +2 def]" : "";
+            String label     = String.format("⚔️ Attack! [%s] dist:%d%s", typeLabel, dist, wallLabel);
 
-        String disabledReason;
-        if (attackers.isEmpty())    disabledReason = "No military units on source hex";
-        else if (!hasReadyAttacker) disabledReason = "All attackers out of AP";
-        else if (!hasValidForDist)  disabledReason = "No Archer for range-2 attack";
-        else                        disabledReason = "Ready";
+            String disabledReason;
+            if (attackers.isEmpty())    disabledReason = "No military units on source hex";
+            else if (!hasReadyAttacker) disabledReason = "All attackers out of AP";
+            else if (!hasValidForDist)  disabledReason = "No Archer for range-2 attack";
+            else                        disabledReason = "Ready";
 
-        final Hex      fSource = sourceHex;
-        final boolean  fWall   = hasWall;
-        final boolean  fAnimal = hasAnimal;
-        final List<Unit> fAtk  = attackers;
+            final Hex fSource   = sourceHex;
+            final boolean fWall = hasWall;
+            final List<Unit> fAtk = attackers;
 
-        actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
-            CombatController cc = new CombatController(gameMap);
-            cc.executeAttack(fAtk, fSource, targetHex, fAnimal, false, fWall);
-            gameMap.removeDeadUnits();
-            gameMap.updateFogOfWar();
-        }));
+            actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
+                CombatController cc = new CombatController(gameMap);
+                cc.executeAttack(fAtk, fSource, targetHex, hasAnimal, false, fWall);
+                gameMap.removeDeadUnits();
+                gameMap.updateFogOfWar();
+            }));
+        }
+
+        // ─── F-22: Capture action (هکس خالی از دشمن، خارج از قلمرو، dist == 1) ──
+        if (!hasAnyEnemy && dist == 1 && !targetHex.isInsideBorder()) {
+            boolean canCapture = !attackers.isEmpty()
+                    && attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
+
+            actions.add(new MenuAction(
+                    "🏴 Capture Hex (1 AP)",
+                    canCapture,
+                    canCapture ? "No defenders — seize this hex"
+                            : "Need military unit with AP ≥ 1",
+                    () -> {
+                        // ۱ AP از اولین یونیت آماده مصرف می‌شود
+                        attackers.stream()
+                                .filter(u -> u.getCurrentAP() >= 1)
+                                .findFirst()
+                                .ifPresent(u -> u.consumeAP(1));
+
+                        targetHex.setInsideBorder(true);
+                        targetHex.setExplored(true);
+                        gameMap.updateFogOfWar();
+                        GameEventDispatcher.fireBorderExpanded(
+                                targetHex.getQ(), targetHex.getR());
+                    }));
+        }
 
         return actions;
     }
