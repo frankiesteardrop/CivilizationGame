@@ -9,8 +9,8 @@ import java.util.function.Function;
 public class BuildController {
 
     private final GameMap gameMap;
-    private final Map<BuildingType, Function<TownHall, Boolean>> techRequirements = new HashMap<>();
-    private final Map<BuildingType, BiPredicate<Hex, GameMap>> terrainRequirements = new HashMap<>();
+    private final Map<BuildingType, Function<TownHall, Boolean>>      techRequirements    = new HashMap<>();
+    private final Map<BuildingType, BiPredicate<Hex, GameMap>>         terrainRequirements = new HashMap<>();
 
     public BuildController(GameMap gameMap) {
         this.gameMap = gameMap;
@@ -18,49 +18,58 @@ public class BuildController {
     }
 
     private void initRules() {
+        // ─── پیش‌نیازهای تکنولوژی / سطح TownHall ───────────────────────────────
         techRequirements.put(BuildingType.STONE_MINE, TownHall::isStoneMineUnlocked);
         techRequirements.put(BuildingType.IRON_MINE,  TownHall::isIronMineUnlocked);
         techRequirements.put(BuildingType.SETTLEMENT, TownHall::isSettlementUnlocked);
 
+        // Bazaar و Dock در سطح ۲ TownHall قفل‌گشایی می‌شوند
         techRequirements.put(BuildingType.BAZAAR, th -> th.getLevel() >= 2);
         techRequirements.put(BuildingType.DOCK,   th -> th.getLevel() >= 2);
 
+        // ─── پیش‌نیازهای Terrain ─────────────────────────────────────────────────
         terrainRequirements.put(BuildingType.LUMBER_MILL,
-                (hex, map) -> hex.getTerrainType() == TerrainType.FOREST && hex.hasResource(ResourceType.WOOD));
+                (hex, map) -> hex.getTerrainType() == TerrainType.FOREST
+                        && hex.hasResource(ResourceType.WOOD));
 
         terrainRequirements.put(BuildingType.FARM,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MEADOW &&
-                        hex.hasResource(ResourceType.FOOD) &&
-                        (hex.getResourceSubtype() == ResourceSubtype.WHEAT ||
-                                hex.getResourceSubtype() == ResourceSubtype.RICE));
+                (hex, map) -> hex.getTerrainType() == TerrainType.MEADOW
+                        && hex.hasResource(ResourceType.FOOD)
+                        && (hex.getResourceSubtype() == ResourceSubtype.WHEAT
+                        || hex.getResourceSubtype() == ResourceSubtype.RICE));
 
         terrainRequirements.put(BuildingType.STABLE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS &&
-                        hex.hasResource(ResourceType.FOOD) &&
-                        (hex.getResourceSubtype() == ResourceSubtype.CATTLE ||
-                                hex.getResourceSubtype() == ResourceSubtype.SHEEP));
+                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS
+                        && hex.hasResource(ResourceType.FOOD)
+                        && (hex.getResourceSubtype() == ResourceSubtype.CATTLE
+                        || hex.getResourceSubtype() == ResourceSubtype.SHEEP));
 
         terrainRequirements.put(BuildingType.STONE_MINE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE));
+                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
+                        && hex.hasResource(ResourceType.STONE));
 
         terrainRequirements.put(BuildingType.IRON_MINE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON));
+                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
+                        && hex.hasResource(ResourceType.IRON));
 
         terrainRequirements.put(BuildingType.SETTLEMENT,
-                (hex, map) -> !hex.hasResource(ResourceType.WOOD) &&
-                        !hex.hasResource(ResourceType.IRON) &&
-                        !hex.hasResource(ResourceType.FOOD));
+                (hex, map) -> !hex.hasResource(ResourceType.WOOD)
+                        && !hex.hasResource(ResourceType.IRON)
+                        && !hex.hasResource(ResourceType.FOOD));
 
+        // Monument فقط روی دشت (PLAINS) — طبق spec
         terrainRequirements.put(BuildingType.MONUMENT,
                 (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
 
+        // Bazaar: هر terrain زمینی مجاز
         terrainRequirements.put(BuildingType.BAZAAR,
-                (hex, map) -> hex.getTerrainType() != TerrainType.SEA &&
-                        hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE);
+                (hex, map) -> hex.getTerrainType() != TerrainType.SEA
+                        && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE);
 
+        // Dock: هکس ساحلی — حتماً مجاور دریا، اما خودش دریا نباشد
         terrainRequirements.put(BuildingType.DOCK, (hex, map) -> {
-            if (hex.getTerrainType() == TerrainType.SEA ||
-                    hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
+            if (hex.getTerrainType() == TerrainType.SEA
+                    || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
             for (int i = 0; i < 6; i++) {
                 Hex neighbor = map.getNeighbor(hex, i);
                 if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA) return true;
@@ -69,18 +78,22 @@ public class BuildController {
         });
     }
 
+    // ─── Build ────────────────────────────────────────────────────────────────
+
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
+        if (!hex.isInsideBorder()) return false;
+        if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
 
-        // رفع باگ 26: مسدود کردن قاطع و دائمی ساخت و ساز روی کوهستان‌های رشته‌کوه
+        // MOUNTAIN_RANGE: هیچ ساختمانی ممکن نیست
         if (hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
-        if (!hex.isInsideBorder() || (hex.getBuilding() != null && !hex.getBuilding().isDestroyed())) return false;
         if (builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) return false;
 
         TownHall th = gameMap.getTownHall();
-        if (!hasRequiredTech(type, th) || !isValidTerrainForBuilding(type, hex)) return false;
+        if (!hasRequiredTech(type, th))         return false;
+        if (!isValidTerrainForBuilding(type, hex)) return false;
 
         Inventory inv = th.getInventory();
         return inv.hasEnough(ResourceType.WOOD, type.getWoodCost())
@@ -100,9 +113,9 @@ public class BuildController {
         if (!canBuild(type, hex, builder)) return;
 
         Inventory inv = gameMap.getTownHall().getInventory();
-        inv.consumeResource(ResourceType.WOOD, type.getWoodCost());
+        inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
         inv.consumeResource(ResourceType.STONE, type.getStoneCost());
-        inv.consumeResource(ResourceType.IRON, type.getIronCost());
+        inv.consumeResource(ResourceType.IRON,  type.getIronCost());
 
         builder.consumeAP(type.getApCost());
         builder.useCharge();
@@ -110,18 +123,23 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
+        // رویداد لحظه‌ای رضایت فقط برای Settlement
         if (type == BuildingType.SETTLEMENT) {
             gameMap.getTownHall().addHappiness(-1);
         }
+        // Monument: اثر per-turn در EconomyController.applyPerTurnHappiness() پردازش می‌شود
 
         gameMap.updateFogOfWar();
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
+    // ─── Road ─────────────────────────────────────────────────────────────────
+
     public boolean canBuildRoad(Hex hex, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (!hex.isInsideBorder() || hex.hasRoad()) return false;
-        if (hex.getTerrainType() == TerrainType.SEA || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
+        if (hex.getTerrainType() == TerrainType.SEA
+                || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
         return builder.getCurrentAP() >= 1 && builder.getCharges() > 0;
     }
 
@@ -132,18 +150,24 @@ public class BuildController {
         hex.setRoad(true);
     }
 
+    // ─── Wall ─────────────────────────────────────────────────────────────────
+
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (!hex.isInsideBorder() || hex.hasWall(dir)) return false;
-        if (hex.getTerrainType() == TerrainType.SEA || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
+        if (hex.getTerrainType() == TerrainType.SEA
+                || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         Inventory inv = gameMap.getTownHall().getInventory();
-        if (!inv.hasEnough(ResourceType.WOOD, 10) || !inv.hasEnough(ResourceType.STONE, 20)) return false;
+        if (!inv.hasEnough(ResourceType.WOOD,  10)
+                || !inv.hasEnough(ResourceType.STONE, 20)) return false;
+
         return builder.getCurrentAP() >= 2 && builder.getCharges() > 0;
     }
 
     public void buildWall(Builder builder, Hex hex, int dir) {
         if (!canBuildWall(hex, dir, builder)) return;
+
         gameMap.getTownHall().getInventory().consumeResource(ResourceType.WOOD, 10);
         gameMap.getTownHall().getInventory().consumeResource(ResourceType.STONE, 20);
 
@@ -155,18 +179,42 @@ public class BuildController {
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
     }
 
+    // ─── Destroy ─────────────────────────────────────────────────────────────
+
+    /**
+     * بررسی امکان تخریب.
+     *
+     * طبق spec (F-19): ساختمان‌های غیرقابل تخریب:
+     * - TOWN_HALL (همیشه)
+     * - TRIBE_CAMP (کمپ فعال قبیله)
+     * - TRADING_POST (بازار بی‌طرف)
+     * - ساختمان‌های دشمن (در فاز تک‌نفره تحت کنترل قبیله)
+     */
     public boolean canDestroy(Hex hex, String type, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (builder.getCurrentAP() < 1) return false;
 
-        int dist = gameMap.getHexDistance(builder.getQ(), builder.getR(), hex.getQ(), hex.getR());
+        int dist = gameMap.getHexDistance(
+                builder.getQ(), builder.getR(), hex.getQ(), hex.getR());
         if (dist > 1) return false;
 
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
-            return b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL;
-        } else if (type.equals("ROAD")) return hex.hasRoad();
-        else if (type.equals("WALL")) return hex.hasWall(dir);
+            if (b == null || b.isDestroyed()) return false;
+
+            // F-19: ساختمان‌های غیرقابل تخریب
+            if (b.getType() == BuildingType.TOWN_HALL)     return false;
+            if (b.getType() == BuildingType.TRIBE_CAMP)    return false; // F-19
+            if (b.getType() == BuildingType.TRADING_POST)  return false; // F-19
+
+            return true;
+
+        } else if (type.equals("ROAD")) {
+            return hex.hasRoad();
+
+        } else if (type.equals("WALL")) {
+            return hex.hasWall(dir);
+        }
 
         return false;
     }
@@ -178,13 +226,21 @@ public class BuildController {
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
 
+            // آزاد کردن Workerها با جابجایی به هکس مجاور (F-18 — w.eject(map))
             gameMap.getUnits().stream()
-                    .filter(u -> u instanceof Worker && ((Worker) u).getStationedBuilding() == b)
-                    .forEach(u -> ((Worker) u).eject());
+                    .filter(u -> u instanceof Worker)
+                    .map(u -> (Worker) u)
+                    .filter(w -> w.isStationed()
+                            && w.getQ() == hex.getQ()
+                            && w.getR() == hex.getR())
+                    .forEach(w -> w.eject(gameMap));
+
             hex.setBuilding(null);
             GameEventDispatcher.fireBuildingDestroyed(hex);
+
         } else if (type.equals("ROAD")) {
             hex.setRoad(false);
+
         } else if (type.equals("WALL")) {
             hex.setWall(dir, false, 0);
             Hex neighbor = gameMap.getNeighbor(hex, dir);
