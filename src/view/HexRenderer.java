@@ -2,407 +2,1067 @@ package view;
 
 import controller.UnitController;
 import model.*;
+
 import java.awt.*;
+import java.awt.geom.*;
+import java.awt.image.BufferedImage;
+import java.util.*;
 import java.util.List;
 
+/**
+ * رندرر اصلی هکس‌های نقشه — طراحی حرفه‌ای الهام‌گرفته از بازی‌های استراتژی تجاری.
+ *
+ * لایه‌های رندرینگ (ترتیب از پایین به بالا):
+ * 1. Base Terrain Fill (gradient)
+ * 2. Terrain Texture Details (patterns, icons)
+ * 3. Territory Fill (semi-transparent)
+ * 4. Infrastructure: Rivers → Roads → Walls
+ * 5. Territory Borders (glowing outline)
+ * 6. Buildings
+ * 7. Resource Icons
+ * 8. Hover / Selection Highlights
+ * 9. Disaster Overlays
+ * 10. Fog of War
+ * 11. Unexplored (solid black)
+ */
 public class HexRenderer {
 
-    private Polygon cachedHexBase = null;
-    private double lastZoom = -1;
+    // Cached hex polygon (unit coordinates centered at 0,0)
+    private final int[] hxBase = new int[6];
+    private final int[] hyBase = new int[6];
+    private double cachedHexSize = -1;
 
-    private void updateCache(double zoom) {
-        if (lastZoom == zoom && cachedHexBase != null) return;
-        int sz = (int)(GamePanel.HEX_SIZE * zoom);
-        cachedHexBase = new Polygon();
+    // Inner polygon for detail fills (80% of outer)
+    private final int[] hxInner = new int[6];
+    private final int[] hyInner = new int[6];
+
+    // ─── Setup ────────────────────────────────────────────────────────────────
+
+    private void rebuildHexPolygon(double size) {
+        if (size == cachedHexSize) return;
+        cachedHexSize = size;
+        double inner = size * 0.82;
         for (int i = 0; i < 6; i++) {
-            double angle = Math.PI / 180.0 * (60 * i - 30);
-            cachedHexBase.addPoint((int)(sz * Math.cos(angle)), (int)(sz * Math.sin(angle)));
+            double angle = Math.PI / 6.0 + Math.PI / 3.0 * i; // pointy-top
+            hxBase[i] = (int) Math.round(Math.cos(angle) * size);
+            hyBase[i] = (int) Math.round(Math.sin(angle) * size);
+            hxInner[i] = (int) Math.round(Math.cos(angle) * inner);
+            hyInner[i] = (int) Math.round(Math.sin(angle) * inner);
         }
-        lastZoom = zoom;
     }
 
-    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
-        updateCache(panel.getZoomFactor());
-        Rectangle viewRect = new Rectangle(0, 0, panel.getWidth(), panel.getHeight());
-        List<Hex> visibleHexes = new java.util.ArrayList<>();
-        int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
+    private void setupQuality(Graphics2D g2d) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,      RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING,         RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,    RenderingHints.VALUE_STROKE_PURE);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,   RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+    }
 
-        for (Hex hex : map.getHexes()) {
+    // ─── Main Entry ───────────────────────────────────────────────────────────
+
+    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map,
+                          UnitController unitController) {
+        setupQuality(g2d);
+
+        double zoom  = panel.getZoomFactor();
+        int    size  = (int)(GamePanel.HEX_SIZE * zoom);
+        Season season = map.getCurrentSeason();
+
+        rebuildHexPolygon(size);
+
+        // Culling rectangle (slightly larger than viewport)
+        int margin = size * 3;
+        Rectangle clip = new Rectangle(-margin, -margin,
+                panel.getWidth()  + margin * 2,
+                panel.getHeight() + margin * 2);
+
+        List<Hex> hexes = map.getHexes();
+
+        // ── Pass 1: Base Terrain ──────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isExplored() && !hex.isVisible()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            if (pt.x + sz * 2 >= viewRect.x && pt.x - sz * 2 <= viewRect.x + viewRect.width &&
-                    pt.y + sz * 2 >= viewRect.y && pt.y - sz * 2 <= viewRect.y + viewRect.height) {
-                visibleHexes.add(hex);
+            if (!clip.contains(pt)) continue;
+            drawTerrainBase(g2d, hex, pt.x, pt.y, size, season, zoom);
+        }
+
+        // ── Pass 2: Territory fill ────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible() || !hex.isInsideBorder()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            drawTerritoryFill(g2d, hex, pt.x, pt.y, size);
+        }
+
+        // ── Pass 3: Rivers ────────────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible() && !hex.isExplored()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            drawRivers(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+        }
+
+        // ── Pass 4: Roads ─────────────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            if (hex.hasRoad()) drawRoad(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+        }
+
+        // ── Pass 5: Walls ─────────────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible() && !hex.isExplored()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            drawWalls(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+        }
+
+        // ── Pass 6: Territory Borders ─────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible() && !hex.isExplored()) continue;
+            if (!hex.isInsideBorder()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            drawTerritoryBorder(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+        }
+
+        // ── Pass 7: Buildings ─────────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed()) {
+                drawBuilding(g2d, hex, b, pt.x, pt.y, size, zoom);
             }
         }
 
-        for (Hex hex : visibleHexes) drawHexTerrain(g2d, hex, panel);
-
-        for (Hex hex : visibleHexes)
-            if (hex.isInsideBorder() && (hex.isExplored() || hex.isVisible()))
-                drawHexBorder(g2d, hex, panel);
-
-        drawMovementHighlights(g2d, panel, map, unitController, visibleHexes);
-
-        for (Hex hex : visibleHexes)
-            if (hex.isExplored() || hex.isVisible()) drawHexDetails(g2d, hex, panel);
-
-        List<Hex> flooded = panel.getFloodedHexes();
-        if (flooded != null && !flooded.isEmpty() && panel.getFloodAlpha() > 0) {
-            g2d.setColor(new Color(52, 152, 219, (int)(panel.getFloodAlpha() * 255)));
-            for (Hex hex : flooded) {
-                if (visibleHexes.contains(hex)) {
-                    Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-                    g2d.translate(pt.x, pt.y);
-                    g2d.fillPolygon(cachedHexBase);
-                    g2d.translate(-pt.x, -pt.y);
-                }
-            }
+        // ── Pass 8: Resource Icons ────────────────────────────────────────────
+        for (Hex hex : hexes) {
+            if (!hex.isVisible()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            if (zoom >= 0.75) drawResourceIcons(g2d, hex, pt.x, pt.y, size, zoom);
         }
 
-        List<Hex> bearHexes = panel.getBearAttackHexes();
-        if (bearHexes != null && !bearHexes.isEmpty() && panel.getBearAlpha() > 0) {
-            g2d.setColor(new Color(101, 55, 0, (int)(panel.getBearAlpha() * 255)));
-            for (Hex hex : bearHexes) {
-                if (visibleHexes.contains(hex)) {
-                    Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-                    g2d.translate(pt.x, pt.y);
-                    g2d.fillPolygon(cachedHexBase);
-                    g2d.translate(-pt.x, -pt.y);
-                }
-            }
-        }
+        // ── Pass 9: Hover / Selection / Movement ──────────────────────────────
+        drawHighlights(g2d, panel, map, unitController, clip, size, zoom);
 
-        for (Hex hex : visibleHexes) {
+        // ── Pass 10: Disaster Overlays ────────────────────────────────────────
+        drawDisasterOverlays(g2d, panel, clip, size);
+
+        // ── Pass 11: Fog (explored but not visible) ───────────────────────────
+        for (Hex hex : hexes) {
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
             if (hex.isExplored() && !hex.isVisible()) {
+                g2d.setColor(UIConfig.FOG_EXPLORED_DARK);
+                drawHexAt(g2d, pt.x, pt.y, true);
+            }
+        }
+
+        // ── Pass 12: Unexplored (solid dark) ─────────────────────────────────
+        for (Hex hex : hexes) {
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+            if (!hex.isExplored()) {
+                g2d.setColor(UIConfig.FOG_UNEXPLORED);
+                drawHexAt(g2d, pt.x, pt.y, true);
+            }
+        }
+
+        // ── Pass 13: Hover glow (on top of everything except units) ──────────
+        Hex hovered = panel.getHoveredHex();
+        if (hovered != null && hovered.isVisible()) {
+            Point pt = panel.getHexPixelCoords(hovered.getQ(), hovered.getR());
+            g2d.setColor(UIConfig.HEX_HOVER);
+            drawHexAt(g2d, pt.x, pt.y, true);
+        }
+    }
+
+    // ─── Pass 1: Terrain Base ─────────────────────────────────────────────────
+
+    private void drawTerrainBase(Graphics2D g2d, Hex hex, int cx, int cy,
+                                 int size, Season season, double zoom) {
+        TerrainType terrain = hex.getTerrainType();
+
+        // Translate to hex center
+        g2d.translate(cx, cy);
+
+        switch (terrain) {
+            case PLAINS        -> drawPlains(g2d, size, season, zoom);
+            case FOREST        -> drawForest(g2d, size, season, zoom);
+            case MOUNTAIN      -> drawMountain(g2d, size, season, zoom);
+            case MEADOW        -> drawMeadow(g2d, size, season, zoom);
+            case SEA           -> drawSea(g2d, size, season, zoom);
+            case MOUNTAIN_RANGE -> drawMountainRange(g2d, size, season, zoom);
+        }
+
+        // Subtle hex grid line
+        g2d.setColor(new Color(0, 0, 0, 55));
+        g2d.setStroke(new BasicStroke((float)(0.8 * zoom)));
+        g2d.drawPolygon(hxBase, hyBase, 6);
+        g2d.setStroke(new BasicStroke(1f));
+
+        g2d.translate(-cx, -cy);
+    }
+
+    private void drawPlains(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_PLAINS;
+        Color light = UIConfig.TERRAIN_PLAINS_LIGHT;
+        Color dark  = UIConfig.TERRAIN_PLAINS_DARK;
+
+        // Winter: desaturate
+        if (season == Season.WINTER) {
+            base  = blendColor(base, new Color(200, 205, 215), 0.35f);
+            light = blendColor(light, new Color(215, 218, 228), 0.35f);
+        }
+
+        // Radial gradient for depth
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Subtle grass texture (small lines) at zoom >= 1.0
+        if (zoom >= 1.0) {
+            g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 55));
+            g2d.setStroke(new BasicStroke((float)(0.6 * zoom)));
+            Random rng = new Random(17);
+            for (int i = 0; i < 12; i++) {
+                int gx = (int)((rng.nextDouble() - 0.5) * size * 1.4);
+                int gy = (int)((rng.nextDouble() - 0.5) * size * 1.2);
+                int len = (int)(zoom * 3);
+                g2d.drawLine(gx, gy, gx, gy - len);
+            }
+            g2d.setStroke(new BasicStroke(1f));
+        }
+    }
+
+    private void drawForest(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_FOREST;
+        Color light = UIConfig.TERRAIN_FOREST_LIGHT;
+        Color dark  = UIConfig.TERRAIN_FOREST_DARK;
+
+        if (season == Season.AUTUMN) {
+            base  = blendColor(base, new Color(130, 80, 20), 0.40f);
+            light = blendColor(light, new Color(170, 105, 25), 0.40f);
+        } else if (season == Season.WINTER) {
+            base  = blendColor(base, new Color(55, 75, 65), 0.50f);
+            light = blendColor(light, new Color(70, 95, 82), 0.50f);
+        }
+
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Tree silhouettes as triangles
+        if (zoom >= 0.75) {
+            drawTreeIcons(g2d, size, zoom, light, season);
+        }
+    }
+
+    private void drawTreeIcons(Graphics2D g2d, int size, double zoom,
+                               Color treeColor, Season season) {
+        Color crown = (season == Season.AUTUMN)
+                ? new Color(160, 95, 25)
+                : new Color(treeColor.getRed(), treeColor.getGreen(), treeColor.getBlue());
+        Color trunk = new Color(90, 60, 30);
+
+        // 5 trees at fixed offsets for consistent look
+        int[][] positions = {{0, -(int)(size*0.3)}, {-(int)(size*0.28), -(int)(size*0.05)},
+                {(int)(size*0.28), -(int)(size*0.05)}, {-(int)(size*0.15), (int)(size*0.22)},
+                {(int)(size*0.15), (int)(size*0.22)}};
+
+        int th = (int)(size * 0.32 * zoom / Math.max(zoom, 0.75));
+        int tw = (int)(size * 0.22 * zoom / Math.max(zoom, 0.75));
+
+        for (int[] pos : positions) {
+            int tx = pos[0], ty = pos[1];
+
+            // Trunk
+            g2d.setColor(trunk);
+            g2d.fillRect(tx - (int)(tw*0.12), ty + (int)(th*0.55),
+                    (int)(tw*0.24), (int)(th*0.35));
+
+            // Crown layers (give depth)
+            int[] xs1 = {tx, tx - tw,     tx + tw};
+            int[] ys1 = {ty - th + (int)(th*0.3),
+                    ty + (int)(th*0.5), ty + (int)(th*0.5)};
+            g2d.setColor(crown.darker());
+            g2d.fillPolygon(xs1, ys1, 3);
+
+            int[] xs2 = {tx, tx - (int)(tw*0.8), tx + (int)(tw*0.8)};
+            int[] ys2 = {ty - th,
+                    ty + (int)(th*0.15), ty + (int)(th*0.15)};
+            g2d.setColor(crown);
+            g2d.fillPolygon(xs2, ys2, 3);
+        }
+    }
+
+    private void drawMountain(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_MOUNTAIN;
+        Color light = UIConfig.TERRAIN_MOUNTAIN_LIGHT;
+        Color dark  = UIConfig.TERRAIN_MOUNTAIN_DARK;
+
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Mountain peak silhouette
+        if (zoom >= 0.75) {
+            int peakH = (int)(size * 0.55);
+            int baseW = (int)(size * 0.65);
+
+            // Shadow side
+            int[] shadowX = {-baseW/4, 0, (int)(baseW*0.5)};
+            int[] shadowY = {(int)(size*0.25), -peakH + (int)(size*0.1), (int)(size*0.25)};
+            g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_DARK);
+            g2d.fillPolygon(shadowX, shadowY, 3);
+
+            // Main peak
+            int[] px = {-baseW/2, 0, baseW/2};
+            int[] py = {(int)(size*0.25), -peakH, (int)(size*0.25)};
+            g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_ROCK);
+            g2d.fillPolygon(px, py, 3);
+
+            // Second smaller peak
+            int[] px2 = {-baseW/6, baseW/4, baseW*2/3};
+            int[] py2 = {(int)(size*0.25), -(int)(peakH*0.65), (int)(size*0.25)};
+            g2d.setColor(base);
+            g2d.fillPolygon(px2, py2, 3);
+
+            // Snow cap
+            boolean hasSnow = (season == Season.WINTER) || (zoom >= 1.25);
+            if (hasSnow) {
+                int[] snx = {-baseW/6, 0, baseW/6};
+                int[] sny = {-peakH + (int)(peakH*0.38), -peakH, -peakH + (int)(peakH*0.38)};
+                g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_SNOW);
+                g2d.fillPolygon(snx, sny, 3);
+            }
+        }
+    }
+
+    private void drawMeadow(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_MEADOW;
+        Color light = UIConfig.TERRAIN_MEADOW_LIGHT;
+        Color dark  = UIConfig.TERRAIN_MEADOW_DARK;
+
+        if (season == Season.WINTER) {
+            base  = blendColor(base, new Color(185, 200, 215), 0.45f);
+            light = blendColor(light, new Color(200, 215, 228), 0.45f);
+        }
+
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Crop row pattern
+        if (zoom >= 1.0) {
+            int rows = 4;
+            int rowH = (int)(size * 0.3 / rows);
+            g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 60));
+            g2d.setStroke(new BasicStroke((float)(0.7 * zoom)));
+            for (int row = -rows; row <= rows; row++) {
+                int ry = row * rowH;
+                if (Math.abs(ry) < size * 0.7) {
+                    g2d.drawLine(-(int)(size*0.55), ry, (int)(size*0.55), ry);
+                }
+            }
+            g2d.setStroke(new BasicStroke(1f));
+        }
+
+        // Flower dots for spring
+        if (season == Season.SPRING && zoom >= 1.0) {
+            int[][] flowers = {{-(int)(size*0.2), -(int)(size*0.15)},
+                    {(int)(size*0.1),  (int)(size*0.1)},
+                    {-(int)(size*0.05),(int)(size*0.25)}};
+            g2d.setColor(UIConfig.TERRAIN_MEADOW_FLOWER);
+            for (int[] f : flowers) {
+                int fs = Math.max(2, (int)(3 * zoom));
+                g2d.fillOval(f[0]-fs/2, f[1]-fs/2, fs, fs);
+            }
+        }
+    }
+
+    private void drawSea(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_SEA;
+        Color light = UIConfig.TERRAIN_SEA_LIGHT;
+        Color dark  = UIConfig.TERRAIN_SEA_DARK;
+
+        // Autumn: stormier (darker)
+        if (season == Season.AUTUMN) {
+            base  = base.darker();
+            light = light.darker();
+        }
+
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Wave lines
+        if (zoom >= 0.75) {
+            g2d.setColor(UIConfig.TERRAIN_SEA_FOAM);
+            g2d.setStroke(new BasicStroke((float)(1.0 * zoom)));
+            int waves = 3;
+            for (int w = 0; w < waves; w++) {
+                int wy = -size/3 + w * (size*2/waves/3);
+                int ww = (int)(size * 0.45);
+                // Bezier-like wave using arcs
+                g2d.drawArc(-ww, wy, ww, (int)(size*0.12), 0, 180);
+                g2d.drawArc((int)(ww*0.1), wy + (int)(size*0.06),
+                        (int)(ww*0.7), (int)(size*0.10), 0, 180);
+            }
+            g2d.setStroke(new BasicStroke(1f));
+        }
+    }
+
+    private void drawMountainRange(Graphics2D g2d, int size, Season season, double zoom) {
+        Color base  = UIConfig.TERRAIN_MTN_RANGE;
+        Color light = UIConfig.TERRAIN_MTN_RANGE_LIGHT;
+        Color dark  = new Color(30, 28, 34);
+
+        fillHexGradient(g2d, size, light, base, dark);
+
+        // Jagged ridge silhouette — visually distinct from regular mountain
+        if (zoom >= 0.5) {
+            int[] rx = new int[11];
+            int[] ry = new int[11];
+            int count = 0;
+            int hw = (int)(size * 0.58);
+            int bh = (int)(size * 0.22);
+            int[] peaks = {0, -(int)(size*0.58), (int)(size*0.18), -(int)(size*0.48),
+                    (int)(size*0.38), -(int)(size*0.40), (int)(size*0.58)};
+            int[] peaky = {bh, -(int)(size*0.52), -(int)(size*0.28), -(int)(size*0.58),
+                    -(int)(size*0.18), -(int)(size*0.45), bh};
+            int numPts = peaks.length;
+            rx = Arrays.copyOf(peaks, numPts);
+            ry = Arrays.copyOf(peaky, numPts);
+
+            g2d.setColor(UIConfig.TERRAIN_MTN_RANGE_PEAK);
+            g2d.fillPolygon(rx, ry, numPts);
+
+            // Snow on peaks (always — impassable and ancient)
+            int[] snx = {0, -size/10, size/10};
+            int[] sny = {-(int)(size*0.52), -(int)(size*0.38), -(int)(size*0.38)};
+            g2d.setColor(UIConfig.TERRAIN_MTN_RANGE_SNOW);
+            g2d.fillPolygon(snx, sny, 3);
+
+            // ⛔ impassable indicator
+            if (zoom >= 1.0) {
+                g2d.setColor(new Color(220, 50, 50, 140));
+                g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, (int)(9 * zoom)));
+                FontMetrics fm = g2d.getFontMetrics();
+                String txt = "✕";
+                g2d.drawString(txt, -fm.stringWidth(txt)/2, (int)(size*0.42));
+            }
+        }
+    }
+
+    // ─── Gradient Fill Helper ─────────────────────────────────────────────────
+
+    private void fillHexGradient(Graphics2D g2d, int size,
+                                 Color topLight, Color mid, Color bottomDark) {
+        // Radial gradient: lighter at top-left, darker at bottom-right
+        // Use paint fill with the cached polygon
+        GradientPaint gp = new GradientPaint(
+                -(int)(size * 0.5), -(int)(size * 0.55), topLight,
+                (int)(size * 0.4),  (int)(size * 0.5),  bottomDark);
+        g2d.setPaint(gp);
+        g2d.fillPolygon(hxBase, hyBase, 6);
+        g2d.setPaint(null);
+    }
+
+    // ─── Pass 2: Territory Fill ───────────────────────────────────────────────
+
+    private void drawTerritoryFill(Graphics2D g2d, Hex hex, int cx, int cy, int size) {
+        g2d.translate(cx, cy);
+        g2d.setColor(UIConfig.BORDER_TERRITORY_FILL);
+        g2d.fillPolygon(hxBase, hyBase, 6);
+        g2d.translate(-cx, -cy);
+    }
+
+    // ─── Pass 3: Rivers ───────────────────────────────────────────────────────
+
+    private static final int[][] HEX_DIR_VECTORS = {
+            {1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}
+    };
+
+    private void drawRivers(Graphics2D g2d, Hex hex, int cx, int cy, int size,
+                            double zoom, GameMap map, GamePanel panel) {
+        boolean hasAny = false;
+        for (int d = 0; d < 6; d++) if (hex.hasRiver(d)) { hasAny = true; break; }
+        if (!hasAny) return;
+
+        // Edge midpoints (from center to hex vertices and midpoints)
+        // Edge d is between vertex d and vertex (d+1)%6
+        for (int d = 0; d < 6; d++) {
+            if (!hex.hasRiver(d)) continue;
+
+            // Midpoint of edge d
+            int v1x = hxBase[d], v1y = hyBase[d];
+            int v2x = hxBase[(d + 1) % 6], v2y = hyBase[(d + 1) % 6];
+            int mx = (v1x + v2x) / 2, my = (v1y + v2y) / 2;
+
+            float w = (float)(2.5 * zoom);
+
+            // River = thick gradient line from center to edge midpoint
+            g2d.setStroke(new BasicStroke(w + 1.5f * (float)zoom, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.RIVER_DARK);
+            g2d.drawLine(cx, cy, cx + mx, cy + my);
+
+            g2d.setStroke(new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.RIVER_COLOR);
+            g2d.drawLine(cx, cy, cx + mx, cy + my);
+
+            // Shine on river
+            g2d.setStroke(new BasicStroke(w * 0.35f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.RIVER_SHINE);
+            g2d.drawLine(cx + mx/4, cy + my/4, cx + mx*3/4, cy + my*3/4);
+        }
+
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    // ─── Pass 4: Roads ────────────────────────────────────────────────────────
+
+    private void drawRoad(Graphics2D g2d, Hex hex, int cx, int cy, int size,
+                          double zoom, GameMap map, GamePanel panel) {
+        // Connect this hex center to each neighbor's center if neighbor also has road
+        for (int d = 0; d < 6; d++) {
+            int dq = HEX_DIR_VECTORS[d][0], dr = HEX_DIR_VECTORS[d][1];
+            Hex neighbor = map.getHexAt(hex.getQ() + dq, hex.getR() + dr);
+            if (neighbor == null || !neighbor.hasRoad() || !neighbor.isExplored()) continue;
+
+            Point np = panel.getHexPixelCoords(neighbor.getQ(), neighbor.getR());
+
+            float w = (float)(2.0 * zoom);
+
+            // Road shadow
+            g2d.setStroke(new BasicStroke(w + 2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.ROAD_SHADOW);
+            g2d.drawLine(cx, cy, np.x, np.y);
+
+            // Road surface
+            g2d.setStroke(new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.ROAD_COLOR);
+            g2d.drawLine(cx, cy, np.x, np.y);
+
+            // Dashed center line
+            if (zoom >= 1.0) {
+                float[] dash = {(float)(5 * zoom), (float)(4 * zoom)};
+                g2d.setStroke(new BasicStroke(w * 0.3f, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_ROUND, 0, dash, 0));
+                g2d.setColor(UIConfig.ROAD_BORDER);
+                g2d.drawLine(cx, cy, np.x, np.y);
+            }
+        }
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    // ─── Pass 5: Walls ────────────────────────────────────────────────────────
+
+    private void drawWalls(Graphics2D g2d, Hex hex, int cx, int cy, int size,
+                           double zoom, GameMap map, GamePanel panel) {
+        boolean hasAny = false;
+        for (int d = 0; d < 6; d++) if (hex.hasWall(d)) { hasAny = true; break; }
+        if (!hasAny) return;
+
+        for (int d = 0; d < 6; d++) {
+            if (!hex.hasWall(d)) continue;
+
+            int v1x = hxBase[d] + cx, v1y = hyBase[d] + cy;
+            int v2x = hxBase[(d+1)%6] + cx, v2y = hyBase[(d+1)%6] + cy;
+
+            float w = (float)(4.5 * zoom);
+
+            // Wall shadow (bottom-right offset)
+            g2d.setStroke(new BasicStroke(w + 2f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
+            g2d.setColor(UIConfig.WALL_SHADOW);
+            g2d.drawLine(v1x + 1, v1y + 1, v2x + 1, v2y + 1);
+
+            // Wall base
+            g2d.setStroke(new BasicStroke(w, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
+            g2d.setColor(UIConfig.WALL_STONE);
+            g2d.drawLine(v1x, v1y, v2x, v2y);
+
+            // Wall highlight (top-left)
+            g2d.setStroke(new BasicStroke(w * 0.3f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
+            g2d.setColor(UIConfig.WALL_HIGHLIGHT);
+            g2d.drawLine(v1x - 1, v1y - 1, v2x - 1, v2y - 1);
+
+            // Battlements (crenellations) at larger zoom
+            if (zoom >= 1.0) {
+                drawBattlements(g2d, v1x, v1y, v2x, v2y, zoom);
+            }
+        }
+
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawBattlements(Graphics2D g2d, int x1, int y1, int x2, int y2, double zoom) {
+        double len = Math.sqrt((x2-x1)*(double)(x2-x1) + (y2-y1)*(double)(y2-y1));
+        if (len < 4) return;
+
+        double dx = (x2 - x1) / len;
+        double dy = (y2 - y1) / len;
+        double nx = -dy, ny = dx; // normal (inward)
+
+        int count = (int)(len / (6.5 * zoom));
+        count = Math.max(2, Math.min(count, 7));
+
+        int bh = (int)(4 * zoom);
+        int bw = (int)(3 * zoom);
+
+        g2d.setColor(UIConfig.WALL_STONE);
+        for (int i = 0; i <= count; i++) {
+            double t = (double) i / count;
+            int bx = (int)(x1 + dx * len * t);
+            int by = (int)(y1 + dy * len * t);
+            // Draw small square outward from wall
+            int[] bsx = {(int)(bx + nx*2), (int)(bx + nx*2 + dx*bw),
+                    (int)(bx + nx*(2+bh) + dx*bw), (int)(bx + nx*(2+bh))};
+            int[] bsy = {(int)(by + ny*2), (int)(by + ny*2 + dy*bw),
+                    (int)(by + ny*(2+bh) + dy*bw), (int)(by + ny*(2+bh))};
+            g2d.fillPolygon(bsx, bsy, 4);
+        }
+    }
+
+    // ─── Pass 6: Territory Borders ───────────────────────────────────────────
+
+    private void drawTerritoryBorder(Graphics2D g2d, Hex hex, int cx, int cy, int size,
+                                     double zoom, GameMap map, GamePanel panel) {
+        for (int d = 0; d < 6; d++) {
+            int dq = HEX_DIR_VECTORS[d][0], dr = HEX_DIR_VECTORS[d][1];
+            Hex neighbor = map.getHexAt(hex.getQ() + dq, hex.getR() + dr);
+            boolean neighborOwned = (neighbor != null && neighbor.isInsideBorder());
+            if (neighborOwned) continue;
+
+            // This edge borders non-territory — draw border line
+            int v1x = hxBase[d] + cx, v1y = hyBase[d] + cy;
+            int v2x = hxBase[(d+1)%6] + cx, v2y = hyBase[(d+1)%6] + cy;
+
+            float w = (float)(2.0 * zoom);
+
+            // Glow pass
+            g2d.setStroke(new BasicStroke(w + 3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.BORDER_GLOW);
+            g2d.drawLine(v1x, v1y, v2x, v2y);
+
+            // Solid border
+            g2d.setStroke(new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2d.setColor(UIConfig.BORDER_TERRITORY);
+            g2d.drawLine(v1x, v1y, v2x, v2y);
+        }
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    // ─── Pass 7: Buildings ────────────────────────────────────────────────────
+
+    private void drawBuilding(Graphics2D g2d, Hex hex, Building building,
+                              int cx, int cy, int size, double zoom) {
+        if (zoom < 0.5) return;
+
+        BuildingType type = building.getType();
+        int bsize = (int)(size * 0.42);
+
+        g2d.translate(cx, cy);
+
+        // Shadow
+        g2d.setColor(new Color(0, 0, 0, 100));
+        drawBuildingShape(g2d, type, bsize + 2, 2);
+
+        // Main building
+        Color buildColor = getBuildingColor(type);
+        g2d.setColor(buildColor);
+        drawBuildingShape(g2d, type, bsize, 0);
+
+        // HP bar (if damaged)
+        if (building.getHp() < building.getMaxHp() && zoom >= 0.75) {
+            drawHPBar(g2d, building.getHp(), building.getMaxHp(), bsize, zoom);
+        }
+
+        // Label at high zoom
+        if (zoom >= 1.5) {
+            String symbol = getBuildingSymbol(type);
+            int fs = (int)(8 * zoom);
+            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
+            g2d.setColor(Color.WHITE);
+            FontMetrics fm = g2d.getFontMetrics();
+            g2d.drawString(symbol, -fm.stringWidth(symbol)/2, fm.getAscent()/2);
+        }
+
+        g2d.translate(-cx, -cy);
+    }
+
+    private void drawBuildingShape(Graphics2D g2d, BuildingType type, int s, int offset) {
+        int ox = offset, oy = offset;
+        switch (type) {
+            case TOWN_HALL -> {
+                // Castle silhouette
+                int[] tx = {-s, -s, -(int)(s*0.55), -(int)(s*0.55),
+                        -(int)(s*0.25), -(int)(s*0.25), 0, 0, (int)(s*0.25),
+                        (int)(s*0.25), (int)(s*0.55), (int)(s*0.55), s, s};
+                int[] ty = {(int)(s*0.7), -(int)(s*0.2), -(int)(s*0.2), -(int)(s*0.6),
+                        -(int)(s*0.6), -(int)(s*0.9), -(int)(s*0.9), -(int)(s*0.6),
+                        -(int)(s*0.6), -(int)(s*0.2), -(int)(s*0.2), (int)(s*0.7), (int)(s*0.7),};
+                // Simplified castle: tower shape
+                g2d.fillRect(-s + ox, -(int)(s*0.7) + oy, s*2, (int)(s*1.4));
+                g2d.fillRect(-(int)(s*0.35) + ox, -(int)(s*1.1) + oy, (int)(s*0.7), (int)(s*0.4));
+                // Tower wing left
+                g2d.fillRect(-s + ox, -(int)(s*0.9) + oy, (int)(s*0.4), (int)(s*0.2));
+                // Tower wing right
+                g2d.fillRect((int)(s*0.6) + ox, -(int)(s*0.9) + oy, (int)(s*0.4), (int)(s*0.2));
+            }
+            case LUMBER_MILL -> {
+                // Circular saw blade
+                g2d.fillOval(-s + ox, -s + oy, s*2, s*2);
+                g2d.setColor(g2d.getColor().darker());
+                g2d.fillOval(-(int)(s*0.45) + ox, -(int)(s*0.45) + oy,
+                        (int)(s*0.9), (int)(s*0.9));
+            }
+            case FARM -> {
+                // Grid pattern (crop field)
+                g2d.fillRect(-s + ox, -(int)(s*0.7) + oy, s*2, (int)(s*1.4));
+                g2d.setColor(g2d.getColor().darker());
+                g2d.drawRect(-(int)(s*0.5) + ox, -(int)(s*0.3) + oy,
+                        (int)(s*1.0), (int)(s*0.6));
+            }
+            case STONE_MINE, IRON_MINE -> {
+                // Diamond shape
+                int[] dx = {0, -s, 0, s};
+                int[] dy = {-(int)(s*0.8), 0, (int)(s*0.8), 0};
+                for (int i = 0; i < 4; i++) { dx[i] += ox; dy[i] += oy; }
+                g2d.fillPolygon(dx, dy, 4);
+            }
+            case STABLE -> {
+                // Rectangular barn
+                g2d.fillRect(-s + ox, -(int)(s*0.4) + oy, s*2, (int)(s*1.1));
+                // Roof
+                int[] rX = {-s + ox, 0 + ox, s + ox};
+                int[] rY = {-(int)(s*0.4) + oy, -(int)(s*1.0) + oy, -(int)(s*0.4) + oy};
+                g2d.fillPolygon(rX, rY, 3);
+            }
+            case SETTLEMENT -> {
+                // House cluster: main + small
+                g2d.fillRect(-(int)(s*0.55) + ox, -(int)(s*0.3) + oy,
+                        (int)(s*1.1), (int)(s*1.0));
+                int[] hRx = {-(int)(s*0.55) + ox, 0 + ox, (int)(s*0.55) + ox};
+                int[] hRy = {-(int)(s*0.3) + oy, -(int)(s*0.95) + oy, -(int)(s*0.3) + oy};
+                g2d.fillPolygon(hRx, hRy, 3);
+                // Small house right
+                g2d.setColor(g2d.getColor().brighter());
+                g2d.fillRect((int)(s*0.4) + ox, (int)(s*0.1) + oy,
+                        (int)(s*0.55), (int)(s*0.65));
+            }
+            case DOCK -> {
+                // Anchor / dock shape
+                g2d.fillRect(-(int)(s*0.15) + ox, -(int)(s*0.85) + oy,
+                        (int)(s*0.3), (int)(s*1.7));
+                g2d.fillRect(-s + ox, -(int)(s*0.65) + oy,
+                        s*2, (int)(s*0.28));
+                // Curved bottom
+                g2d.drawArc(-(int)(s*0.65) + ox, (int)(s*0.15) + oy,
+                        (int)(s*1.3), (int)(s*0.8), 0, -180);
+            }
+            case MONUMENT -> {
+                // Obelisk / column
+                g2d.fillRect(-(int)(s*0.22) + ox, -(int)(s*1.05) + oy,
+                        (int)(s*0.44), (int)(s*1.75));
+                g2d.fillRect(-s + ox, (int)(s*0.6) + oy, s*2, (int)(s*0.12));
+                // Pyramid top
+                int[] mx = {-(int)(s*0.22) + ox, 0 + ox, (int)(s*0.22) + ox};
+                int[] my = {-(int)(s*1.05) + oy, -(int)(s*1.45) + oy, -(int)(s*1.05) + oy};
+                g2d.fillPolygon(mx, my, 3);
+            }
+            case BAZAAR -> {
+                // Market stall with awning
+                g2d.fillRect(-s + ox, -(int)(s*0.05) + oy, s*2, (int)(s*0.75));
+                int[] awX = {-s + ox, 0 + ox, s + ox};
+                int[] awY = {-(int)(s*0.05) + oy, -(int)(s*0.65) + oy, -(int)(s*0.05) + oy};
+                g2d.fillPolygon(awX, awY, 3);
+            }
+            case TRADING_POST -> {
+                // Scale / balance symbol
+                g2d.fillRect(-(int)(s*0.1) + ox, -(int)(s*0.9) + oy,
+                        (int)(s*0.2), (int)(s*1.6));
+                g2d.fillRect(-s + ox, -(int)(s*0.75) + oy, s*2, (int)(s*0.18));
+                g2d.fillOval(-(int)(s*0.55) + ox, -(int)(s*0.65) + oy,
+                        (int)(s*0.6), (int)(s*0.6));
+                g2d.fillOval((int)(s*0.0) + ox, -(int)(s*0.45) + oy,
+                        (int)(s*0.6), (int)(s*0.6));
+            }
+            case TRIBE_CAMP -> {
+                // Teepee/tent
+                int[] ttx = {-s + ox, 0 + ox, s + ox};
+                int[] tty = {(int)(s*0.65) + oy, -(int)(s*0.95) + oy, (int)(s*0.65) + oy};
+                g2d.fillPolygon(ttx, tty, 3);
+                // Entrance
+                g2d.setColor(g2d.getColor().darker().darker());
+                int[] etx = {-(int)(s*0.22) + ox, 0 + ox, (int)(s*0.22) + ox};
+                int[] ety = {(int)(s*0.65) + oy, (int)(s*0.0) + oy, (int)(s*0.65) + oy};
+                g2d.fillPolygon(etx, ety, 3);
+            }
+            default -> {
+                // Generic square
+                g2d.fillRect(-(int)(s*0.65) + ox, -(int)(s*0.65) + oy,
+                        (int)(s*1.3), (int)(s*1.3));
+            }
+        }
+    }
+
+    private Color getBuildingColor(BuildingType type) {
+        return switch (type) {
+            case TOWN_HALL    -> UIConfig.BUILDING_TOWN_HALL;
+            case LUMBER_MILL  -> UIConfig.BUILDING_LUMBER_MILL;
+            case FARM         -> UIConfig.BUILDING_FARM;
+            case STONE_MINE   -> UIConfig.BUILDING_STONE_MINE;
+            case IRON_MINE    -> UIConfig.BUILDING_IRON_MINE;
+            case STABLE       -> UIConfig.BUILDING_STABLE;
+            case SETTLEMENT   -> UIConfig.BUILDING_SETTLEMENT;
+            case DOCK         -> UIConfig.BUILDING_DOCK;
+            case MONUMENT     -> UIConfig.BUILDING_MONUMENT;
+            case BAZAAR       -> UIConfig.BUILDING_BAZAAR;
+            case TRADING_POST -> UIConfig.BUILDING_TRADING_POST;
+            case TRIBE_CAMP   -> UIConfig.BUILDING_TRIBE_CAMP;
+            default           -> Color.GRAY;
+        };
+    }
+
+    private String getBuildingSymbol(BuildingType type) {
+        return switch (type) {
+            case TOWN_HALL    -> "🏰";
+            case LUMBER_MILL  -> "🌲";
+            case FARM         -> "🌾";
+            case STONE_MINE   -> "⛏️";
+            case IRON_MINE    -> "🔩";
+            case STABLE       -> "🐎";
+            case SETTLEMENT   -> "🏘️";
+            case DOCK         -> "⚓";
+            case MONUMENT     -> "🗿";
+            case BAZAAR       -> "⚖️";
+            case TRADING_POST -> "🏪";
+            case TRIBE_CAMP   -> "⛺";
+            default           -> "?";
+        };
+    }
+
+    private void drawHPBar(Graphics2D g2d, int hp, int maxHp, int bsize, double zoom) {
+        int bw = (int)(bsize * 1.8);
+        int bh = (int)(3 * zoom);
+        int by = (int)(bsize * 0.85);
+        float pct = (float) hp / maxHp;
+
+        // Background
+        g2d.setColor(new Color(30, 30, 30, 200));
+        g2d.fillRoundRect(-bw/2, by, bw, bh, 2, 2);
+
+        // Fill
+        Color hpColor = pct > 0.6f ? new Color(60, 200, 80)
+                : pct > 0.3f ? new Color(230, 180, 30)
+                : new Color(220, 55, 55);
+        g2d.setColor(hpColor);
+        g2d.fillRoundRect(-bw/2, by, (int)(bw * pct), bh, 2, 2);
+
+        // Border
+        g2d.setColor(new Color(0, 0, 0, 180));
+        g2d.setStroke(new BasicStroke(0.5f));
+        g2d.drawRoundRect(-bw/2, by, bw, bh, 2, 2);
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    // ─── Pass 8: Resource Icons ───────────────────────────────────────────────
+
+    private void drawResourceIcons(Graphics2D g2d, Hex hex, int cx, int cy,
+                                   int size, double zoom) {
+        // Only show if no building on this hex (or very large zoom)
+        if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed() && zoom < 2.0) return;
+
+        ResourceType res = null;
+        Color resColor = Color.WHITE;
+
+        if (hex.hasResource(ResourceType.FOOD)) {
+            res = ResourceType.FOOD;
+            resColor = getResourceColor(hex);
+        } else if (hex.hasResource(ResourceType.WOOD)) {
+            res = ResourceType.WOOD;
+            resColor = UIConfig.RESOURCE_WOOD;
+        } else if (hex.hasResource(ResourceType.STONE)) {
+            res = ResourceType.STONE;
+            resColor = UIConfig.RESOURCE_STONE;
+        } else if (hex.hasResource(ResourceType.IRON)) {
+            res = ResourceType.IRON;
+            resColor = UIConfig.RESOURCE_IRON;
+        }
+
+        if (res == null) return;
+
+        int rs = (int)(size * 0.28);
+        int rx = cx + (int)(size * 0.42);
+        int ry = cy - (int)(size * 0.42);
+
+        g2d.translate(rx, ry);
+
+        // Badge background
+        g2d.setColor(new Color(0, 0, 0, 170));
+        g2d.fillOval(-rs - 2, -rs - 2, (rs + 2) * 2, (rs + 2) * 2);
+
+        // Resource color circle
+        g2d.setColor(resColor);
+        g2d.fillOval(-rs, -rs, rs*2, rs*2);
+
+        // Resource symbol
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, (int)(rs * 1.1)));
+        String sym = getResourceSymbol(res, hex.getResourceSubtype());
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.drawString(sym, -fm.stringWidth(sym)/2, fm.getAscent()/2 - 1);
+
+        g2d.translate(-rx, -ry);
+    }
+
+    private Color getResourceColor(Hex hex) {
+        ResourceSubtype sub = hex.getResourceSubtype();
+        if (sub == ResourceSubtype.FISH)   return UIConfig.RESOURCE_FISH;
+        if (sub == ResourceSubtype.WHEAT)  return UIConfig.RESOURCE_WHEAT;
+        if (sub == ResourceSubtype.RICE)   return UIConfig.TERRAIN_MEADOW;
+        if (sub == ResourceSubtype.CATTLE) return UIConfig.RESOURCE_CATTLE;
+        if (sub == ResourceSubtype.SHEEP)  return new Color(230, 228, 225);
+        return UIConfig.RESOURCE_FOOD;
+    }
+
+    private String getResourceSymbol(ResourceType type, ResourceSubtype sub) {
+        return switch (type) {
+            case FOOD -> switch (sub) {
+                case WHEAT  -> "W";
+                case RICE   -> "R";
+                case CATTLE -> "C";
+                case SHEEP  -> "S";
+                case FISH   -> "F";
+                default     -> "F";
+            };
+            case WOOD  -> "W";
+            case STONE -> "S";
+            case IRON  -> "I";
+            default    -> "?";
+        };
+    }
+
+    // ─── Pass 9: Highlights ───────────────────────────────────────────────────
+
+    private void drawHighlights(Graphics2D g2d, GamePanel panel, GameMap map,
+                                UnitController unitController, Rectangle clip,
+                                int size, double zoom) {
+        Unit selected = panel.getSelectedUnit();
+        if (selected == null) return;
+
+        Point selPt = panel.getHexPixelCoords(selected.getQ(), selected.getR());
+
+        // Pulsing ring around selected unit's hex
+        double pulse = panel.getPulseScale();
+        int ringSize = (int)(size * pulse);
+        g2d.setColor(UIConfig.HEX_SELECTED_GLOW);
+        g2d.setStroke(new BasicStroke((float)(3.5 * zoom * pulse)));
+        g2d.translate(selPt.x, selPt.y);
+        scaleAndDrawPolygon(g2d, hxBase, hyBase, 6, pulse);
+        g2d.translate(-selPt.x, -selPt.y);
+
+        g2d.setColor(UIConfig.HEX_SELECTED);
+        g2d.setStroke(new BasicStroke((float)(2.5 * zoom)));
+        g2d.translate(selPt.x, selPt.y);
+        g2d.drawPolygon(hxBase, hyBase, 6);
+        g2d.translate(-selPt.x, -selPt.y);
+        g2d.setStroke(new BasicStroke(1f));
+
+        // Movement and attack highlights for neighboring hexes
+        for (Hex hex : map.getHexes()) {
+            if (!hex.isExplored()) continue;
+            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+            if (!clip.contains(pt)) continue;
+
+            int dist = map.getHexDistance(selected.getQ(), selected.getR(),
+                    hex.getQ(), hex.getR());
+            if (dist == 0 || dist > 2) continue;
+
+            boolean canMove = unitController.canMove(selected, hex);
+            boolean isMilitary = (selected.getAttackRange() > 0);
+
+            if (canMove) {
+                drawHexHighlight(g2d, pt.x, pt.y, UIConfig.HEX_MOVE_FILL, UIConfig.HEX_MOVE_TARGET, zoom);
+            } else if (isMilitary && dist <= selected.getAttackRange()) {
+                drawHexHighlight(g2d, pt.x, pt.y, UIConfig.HEX_ATTACK_FILL, UIConfig.HEX_ATTACK_TARGET, zoom);
+            }
+        }
+    }
+
+    private void drawHexHighlight(Graphics2D g2d, int cx, int cy,
+                                  Color fill, Color border, double zoom) {
+        g2d.translate(cx, cy);
+        g2d.setColor(fill);
+        g2d.fillPolygon(hxBase, hyBase, 6);
+        g2d.setColor(border);
+        g2d.setStroke(new BasicStroke((float)(2.0 * zoom)));
+        g2d.drawPolygon(hxBase, hyBase, 6);
+        g2d.setStroke(new BasicStroke(1f));
+        g2d.translate(-cx, -cy);
+    }
+
+    // ─── Pass 10: Disaster Overlays ───────────────────────────────────────────
+
+    private void drawDisasterOverlays(Graphics2D g2d, GamePanel panel,
+                                      Rectangle clip, int size) {
+        // Flood overlay (blue)
+        List<Hex> floodHexes = panel.getFloodedHexes();
+        float floodAlpha = panel.getFloodAlpha();
+        if (!floodHexes.isEmpty() && floodAlpha > 0) {
+            for (Hex hex : floodHexes) {
+                if (!hex.isVisible()) continue;
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-                g2d.setColor(new Color(0, 0, 0, 160));
+                if (!clip.contains(pt)) continue;
+
                 g2d.translate(pt.x, pt.y);
-                g2d.fillPolygon(cachedHexBase);
+                // Rippling water overlay
+                g2d.setColor(new Color(30, 100, 200, (int)(floodAlpha * 210)));
+                g2d.fillPolygon(hxBase, hyBase, 6);
+                // Lighter shine
+                g2d.setColor(new Color(100, 180, 255, (int)(floodAlpha * 120)));
+                g2d.fillPolygon(hxInner, hyInner, 6);
+                g2d.translate(-pt.x, -pt.y);
+            }
+        }
+
+        // Bear attack overlay (brown/amber flash)
+        List<Hex> bearHexes = panel.getBearAttackHexes();
+        float bearAlpha = panel.getBearAlpha();
+        if (!bearHexes.isEmpty() && bearAlpha > 0) {
+            for (Hex hex : bearHexes) {
+                if (!hex.isVisible()) continue;
+                Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
+                if (!clip.contains(pt)) continue;
+
+                g2d.translate(pt.x, pt.y);
+                g2d.setColor(new Color(140, 70, 20, (int)(bearAlpha * 200)));
+                g2d.fillPolygon(hxBase, hyBase, 6);
+                g2d.setColor(new Color(220, 140, 40, (int)(bearAlpha * 100)));
+                g2d.fillPolygon(hxInner, hyInner, 6);
                 g2d.translate(-pt.x, -pt.y);
             }
         }
     }
 
-    private void drawMovementHighlights(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, List<Hex> visibleHexes) {
-        Unit selectedUnit = panel.getSelectedUnit();
-        if (selectedUnit == null || panel.isAnimating()) return;
-        if (selectedUnit instanceof Worker && ((Worker) selectedUnit).isStationed()) return;
+    // ─── Utility ─────────────────────────────────────────────────────────────
 
-        // تشخیص نظامی بودن یونیت
-        UnitType t = selectedUnit.getType();
-        boolean isMilitary = (t == UnitType.SWORDSMAN || t == UnitType.ARCHER || t == UnitType.CAVALRY);
-
-        for (Hex hex : visibleHexes) {
-            int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), hex.getQ(), hex.getR());
-
-            // رفع باگ 28: عدم رندر هایلایت حمله (قرمز) برای غیرنظامیان
-            boolean withinAttackRange = isMilitary && dist <= selectedUnit.getAttackRange();
-            boolean canMove = unitController.canMove(selectedUnit, hex);
-
-            // اگر نه می‌تواند حرکت کند و نه در برد حمله است (برای رزمی‌ها) یا اصلاً مجاور نیست (غیررزمی‌ها)، رد شو
-            if (!canMove && !withinAttackRange && dist != 1) continue;
-
-            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            g2d.translate(pt.x, pt.y);
-
-            if (canMove) {
-                g2d.setColor(UIConfig.MOVE_VALID_FILL);
-                g2d.fillPolygon(cachedHexBase);
-                g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor())));
-                g2d.setColor(UIConfig.MOVE_VALID_BORDER);
-                g2d.drawPolygon(cachedHexBase);
-            } else if (withinAttackRange || dist == 1) { // قرمز رنگ برای حمله، یا برای نمایش همسایه‌های مسدود
-                g2d.setColor(UIConfig.MOVE_INVALID_FILL);
-                g2d.fillPolygon(cachedHexBase);
-                g2d.setStroke(new BasicStroke((float)(2.0 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10.0f, new float[]{6.0f, 6.0f}, 0.0f));
-                g2d.setColor(UIConfig.MOVE_INVALID_BORDER);
-                g2d.drawPolygon(cachedHexBase);
-            }
-            g2d.translate(-pt.x, -pt.y);
-            g2d.setStroke(new BasicStroke(1f));
-        }
+    private void drawHexAt(Graphics2D g2d, int cx, int cy, boolean fill) {
+        g2d.translate(cx, cy);
+        if (fill) g2d.fillPolygon(hxBase, hyBase, 6);
+        else g2d.drawPolygon(hxBase, hyBase, 6);
+        g2d.translate(-cx, -cy);
     }
 
-    private void drawHexTerrain(Graphics2D g2d, Hex hex, GamePanel panel) {
-        Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-        int sz = (int)(GamePanel.HEX_SIZE * panel.getZoomFactor());
-
-        g2d.translate(pt.x, pt.y);
-
-        if (!hex.isExplored() && !hex.isVisible()) {
-            g2d.setColor(UIConfig.UNEXPLORED_FILL);
-            g2d.fillPolygon(cachedHexBase);
-            g2d.setStroke(new BasicStroke(1f));
-            g2d.setColor(UIConfig.UNEXPLORED_BORDER);
-            g2d.drawPolygon(cachedHexBase);
-            g2d.translate(-pt.x, -pt.y);
-            return;
+    private void scaleAndDrawPolygon(Graphics2D g2d, int[] xs, int[] ys, int n, double scale) {
+        int[] sx = new int[n], sy = new int[n];
+        for (int i = 0; i < n; i++) {
+            sx[i] = (int)(xs[i] * scale);
+            sy[i] = (int)(ys[i] * scale);
         }
-
-        boolean hasActiveResource = !hex.getResources().isEmpty() && !hex.isResourceDepleted();
-        boolean hasDepletedResource = !hex.getResources().isEmpty() && hex.isResourceDepleted();
-
-        Color topColor, baseColor;
-
-        switch (hex.getTerrainType()) {
-            case FOREST:
-                if (hasActiveResource) { topColor = UIConfig.FOREST_TOP_ACTIVE; baseColor = UIConfig.FOREST_BASE_ACTIVE; }
-                else if (hasDepletedResource) { topColor = UIConfig.FOREST_TOP_DEPLETED; baseColor = UIConfig.FOREST_BASE_DEPLETED; }
-                else { topColor = UIConfig.FOREST_TOP_NORMAL; baseColor = UIConfig.FOREST_BASE_NORMAL; }
-                break;
-            case PLAINS:
-                if (hasActiveResource) { topColor = UIConfig.PLAINS_TOP_ACTIVE; baseColor = UIConfig.PLAINS_BASE_ACTIVE; }
-                else { topColor = UIConfig.PLAINS_TOP_NORMAL; baseColor = UIConfig.PLAINS_BASE_NORMAL; }
-                break;
-            case MOUNTAIN:
-                if (hasActiveResource) {
-                    if (hex.hasResource(ResourceType.IRON)) { topColor = UIConfig.MOUNTAIN_TOP_IRON; baseColor = UIConfig.MOUNTAIN_BASE_IRON; }
-                    else { topColor = UIConfig.MOUNTAIN_TOP_STONE; baseColor = UIConfig.MOUNTAIN_BASE_STONE; }
-                } else if (hasDepletedResource) { topColor = UIConfig.MOUNTAIN_TOP_DEPLETED; baseColor = UIConfig.MOUNTAIN_BASE_DEPLETED; }
-                else { topColor = UIConfig.MOUNTAIN_TOP_NORMAL; baseColor = UIConfig.MOUNTAIN_BASE_NORMAL; }
-                break;
-            case MEADOW:
-                if (hasActiveResource) { topColor = UIConfig.MEADOW_TOP_ACTIVE; baseColor = UIConfig.MEADOW_BASE_ACTIVE; }
-                else { topColor = UIConfig.MEADOW_TOP_NORMAL; baseColor = UIConfig.MEADOW_BASE_NORMAL; }
-                break;
-            case SEA:
-                topColor = new Color(41, 128, 185); baseColor = new Color(26, 82, 118);
-                break;
-            case MOUNTAIN_RANGE:
-                topColor = new Color(200, 200, 200); baseColor = new Color(100, 100, 100);
-                break;
-            default:
-                topColor = Color.GRAY; baseColor = Color.DARK_GRAY; break;
-        }
-
-        GradientPaint gp = new GradientPaint(0, -sz, topColor, 0, sz, baseColor);
-        g2d.setPaint(gp);
-        g2d.fillPolygon(cachedHexBase);
-
-        if (hasDepletedResource) {
-            g2d.setColor(new Color(40, 40, 40, 100));
-            g2d.fillPolygon(cachedHexBase);
-        }
-
-        if (hex == panel.getHoveredHex() && panel.getSelectedUnit() == null) {
-            g2d.setColor(new Color(255, 255, 255, 50));
-            g2d.fillPolygon(cachedHexBase);
-        }
-
-        g2d.setStroke(new BasicStroke(1.5f));
-        g2d.setColor(new Color(0, 0, 0, 100));
-        g2d.drawPolygon(cachedHexBase);
-        g2d.setStroke(new BasicStroke(1f));
-        g2d.translate(-pt.x, -pt.y);
+        g2d.drawPolygon(sx, sy, n);
     }
 
-    private void drawHexBorder(Graphics2D g2d, Hex hex, GamePanel panel) {
-        Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-        g2d.translate(pt.x, pt.y);
-        g2d.setStroke(new BasicStroke((float)(4.0 * panel.getZoomFactor())));
-        g2d.setColor(new Color(255, 215, 0, 180));
-        g2d.drawPolygon(cachedHexBase);
-        g2d.setStroke(new BasicStroke(1f));
-        g2d.translate(-pt.x, -pt.y);
-    }
-
-    private void drawHexDetails(Graphics2D g2d, Hex hex, GamePanel panel) {
-        Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-        int offset = 0;
-        for (ResourceType rt : hex.getResources().keySet()) {
-            if (rt == ResourceType.NONE) continue;
-            drawResourceIcon(g2d, hex, new Point(pt.x + offset, pt.y), rt, panel.getZoomFactor());
-            offset += (int)(18 * panel.getZoomFactor());
-        }
-
-        if (hex.getBuilding() != null) {
-            drawBuildingIcon(g2d, hex.getBuilding(), pt, (int)(22 * panel.getZoomFactor()), panel.getZoomFactor());
-        }
-    }
-
-    private void drawResourceIcon(Graphics2D g2d, Hex hex, Point pt, ResourceType rt, double zoomFactor) {
-        if (rt == ResourceType.NONE) return;
-
-        int iconSize = Math.max(8, (int)(20 * zoomFactor));
-        int iconX = pt.x - (int)(GamePanel.HEX_SIZE * 0.55 * zoomFactor);
-        int iconY = pt.y - (int)(GamePanel.HEX_SIZE * 0.70 * zoomFactor);
-
-        if (hex.getResources().getOrDefault(rt, 0) <= 0) {
-            g2d.setColor(new Color(50, 50, 50, 210));
-            g2d.fillOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
-            g2d.setColor(new Color(180, 30, 30));
-            g2d.setStroke(new BasicStroke((float)(2.0 * zoomFactor)));
-            int off = iconSize / 3;
-            g2d.drawLine(iconX - off, iconY - off, iconX + off, iconY + off);
-            g2d.drawLine(iconX + off, iconY - off, iconX - off, iconY + off);
-            g2d.setStroke(new BasicStroke(1f));
-            return;
-        }
-
-        Color bgColor, borderColor, textColor;
-        String symbol;
-
-        switch (rt) {
-            case WOOD: bgColor = UIConfig.RES_WOOD_BG; borderColor = UIConfig.RES_WOOD_BORDER; textColor = UIConfig.RES_WOOD_TEXT; symbol = "W"; break;
-            case STONE: bgColor = UIConfig.RES_STONE_BG; borderColor = UIConfig.RES_STONE_BORDER; textColor = UIConfig.RES_STONE_TEXT; symbol = "S"; break;
-            case IRON: bgColor = UIConfig.RES_IRON_BG; borderColor = UIConfig.RES_IRON_BORDER; textColor = UIConfig.RES_IRON_TEXT; symbol = "I"; break;
-            case FOOD:
-                ResourceSubtype st = hex.getResourceSubtype();
-                if (st == ResourceSubtype.WHEAT) { bgColor = UIConfig.RES_WHEAT_BG; borderColor = UIConfig.RES_WHEAT_BORDER; textColor = UIConfig.RES_WHEAT_TEXT; symbol = "Wh"; }
-                else if (st == ResourceSubtype.RICE) { bgColor = UIConfig.RES_RICE_BG; borderColor = UIConfig.RES_RICE_BORDER; textColor = UIConfig.RES_RICE_TEXT; symbol = "Ri"; }
-                else if (st == ResourceSubtype.CATTLE) { bgColor = UIConfig.RES_CATTLE_BG; borderColor = UIConfig.RES_CATTLE_BORDER; textColor = UIConfig.RES_CATTLE_TEXT; symbol = "Ca"; }
-                else if (st == ResourceSubtype.SHEEP) { bgColor = UIConfig.RES_SHEEP_BG; borderColor = UIConfig.RES_SHEEP_BORDER; textColor = UIConfig.RES_SHEEP_TEXT; symbol = "Sh"; }
-                else if (st == ResourceSubtype.FISH) { bgColor = new Color(52, 152, 219); borderColor = new Color(41, 128, 185); textColor = Color.WHITE; symbol = "Fi"; }
-                else { bgColor = UIConfig.RES_FOOD_GENERIC_BG; borderColor = UIConfig.RES_FOOD_GENERIC_BORDER; textColor = UIConfig.RES_FOOD_GENERIC_TEXT; symbol = "F"; }
-                break;
-            default: return;
-        }
-
-        g2d.setColor(bgColor);
-        g2d.fillOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
-        g2d.setColor(borderColor);
-        g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-        g2d.drawOval(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
-        g2d.setStroke(new BasicStroke(1f));
-
-        int fontSize = Math.max(6, (int)(10 * zoomFactor));
-        if (fontSize > 5) {
-            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fontSize));
-            g2d.setColor(textColor);
-            FontMetrics fm = g2d.getFontMetrics();
-            g2d.drawString(symbol, iconX - fm.stringWidth(symbol) / 2, iconY + fm.getAscent() / 2 - 1);
-        }
-    }
-
-    private void drawBuildingIcon(Graphics2D g2d, Building b, Point pt, int size, double zoomFactor) {
-        if (b.getType() == BuildingType.TOWN_HALL) {
-            int w = (int)(40 * zoomFactor);
-            int h = (int)(40 * zoomFactor);
-            int bx = pt.x - w/2;
-            int by = pt.y - h/2;
-
-            g2d.setColor(new Color(0, 0, 0, 120));
-            g2d.fillRoundRect(bx + 3, by + 5, w, h, 12, 12);
-            GradientPaint bg = new GradientPaint(bx, by, new Color(60, 50, 20), bx, by + h, new Color(30, 25, 10));
-            g2d.setPaint(bg);
-            g2d.fillRoundRect(bx, by, w, h, 12, 12);
-            g2d.setColor(new Color(255, 215, 0));
-            g2d.setStroke(new BasicStroke((float)(2.5 * zoomFactor)));
-            g2d.drawRoundRect(bx, by, w, h, 12, 12);
-            g2d.setStroke(new BasicStroke(1f));
-
-            int fs = (int)(16 * zoomFactor);
-            if (fs > 6) {
-                g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
-                g2d.setColor(new Color(255, 215, 0));
-                FontMetrics fm = g2d.getFontMetrics();
-                g2d.drawString("TH", pt.x - fm.stringWidth("TH") / 2, pt.y + fm.getAscent() / 2 - 2);
-            }
-            return;
-        }
-
-        int x = pt.x;
-        int y = pt.y + 4;
-        g2d.setColor(new Color(0, 0, 0, 100));
-        g2d.fillOval(x - size/2 - 2, y + size/3 + 2, size + 4, size/2);
-
-        if (b.isDestroyed()) {
-            g2d.setColor(new Color(60, 55, 55));
-            g2d.fillRect(x - size/2, y - size/4, size, size/2);
-            g2d.setColor(new Color(200, 30, 30));
-            g2d.setStroke(new BasicStroke((float)(2.5 * zoomFactor)));
-            g2d.drawLine(x - size/2, y - size/4, x + size/2, y + size/4);
-            g2d.drawLine(x + size/2, y - size/4, x - size/2, y + size/4);
-            g2d.setStroke(new BasicStroke(1f));
-            return;
-        }
-
-        switch (b.getType()) {
-            case SETTLEMENT:
-                g2d.setColor(new Color(120, 85, 185));
-                Polygon house = new Polygon();
-                house.addPoint(x, y - size/2); house.addPoint(x + size/2, y); house.addPoint(x + size/2, y + size/2);
-                house.addPoint(x - size/2, y + size/2); house.addPoint(x - size/2, y);
-                g2d.fillPolygon(house);
-                g2d.setColor(new Color(200, 180, 240));
-                g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-                g2d.drawPolygon(house);
-                g2d.setStroke(new BasicStroke(1f));
-                break;
-            case FARM:
-                g2d.setColor(new Color(210, 175, 40));
-                g2d.fillRect(x - size/2, y - size/4, size, size/2);
-                g2d.setColor(new Color(110, 75, 20));
-                g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-                g2d.drawRect(x - size/2, y - size/4, size, size/2);
-                for (int i = -1; i <= 1; i++) { int lx = x + i * (size / 3); g2d.drawLine(lx, y - size/4, lx, y + size/4); }
-                g2d.setStroke(new BasicStroke(1f));
-                break;
-            case STABLE:
-                g2d.setColor(new Color(140, 90, 35));
-                g2d.fillRect(x - size/2, y - size/4, size, size/2);
-                g2d.setColor(new Color(190, 150, 80));
-                g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-                g2d.drawRect(x - size/2, y - size/4, size, size/2);
-                g2d.setColor(new Color(80, 50, 20));
-                g2d.fillRect(x - size/6, y, size/3, size/4);
-                g2d.setStroke(new BasicStroke(1f));
-                break;
-            case LUMBER_MILL:
-                g2d.setColor(new Color(110, 65, 20));
-                g2d.fillRect(x - size/2, y, size, size/2);
-                g2d.setColor(new Color(190, 185, 175));
-                g2d.fillOval(x - size/4, y - size/3, size/2, size/2);
-                g2d.setColor(new Color(80, 75, 70));
-                g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-                g2d.drawOval(x - size/4, y - size/3, size/2, size/2);
-                g2d.drawLine(x, y - size/3, x, y + size/6);
-                g2d.setStroke(new BasicStroke(1f));
-                break;
-            case STONE_MINE:
-                g2d.setColor(new Color(130, 125, 120));
-                Polygon smine = new Polygon();
-                smine.addPoint(x, y - size/2); smine.addPoint(x + size/2, y + size/2); smine.addPoint(x - size/2, y + size/2);
-                g2d.fillPolygon(smine);
-                g2d.setColor(new Color(30, 28, 25));
-                g2d.fillArc(x - size/5, y + size/6, size/2 - size/10, size/3, 0, 180);
-                break;
-            case IRON_MINE:
-                g2d.setColor(new Color(120, 90, 60));
-                Polygon imine = new Polygon();
-                imine.addPoint(x, y - size/2); imine.addPoint(x + size/2, y + size/2); imine.addPoint(x - size/2, y + size/2);
-                g2d.fillPolygon(imine);
-                g2d.setColor(new Color(200, 130, 50));
-                g2d.setStroke(new BasicStroke((float)(1.5 * zoomFactor)));
-                g2d.drawPolygon(imine);
-                g2d.setColor(new Color(30, 28, 25));
-                g2d.setStroke(new BasicStroke(1f));
-                g2d.fillArc(x - size/5, y + size/6, size/2 - size/10, size/3, 0, 180);
-                break;
-            case TRIBE_CAMP:
-            case TRADING_POST:
-            case BAZAAR:
-            case MONUMENT:
-            case DOCK:
-                g2d.setColor(new Color(100, 100, 100));
-                g2d.fillRoundRect(x - size/2, y - size/2, size, size, 5, 5);
-                g2d.setColor(Color.WHITE);
-                g2d.drawRoundRect(x - size/2, y - size/2, size, size, 5, 5);
-                break;
-        }
-
-        int fs = (int)(11 * zoomFactor);
-        if (fs > 5 && b.getType() != BuildingType.TRIBE_CAMP) {
-            g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.BOLD, fs));
-            String wt = b.getStationedWorkers() + "/" + b.getMaxWorkers();
-            FontMetrics fm = g2d.getFontMetrics();
-            int labelW = fm.stringWidth(wt) + 6;
-            int labelX = x - labelW / 2;
-            int labelY = y + size/2 + 3;
-            g2d.setColor(new Color(0, 0, 0, 190));
-            g2d.fillRoundRect(labelX, labelY, labelW, fs + 4, 4, 4);
-            g2d.setColor(Color.WHITE);
-            g2d.drawString(wt, labelX + 3, labelY + fs);
-        }
+    private Color blendColor(Color a, Color b, float t) {
+        return new Color(
+                (int)(a.getRed()   + (b.getRed()   - a.getRed())   * t),
+                (int)(a.getGreen() + (b.getGreen() - a.getGreen()) * t),
+                (int)(a.getBlue()  + (b.getBlue()  - a.getBlue())  * t));
     }
 }

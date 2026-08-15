@@ -1,90 +1,152 @@
 package view;
 
-import java.awt.Color;
-import java.awt.Font;
+import java.awt.*;
 
-public final class UIConfig {
-    private UIConfig() {}
+/**
+ * سیستم طراحی بصری بازی — کامل‌ترین و حرفه‌ای‌ترین palette برای یک بازی استراتژی تاریخی.
+ * الهام گرفته از Civilization VI، Age of Empires و Total War.
+ */
+public class UIConfig {
 
-    public static final Color FOREST_TOP_ACTIVE = new Color(60, 180, 60);
-    public static final Color FOREST_BASE_ACTIVE = new Color(25, 100, 25);
-    public static final Color FOREST_TOP_DEPLETED = new Color(90, 110, 80);
-    public static final Color FOREST_BASE_DEPLETED = new Color(55, 70, 50);
-    public static final Color FOREST_TOP_NORMAL = new Color(50, 130, 50);
-    public static final Color FOREST_BASE_NORMAL = new Color(30, 90, 30);
-
-    public static final Color PLAINS_TOP_ACTIVE = new Color(255, 220, 80);
-    public static final Color PLAINS_BASE_ACTIVE = new Color(200, 170, 50);
-    public static final Color PLAINS_TOP_NORMAL = new Color(200, 190, 140);
-    public static final Color PLAINS_BASE_NORMAL = new Color(160, 148, 100);
-
-    public static final Color MOUNTAIN_TOP_IRON = new Color(140, 120, 100);
-    public static final Color MOUNTAIN_BASE_IRON = new Color(80, 65, 55);
-    public static final Color MOUNTAIN_TOP_STONE = new Color(190, 190, 185);
-    public static final Color MOUNTAIN_BASE_STONE = new Color(120, 118, 115);
-    public static final Color MOUNTAIN_TOP_DEPLETED = new Color(130, 128, 125);
-    public static final Color MOUNTAIN_BASE_DEPLETED = new Color(80, 78, 75);
-    public static final Color MOUNTAIN_TOP_NORMAL = new Color(160, 158, 155);
-    public static final Color MOUNTAIN_BASE_NORMAL = new Color(100, 98, 95);
-
-    public static final Color MEADOW_TOP_ACTIVE = new Color(180, 220, 80);
-    public static final Color MEADOW_BASE_ACTIVE = new Color(120, 160, 40);
-    public static final Color MEADOW_TOP_NORMAL = new Color(130, 155, 90);
-    public static final Color MEADOW_BASE_NORMAL = new Color(85, 110, 55);
-
-    public static final Color UNEXPLORED_FILL = new Color(15, 18, 22);
-    public static final Color UNEXPLORED_BORDER = new Color(35, 40, 48);
-
-    public static final Color MOVE_VALID_FILL = new Color(0, 230, 255, 65);
-    public static final Color MOVE_VALID_BORDER = new Color(0, 255, 230, 220);
-    public static final Color MOVE_INVALID_FILL = new Color(231, 76, 60, 75);
-    public static final Color MOVE_INVALID_BORDER = new Color(255, 80, 80, 230);
-
-    public static final Color RES_WOOD_BG = new Color(90, 55, 20, 220);
-    public static final Color RES_WOOD_BORDER = new Color(180, 120, 60);
-    public static final Color RES_WOOD_TEXT = new Color(255, 200, 120);
-
-    public static final Color RES_STONE_BG = new Color(70, 70, 75, 220);
-    public static final Color RES_STONE_BORDER = new Color(180, 180, 185);
-    public static final Color RES_STONE_TEXT = new Color(240, 240, 245);
-
-    public static final Color RES_IRON_BG = new Color(80, 55, 30, 220);
-    public static final Color RES_IRON_BORDER = new Color(200, 140, 60);
-    public static final Color RES_IRON_TEXT = new Color(255, 180, 80);
-
-    public static final Color RES_WHEAT_BG = new Color(180, 140, 20, 220);
-    public static final Color RES_WHEAT_BORDER = new Color(240, 200, 60);
-    public static final Color RES_WHEAT_TEXT = new Color(255, 245, 180);
-
-    public static final Color RES_RICE_BG = new Color(40, 130, 110, 220);
-    public static final Color RES_RICE_BORDER = new Color(80, 200, 170);
-    public static final Color RES_RICE_TEXT = new Color(200, 255, 240);
-
-    public static final Color RES_CATTLE_BG = new Color(130, 60, 30, 220);
-    public static final Color RES_CATTLE_BORDER = new Color(200, 100, 50);
-    public static final Color RES_CATTLE_TEXT = new Color(255, 200, 160);
-
-    public static final Color RES_SHEEP_BG = new Color(140, 130, 110, 220);
-    public static final Color RES_SHEEP_BORDER = new Color(210, 200, 180);
-    public static final Color RES_SHEEP_TEXT = new Color(255, 250, 240);
-
-    public static final Color RES_FOOD_GENERIC_BG = new Color(30, 90, 30, 220);
-    public static final Color RES_FOOD_GENERIC_BORDER = new Color(100, 200, 80);
-    public static final Color RES_FOOD_GENERIC_TEXT = new Color(180, 255, 130);
-
-    public static final Color UNIT_EXPLORER = new Color(65, 105, 225);
-    public static final Color UNIT_BUILDER = new Color(255, 215, 0);
-    public static final Color UNIT_WORKER = new Color(255, 140, 0);
-    public static final Color UNIT_EXPANDER = new Color(218, 112, 214);
-
-    public static final Color UNIT_SWORDSMAN = new Color(231, 76, 60);
-    public static final Color UNIT_ARCHER = new Color(46, 204, 113);
-    public static final Color UNIT_CAVALRY = new Color(155, 89, 182);
-    public static final Color UNIT_BEAR = new Color(139, 69, 19);
-
-    public static final Color UNIT_STATIONED_AURA = new Color(255, 165, 0, 150);
-    public static final Color UNIT_SELECTED_AURA = new Color(0, 255, 255, 200);
-
+    // ─── Typography ───────────────────────────────────────────────────────────
+    public static final String FONT_SEGOE_UI  = "Segoe UI";
     public static final String FONT_SANS_SERIF = "SansSerif";
-    public static final String FONT_SEGOE_UI = "Segoe UI";
+    public static final String FONT_CINZEL    = "Georgia"; // classical strategy feel
+
+    // ─── Terrain Base Colors ─────────────────────────────────────────────────
+    // Plains — دشت طلایی گرم
+    public static final Color TERRAIN_PLAINS        = new Color(142, 159,  90);
+    public static final Color TERRAIN_PLAINS_LIGHT  = new Color(168, 185, 110);
+    public static final Color TERRAIN_PLAINS_DARK   = new Color(108, 126,  65);
+    public static final Color TERRAIN_PLAINS_ACCENT = new Color(190, 210, 120);
+
+    // Forest — جنگل عمیق
+    public static final Color TERRAIN_FOREST        = new Color( 42,  88,  36);
+    public static final Color TERRAIN_FOREST_LIGHT  = new Color( 60, 118,  52);
+    public static final Color TERRAIN_FOREST_DARK   = new Color( 25,  58,  20);
+    public static final Color TERRAIN_FOREST_CANOPY = new Color( 52, 105,  44);
+
+    // Mountain — کوهستان سنگی
+    public static final Color TERRAIN_MOUNTAIN      = new Color(112, 112, 118);
+    public static final Color TERRAIN_MOUNTAIN_LIGHT= new Color(148, 148, 158);
+    public static final Color TERRAIN_MOUNTAIN_DARK = new Color( 75,  75,  82);
+    public static final Color TERRAIN_MOUNTAIN_ROCK = new Color( 90,  88,  95);
+    public static final Color TERRAIN_MOUNTAIN_SNOW = new Color(228, 232, 240);
+
+    // Meadow — چمنزار سرسبز
+    public static final Color TERRAIN_MEADOW        = new Color(102, 158,  85);
+    public static final Color TERRAIN_MEADOW_LIGHT  = new Color(128, 188, 108);
+    public static final Color TERRAIN_MEADOW_DARK   = new Color( 75, 122,  60);
+    public static final Color TERRAIN_MEADOW_FLOWER = new Color(220, 180, 100);
+
+    // Sea — اقیانوس عمیق
+    public static final Color TERRAIN_SEA           = new Color( 22,  75, 138);
+    public static final Color TERRAIN_SEA_LIGHT     = new Color( 35, 100, 175);
+    public static final Color TERRAIN_SEA_DARK      = new Color( 12,  50,  95);
+    public static final Color TERRAIN_SEA_FOAM      = new Color( 85, 155, 215);
+    public static final Color TERRAIN_SEA_SHALLOW   = new Color( 45, 110, 170);
+
+    // Mountain Range — رشته‌کوه غیرقابل عبور
+    public static final Color TERRAIN_MTN_RANGE      = new Color( 48,  46,  52);
+    public static final Color TERRAIN_MTN_RANGE_LIGHT= new Color( 68,  65,  72);
+    public static final Color TERRAIN_MTN_RANGE_PEAK = new Color( 90,  88,  98);
+    public static final Color TERRAIN_MTN_RANGE_SNOW = new Color(200, 205, 215);
+
+    // ─── Fog of War ──────────────────────────────────────────────────────────
+    public static final Color FOG_UNEXPLORED     = new Color(  5,   7,  10, 248);
+    public static final Color FOG_EXPLORED_DARK  = new Color(  0,   0,   0, 155);
+    public static final Color FOG_EXPLORED_EDGE  = new Color(  0,   0,   0, 100);
+
+    // ─── Territory / Borders ─────────────────────────────────────────────────
+    public static final Color BORDER_TERRITORY      = new Color( 65, 165, 255, 200);
+    public static final Color BORDER_TERRITORY_FILL = new Color( 65, 165, 255,  20);
+    public static final Color BORDER_GLOW           = new Color( 80, 180, 255, 120);
+
+    // ─── Hex Highlights ──────────────────────────────────────────────────────
+    public static final Color HEX_HOVER             = new Color(255, 255, 255,  40);
+    public static final Color HEX_SELECTED          = new Color(255, 220,  40, 210);
+    public static final Color HEX_SELECTED_GLOW     = new Color(255, 220,  40,  60);
+    public static final Color HEX_MOVE_TARGET       = new Color( 60, 210, 120, 175);
+    public static final Color HEX_MOVE_FILL         = new Color( 60, 210, 120,  35);
+    public static final Color HEX_ATTACK_TARGET     = new Color(225,  55,  55, 175);
+    public static final Color HEX_ATTACK_FILL       = new Color(225,  55,  55,  35);
+    public static final Color HEX_CAPTURE_TARGET    = new Color(255, 170,  30, 175);
+
+    // ─── Infrastructure ───────────────────────────────────────────────────────
+    public static final Color ROAD_COLOR            = new Color(185, 148,  75);
+    public static final Color ROAD_BORDER           = new Color(125,  98,  48);
+    public static final Color ROAD_SHADOW           = new Color( 80,  62,  30, 100);
+
+    public static final Color RIVER_COLOR           = new Color( 55, 145, 215);
+    public static final Color RIVER_LIGHT           = new Color(100, 185, 245);
+    public static final Color RIVER_DARK            = new Color( 30,  95, 155);
+    public static final Color RIVER_SHINE           = new Color(160, 210, 255, 180);
+
+    public static final Color WALL_STONE            = new Color(175, 168, 155);
+    public static final Color WALL_SHADOW           = new Color( 95,  90,  82);
+    public static final Color WALL_HIGHLIGHT        = new Color(215, 210, 200);
+    public static final Color WALL_MORTAR           = new Color(125, 120, 112);
+
+    // ─── Unit Colors ─────────────────────────────────────────────────────────
+    public static final Color UNIT_SWORDSMAN        = new Color(215,  58,  45);
+    public static final Color UNIT_SWORDSMAN_BORDER = new Color(155,  30,  20);
+    public static final Color UNIT_ARCHER           = new Color( 45, 158, 225);
+    public static final Color UNIT_ARCHER_BORDER    = new Color( 22,  95, 155);
+    public static final Color UNIT_CAVALRY          = new Color(155,  75, 210);
+    public static final Color UNIT_CAVALRY_BORDER   = new Color( 95,  40, 148);
+    public static final Color UNIT_WORKER           = new Color(235, 162,  28);
+    public static final Color UNIT_WORKER_BORDER    = new Color(165, 105,  15);
+    public static final Color UNIT_BUILDER          = new Color(175, 128,  55);
+    public static final Color UNIT_BUILDER_BORDER   = new Color(115,  82,  30);
+    public static final Color UNIT_EXPLORER         = new Color( 72, 195, 180);
+    public static final Color UNIT_EXPLORER_BORDER  = new Color( 35, 130, 118);
+    public static final Color UNIT_EXPANDER         = new Color(115, 195,  72);
+    public static final Color UNIT_EXPANDER_BORDER  = new Color( 65, 135,  38);
+    public static final Color UNIT_BEAR             = new Color(138,  88,  48);
+    public static final Color UNIT_BEAR_BORDER      = new Color( 90,  55,  28);
+    public static final Color UNIT_SELECTED_AURA    = new Color(255, 218,  40, 210);
+    public static final Color UNIT_STATIONED_AURA   = new Color(255, 200,  50, 150);
+
+    // ─── Building Colors ─────────────────────────────────────────────────────
+    public static final Color BUILDING_TOWN_HALL    = new Color(218, 178,  55);
+    public static final Color BUILDING_LUMBER_MILL  = new Color( 95, 158,  55);
+    public static final Color BUILDING_FARM         = new Color(175, 210,  75);
+    public static final Color BUILDING_STONE_MINE   = new Color(158, 152, 148);
+    public static final Color BUILDING_IRON_MINE    = new Color(125, 138, 162);
+    public static final Color BUILDING_STABLE       = new Color(175, 138,  75);
+    public static final Color BUILDING_SETTLEMENT   = new Color(200, 158,  98);
+    public static final Color BUILDING_DOCK         = new Color( 55, 138, 200);
+    public static final Color BUILDING_MONUMENT     = new Color(218, 195,  95);
+    public static final Color BUILDING_BAZAAR       = new Color(195, 118,  55);
+    public static final Color BUILDING_TRADING_POST = new Color(155, 198, 158);
+    public static final Color BUILDING_TRIBE_CAMP   = new Color(198,  75,  75);
+
+    // ─── Resource / Subtype Colors ────────────────────────────────────────────
+    public static final Color RESOURCE_FOOD         = new Color(118, 198,  75);
+    public static final Color RESOURCE_WOOD         = new Color(158, 108,  52);
+    public static final Color RESOURCE_STONE        = new Color(168, 162, 158);
+    public static final Color RESOURCE_IRON         = new Color(128, 152, 178);
+    public static final Color RESOURCE_FISH         = new Color( 85, 168, 225);
+    public static final Color RESOURCE_WHEAT        = new Color(220, 185,  65);
+    public static final Color RESOURCE_CATTLE       = new Color(185, 138,  78);
+
+    // ─── HUD ─────────────────────────────────────────────────────────────────
+    public static final Color HUD_BG              = new Color( 12,  15,  22);
+    public static final Color HUD_CARD_BG         = new Color( 22,  27,  38);
+    public static final Color HUD_CARD_BORDER      = new Color( 42,  52,  72);
+    public static final Color HUD_TEXT_MAIN        = new Color(218, 224, 235);
+    public static final Color HUD_TEXT_DIM         = new Color(118, 128, 145);
+    public static final Color HUD_SEPARATOR        = new Color( 38,  48,  65);
+
+    // ─── Happiness Level Colors ───────────────────────────────────────────────
+    public static final Color HAPPINESS_GOLDEN     = new Color(240, 195,  40);
+    public static final Color HAPPINESS_NORMAL     = new Color( 80, 200, 120);
+    public static final Color HAPPINESS_DISCONTENT = new Color(230, 140,  30);
+    public static final Color HAPPINESS_REBELLION  = new Color(220,  55,  55);
+
+    // ─── Season Colors ────────────────────────────────────────────────────────
+    public static final Color SEASON_SPRING        = new Color(138, 210, 100);
+    public static final Color SEASON_SUMMER        = new Color(240, 210,  55);
+    public static final Color SEASON_AUTUMN        = new Color(215, 128,  38);
+    public static final Color SEASON_WINTER        = new Color(160, 195, 235);
 }
