@@ -79,8 +79,7 @@ public class SaveLoadController {
                                 ex.printStackTrace();
                             }
                         } else {
-                            worker.eject(); // اگر ساختمان پیدا نشد، کارگر از حالت استقرار خارج می‌شود
-                        }
+                            worker.eject();                    }
                     }
                 }
             }

@@ -18,12 +18,10 @@ public class BuildController {
     }
 
     private void initRules() {
-        // ─── پیش‌نیازهای تکنولوژی / سطح TownHall ───────────────────────────────
         techRequirements.put(BuildingType.STONE_MINE, TownHall::isStoneMineUnlocked);
         techRequirements.put(BuildingType.IRON_MINE,  TownHall::isIronMineUnlocked);
         techRequirements.put(BuildingType.SETTLEMENT, TownHall::isSettlementUnlocked);
 
-        // Bazaar و Dock در سطح ۲ TownHall قفل‌گشایی می‌شوند
         techRequirements.put(BuildingType.BAZAAR, th -> th.getLevel() >= 2);
         techRequirements.put(BuildingType.DOCK,   th -> th.getLevel() >= 2);
 
@@ -226,7 +224,6 @@ public class BuildController {
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
 
-            // آزاد کردن Workerها با جابجایی به هکس مجاور (F-18 — w.eject(map))
             gameMap.getUnits().stream()
                     .filter(u -> u instanceof Worker)
                     .map(u -> (Worker) u)

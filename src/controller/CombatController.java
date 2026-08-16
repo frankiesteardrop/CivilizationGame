@@ -1,7 +1,11 @@
 package controller;
 
 import model.*;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 public class CombatController {
@@ -29,12 +33,10 @@ public class CombatController {
                 targetHex.getQ(), targetHex.getR());
         if (dist > 2 || dist < 1) return -1;
 
-        // فیلتر یونیت‌هایی که برد کافی دارند
         List<Unit> validAttackers = attackers.stream()
                 .filter(u -> u.getAttackRange() >= dist && u.isAlive())
                 .collect(Collectors.toList());
 
-        // F-13: از فاصله ۲، فقط Archer مجاز به حمله است
         if (dist == 2) {
             validAttackers = validAttackers.stream()
                     .filter(u -> u.getType() == UnitType.ARCHER)
@@ -44,7 +46,6 @@ public class CombatController {
         if (validAttackers.isEmpty()) return -1;
         if (validAttackers.stream().anyMatch(u -> u.getCurrentAP() < 1)) return -1;
 
-        // بررسی سقف ظرفیت هکس مهاجم — فقط برای حمله نزدیک (dist == 1)
         if (dist == 1) {
             long swords = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
             long archers = validAttackers.stream().filter(u -> u.getType() == UnitType.ARCHER).count();
@@ -55,23 +56,54 @@ public class CombatController {
         // مصرف ۱ AP از همه مهاجمان
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // ─── حمله به سازه (Siege) — بدون تاس ──────────────────────────────────
+        // ─── حمله به سازه یا دیوار (Siege) — بدون تاس ──────────────────────────────────
         if (!isTargetAnimal && !isTargetBarbarian) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
+
+            int dir = getDirection(sourceHex, targetHex);
+            if (dir >= 0 && targetHasWall) {
+                // اعمال آسیب مستقیماً به خود دیوار
+                targetHex.damageWall((dir + 3) % 6, siegeDmg);
+                sourceHex.damageWall(dir, siegeDmg);
+                GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
+            } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
+                // اعمال آسیب به ساختمان (کمپ، سازه‌های پلیر و ...)
+                Building b = targetHex.getBuilding();
+                b.takeDamage(siegeDmg);
+                GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
+
+                if (b.isDestroyed()) {
+                    GameEventDispatcher.fireBuildingDestroyed(targetHex);
+
+                    // اگر هدف، کمپ قبیله بوده باشد، طبق داکیومنت فتح می‌شود
+                    if (b instanceof TribeCamp) {
+                        TribeCamp camp = (TribeCamp) b;
+                        GameEventDispatcher.fireNotification("⛺ " + camp.getTribe().getType().getDisplayName() + " tribe defeated!");
+                        targetHex.setInsideBorder(true);
+                        map.getTownHall().getInventory().addResource(ResourceType.FOOD, 50);
+                        map.getTownHall().getInventory().addResource(ResourceType.WOOD, 50);
+                    }
+
+                    // کارگرهای داخل سازه باید به بیرون رانده شوند
+                    for (Unit u : map.getUnits()) {
+                        if (u instanceof Worker && ((Worker) u).getStationedBuilding() == b) {
+                            ((Worker) u).eject(map);
+                        }
+                    }
+                }
+            }
+
             GameEventDispatcher.fireCombatTriggered(
                     new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
             return siegeDmg;
         }
 
-        // ─── سیستم تاس ──────────────────────────────────────────────────────────
-        // F-13: از فاصله ۲ فقط ۱ تاس تهاجمی — صرف‌نظر از تعداد Archerها
+        // ─── سیستم تاس (Combat against units) ──────────────────────────────────────────────────────────
         int attackerDiceCount = (dist == 2)
                 ? 1
                 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
 
         int defenderDiceCount = isTargetBarbarian ? 2 : 1;
-
-        // دیوار فقط برای حمله نزدیک (dist == 1) اثر دارد
         int wallModifier = (dist == 1 && targetHasWall) ? 2 : 0;
 
         List<Integer> attackerRolls = rollDice(attackerDiceCount, 0);
@@ -89,14 +121,43 @@ public class CombatController {
             }
         }
 
+        // اعمال دمیج به مهاجمین (از طریق Chain of Responsibility)
         if (attackerTakesDmg > 0) {
             damageChain.handleDamage(validAttackers, attackerTakesDmg);
+        }
+
+        // اصلاح باگ: اعمال دمیج به مدافعین (سربازهای دشمن یا خرس‌ها)
+        if (defenderTakesDmg > 0) {
+            List<Unit> validDefenders = map.getUnits().stream()
+                    .filter(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                            && (isTargetAnimal ? u.getType() == UnitType.BEAR :
+                            (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY)))
+                    .collect(Collectors.toList());
+
+            if (isTargetAnimal) {
+                // طبق spec خرس مستقیماً کشته می‌شود
+                for (Unit bear : validDefenders) {
+                    if (defenderTakesDmg > 0) {
+                        bear.kill();
+                        defenderTakesDmg--;
+                    }
+                }
+            } else {
+                damageChain.handleDamage(validDefenders, defenderTakesDmg);
+            }
         }
 
         GameEventDispatcher.fireCombatTriggered(
                 attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
 
         return defenderTakesDmg;
+    }
+
+    private int getDirection(Hex source, Hex target) {
+        for (int i = 0; i < 6; i++) {
+            if (map.getNeighbor(source, i) == target) return i;
+        }
+        return -1;
     }
 
     private List<Integer> rollDice(int count, int modifier) {

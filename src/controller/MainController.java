@@ -192,6 +192,7 @@ public class MainController {
     }
 
     // ─── Attack / Capture menu ────────────────────────────────────────────────
+// ─── Attack / Capture menu ────────────────────────────────────────────────
 
     private List<MenuAction> buildAttackMenu(Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
@@ -225,8 +226,13 @@ public class MainController {
         boolean hasTribeEnemy = (targetHex.getBuilding() instanceof TribeCamp)
                 && ((TribeCamp) targetHex.getBuilding()).getTribe().getRelationship() <= -50;
 
-        boolean hasAnyEnemy = hasAnimal || hasTribeEnemy;
-        boolean isMilTarget = hasAnyEnemy;
+        // تشخیص گاردهای نظامی قبیله روی کمپ دشمن
+        boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
+
+        boolean hasAnyEnemy = hasAnimal || hasTribeEnemy || hasEnemyGuard;
+        boolean isMilTarget = hasAnimal || hasEnemyGuard;
 
         boolean hasWall = false;
         if (dist == 1) {
@@ -236,7 +242,7 @@ public class MainController {
             if (dir >= 0) hasWall = sourceHex.hasWall(dir);
         }
 
-        // ─── Attack action (دشمن دارد) ────────────────────────────────────────
+        // ─── Attack action ────────────────────────────────────────
         if (hasAnyEnemy) {
             boolean hasReadyAttacker = attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
             boolean hasValidForDist  = (dist == 1) || attackers.stream()
@@ -244,7 +250,7 @@ public class MainController {
             boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
             String typeLabel = isMilTarget ? "🎲 Dice" : "🏰 Siege";
-            String wallLabel = (hasWall && dist == 1) ? " [🧱 Wall +2 def]" : "";
+            String wallLabel = (hasWall && dist == 1 && isMilTarget) ? " [🧱 Wall +2 def]" : "";
             String label     = String.format("⚔️ Attack! [%s] dist:%d%s", typeLabel, dist, wallLabel);
 
             String disabledReason;
@@ -256,13 +262,27 @@ public class MainController {
             final Hex fSource   = sourceHex;
             final boolean fWall = hasWall;
             final List<Unit> fAtk = attackers;
+            final boolean fAnimal = hasAnimal;
+            final boolean fBarbarian = hasEnemyGuard;
 
+            // گزینه 1: حمله استاندارد (اگر یونیت باشد تاس می‌ریزد، اگر فقط سازه باشد تخریب می‌کند)
             actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
                 CombatController cc = new CombatController(gameMap);
-                cc.executeAttack(fAtk, fSource, targetHex, hasAnimal, false, fWall);
+                cc.executeAttack(fAtk, fSource, targetHex, fAnimal, fBarbarian, fWall);
                 gameMap.removeDeadUnits();
                 gameMap.updateFogOfWar();
             }));
+
+            // گزینه 2 (طبق داکیومنت): حمله مستقیم به دیوار برای دور زدن پنالتی دفاعی یونیت‌های پشت آن
+            if (hasWall && isMilTarget && dist == 1) {
+                actions.add(new MenuAction("⚔️ Attack Wall [🏰 Siege]", canAttack, disabledReason, () -> {
+                    CombatController cc = new CombatController(gameMap);
+                    // برای حمله مستقیم به سازه، فلگ‌های یونیت دشمن موقتاً false ارسال می‌شود
+                    cc.executeAttack(fAtk, fSource, targetHex, false, false, true);
+                    gameMap.removeDeadUnits();
+                    gameMap.updateFogOfWar();
+                }));
+            }
         }
 
         // ─── F-22: Capture action (هکس خالی از دشمن، خارج از قلمرو، dist == 1) ──
@@ -276,7 +296,6 @@ public class MainController {
                     canCapture ? "No defenders — seize this hex"
                             : "Need military unit with AP ≥ 1",
                     () -> {
-                        // ۱ AP از اولین یونیت آماده مصرف می‌شود
                         attackers.stream()
                                 .filter(u -> u.getCurrentAP() >= 1)
                                 .findFirst()

@@ -125,9 +125,6 @@ public class TribeController {
      * F-25 — رفتار دشمن:
      * هر ۳ ترن، اگر تعداد گارد حول کمپ کمتر از حداکثر باشد، یک گارد spawn می‌شود.
      * حداکثر: Warrior → 5 گارد؛ بقیه → 3 گارد.
-     *
-     * توجه: گارد‌ها فعلاً به شکل Bear نمایش داده می‌شوند (placeholder).
-     * در پیاده‌سازی کامل، باید یک TribeGuard unit type ساخته شود.
      */
     private void processEnemyTribeTurn(TribeCamp camp, Hex campHex,
                                        List<Runnable> deferred) {
@@ -140,7 +137,7 @@ public class TribeController {
             // شمارش guard های موجود در شعاع GUARD_RADIUS از کمپ
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
-                            && u.getType() == UnitType.BEAR // placeholder
+                            && u.getType() == UnitType.SWORDSMAN // اصلاح: تغییر خرس به نیروی پیاده برای جلوگیری از تداخل با هوش مصنوعی بلایای طبیعی
                             && map.getHexDistance(campHex.getQ(), campHex.getR(),
                             u.getQ(), u.getR()) <= GUARD_RADIUS)
                     .count();
@@ -152,7 +149,8 @@ public class TribeController {
                 deferred.add(() -> {
                     Hex spawnHex = findNearbyEmptyHex(campQ, campR, GUARD_RADIUS);
                     if (spawnHex != null) {
-                        map.addUnit(new Bear(spawnHex.getQ(), spawnHex.getR()));
+                        // اصلاح: استفاده از UnitFactory برای ساخت Swordsman به عنوان نگهبان
+                        map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawnHex.getQ(), spawnHex.getR()));
                         if (campHex.isVisible()) {
                             GameEventDispatcher.fireNotification(
                                     "⚠️ " + camp.getTribe().getType().getDisplayName()

@@ -4,7 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn." />
+    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/BuildController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/BuildController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/CombatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/CombatController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/SaveLoadController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/SaveLoadController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TribeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TribeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameEventListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventListener.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -41,24 +49,38 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.Main.executor": "Run",
-    "Maven.civilization-sharif [compile].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:exec].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:help].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:java].executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "com.intellij.ide.FileNotInSourceRootChecker.no.check": "true",
-    "git-widget-placeholder": "phase2-development",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/HP/gson-2.10.1 (1).jar",
-    "onboarding.tips.debug.path": "C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [compile].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:exec].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:help].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:java].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ChatTagsLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ClientConfigCleanupMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAccountHistoryMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAccountsIdsRefresh&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAssignOrphanedChatsToActiveAccount&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyConvertUrlToCodebaseName&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyHistoryLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyMigrateChatHistory-v2&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyProjectSettingsMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.DeprecatedChatLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ToggleCodyToolWindowAfterMigration&quot;: &quot;true&quot;,
+    &quot;com.intellij.ide.FileNotInSourceRootChecker.no.check&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;phase2-development&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/HP/Downloads/claude-code-jetbrains-plugin-0.1.14-beta.zip&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

@@ -16,4 +16,5 @@ public interface GameEventListener {
     default void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
     default void onCombatTriggered(java.util.List<Integer> attackerDice, java.util.List<Integer> defenderDice, int atkDmg, int defDmg) {}
     default void onNotification(String message) {}
+    default void onTribeInteractionTriggered(Hex campHex) {}
 }
