@@ -2,10 +2,11 @@ package controller;
 
 import com.google.gson.*;
 import model.*;
-import java.io.File;
+import java.io.*;
 import java.nio.file.Files;
 import java.lang.reflect.Type;
 import java.lang.reflect.Field;
+import java.util.Base64;
 import java.util.Random;
 
 public class SaveLoadController {
@@ -21,6 +22,8 @@ public class SaveLoadController {
                 .registerTypeAdapter(Building.class, new BuildingAdapter())
                 .registerTypeAdapter(Unit.class, new UnitAdapter())
                 .registerTypeAdapter(ProductionCommand.class, new ProductionCommandAdapter(mainController))
+                // ثبت آداپتور جدید برای سریالایز کردن دقیق هسته Random
+                .registerTypeAdapter(Random.class, new RandomAdapter())
                 .setPrettyPrinting()
                 .create();
     }
@@ -55,9 +58,7 @@ public class SaveLoadController {
             String json = Files.readString(file.toPath());
             GameMap loadedMap = gson.fromJson(json, GameMap.class);
 
-            Field randomField = GameMap.class.getDeclaredField("random");
-            randomField.setAccessible(true);
-            randomField.set(loadedMap, new Random());
+            // آن خط مخرب new Random() از اینجا حذف شد! Gson حالا با کمک RandomAdapter وضعیت قبلی را دقیقاً لود می‌کند.
 
             TownHall th = loadedMap.getTownHall();
             Hex thHex = loadedMap.getHexAt(th.getQ(), th.getR());
@@ -70,7 +71,6 @@ public class SaveLoadController {
                     if (worker.isStationed()) {
                         Hex workerHex = loadedMap.getHexAt(worker.getQ(), worker.getR());
                         if (workerHex != null && workerHex.getBuilding() != null && !workerHex.getBuilding().isDestroyed()) {
-                            // ست کردن دستی رفرنس‌ها از طریق Reflection (برای دور زدن محدودیت‌های کپسوله‌سازی در لود)
                             try {
                                 Field stationedBuildingField = Worker.class.getDeclaredField("stationedBuilding");
                                 stationedBuildingField.setAccessible(true);
@@ -79,7 +79,8 @@ public class SaveLoadController {
                                 ex.printStackTrace();
                             }
                         } else {
-                            worker.eject();                    }
+                            worker.eject();
+                        }
                     }
                 }
             }
@@ -95,6 +96,41 @@ public class SaveLoadController {
 
     public void autosave() {
         saveGame("autosave");
+    }
+
+    // ─── آداپتور اختصاصی برای حفظ State کلاس Random ─────────────────────────
+    private static class RandomAdapter implements JsonSerializer<Random>, JsonDeserializer<Random> {
+        @Override
+        public JsonElement serialize(Random src, Type typeOfSrc, JsonSerializationContext context) {
+            try {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream oos = new ObjectOutputStream(baos);
+                oos.writeObject(src);
+                oos.close();
+                String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+                JsonObject obj = new JsonObject();
+                obj.addProperty("base64State", base64);
+                return obj;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return new JsonObject();
+            }
+        }
+
+        @Override
+        public Random deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            try {
+                String base64 = json.getAsJsonObject().get("base64State").getAsString();
+                byte[] data = Base64.getDecoder().decode(base64);
+                ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
+                Random random = (Random) ois.readObject();
+                ois.close();
+                return random;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new Random(); // Fallback در صورت خرابی دیتای ذخیره شده
+            }
+        }
     }
 
     private static class BuildingAdapter implements JsonSerializer<Building>, JsonDeserializer<Building> {

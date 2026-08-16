@@ -8,13 +8,12 @@ public class GameMap {
     private final Map<String, Hex> hexMap;
     private final Repository<Unit> units;
     private final int radius;
-    private final Random random;
+    // تغییر final بودن random برای قابلیت لود شدن بهتر توسط Gson
+    private Random random;
     private final TownHall townHall;
     private int currentTurn = 1;
     private boolean isStarving = false;
 
-    // F-33: cooldown خرس به GameMap منتقل شد (نه DisasterController)
-    // چون DisasterController هر ترن از صفر ساخته می‌شود.
     private int bearCooldown = 0;
 
     private static final int[][] DIRECTIONS = {
@@ -31,16 +30,12 @@ public class GameMap {
 
         generateMap();
         generateRivers();
-        // F-34: بررسی connectivity بعد از generate نقشه
         ensureMapConnectivity();
-        // F-38: فقط Trading Post — TribeCamp توسط TribeController spawn می‌شود
         generateTradingPosts();
         setupInitialTerritory();
         spawnInitialUnits();
         updateFogOfWar();
     }
-
-    // ─── Map Generation ───────────────────────────────────────────────────────
 
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
@@ -96,18 +91,8 @@ public class GameMap {
         ensureStartingResources();
     }
 
-    /**
-     * F-34: اطمینان از اینکه TownHall در محدوده بسته‌ای قرار نگرفته است.
-     *
-     * الگوریتم BFS از موقعیت TH (0,0):
-     * 1. همه هکس‌های قابل دسترس (نه SEA، نه MOUNTAIN_RANGE) را پیدا می‌کند
-     * 2. هکس‌های قابل دسترس در شعاع ۴ از TH را می‌شمارد
-     * 3. اگر کمتر از MIN_REACHABLE_NEAR_TH بود، MOUNTAIN_RANGE های مسدودکننده به PLAINS تبدیل می‌شوند
-     *
-     * طبق spec: "الگوریتم تولید نقشه باید مطمئن شود که TH در منطقه‌ای محصورشده قرار نمی‌گیرد."
-     */
     private void ensureMapConnectivity() {
-        final int MIN_REACHABLE_NEAR_TH = 12; // حداقل ۱۲ هکس قابل دسترس در شعاع ۴
+        final int MIN_REACHABLE_NEAR_TH = 12;
 
         Set<String> visited = new HashSet<>();
         Queue<Hex>  bfsQueue = new LinkedList<>();
@@ -118,7 +103,6 @@ public class GameMap {
         bfsQueue.add(startHex);
         visited.add("0,0");
 
-        // BFS — عبور از هکس‌های قابل عبور
         while (!bfsQueue.isEmpty()) {
             Hex current = bfsQueue.poll();
             for (int i = 0; i < 6; i++) {
@@ -128,7 +112,6 @@ public class GameMap {
                 String key = neighbor.getQ() + "," + neighbor.getR();
                 if (visited.contains(key)) continue;
 
-                // SEA و MOUNTAIN_RANGE غیرقابل عبور هستند
                 if (neighbor.getTerrainType() == TerrainType.SEA) continue;
                 if (neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
 
@@ -137,7 +120,6 @@ public class GameMap {
             }
         }
 
-        // شمارش هکس‌های قابل دسترس در شعاع ۴ از TH
         long nearReachable = visited.stream().filter(k -> {
             String[] parts = k.split(",");
             try {
@@ -147,15 +129,13 @@ public class GameMap {
             } catch (NumberFormatException e) { return false; }
         }).count();
 
-        // اگر کمتر از حداقل هکس قابل دسترس وجود داشت، MOUNTAIN_RANGE های نزدیک را باز کن
         if (nearReachable < MIN_REACHABLE_NEAR_TH) {
-            int fixRadius = 3; // ابتدا شعاع ۳
+            int fixRadius = 3;
             while (nearReachable < MIN_REACHABLE_NEAR_TH && fixRadius <= radius) {
                 for (Hex hex : hexes.getAll()) {
                     if (hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE
                             && getHexDistance(0, 0, hex.getQ(), hex.getR()) <= fixRadius) {
                         hex.setTerrainType(TerrainType.PLAINS);
-                        // آمار به‌روزرسانی — شمارش مجدد نیاز نیست، فرض می‌کنیم هر هکس باز شده کمک می‌کند
                         nearReachable++;
                         if (nearReachable >= MIN_REACHABLE_NEAR_TH) break;
                     }
@@ -254,8 +234,6 @@ public class GameMap {
         addUnit(new Worker(0, 0));
     }
 
-    // ─── Unit management ─────────────────────────────────────────────────────
-
     public void addUnit(Unit unit) {
         if (unit != null) {
             units.add(unit);
@@ -270,8 +248,6 @@ public class GameMap {
     }
 
     public void incrementTurn() { currentTurn++; }
-
-    // ─── Fog of War ───────────────────────────────────────────────────────────
 
     public void updateFogOfWar() {
         for (Hex hex : hexes.getAll()) hex.setVisible(false);
@@ -301,8 +277,6 @@ public class GameMap {
             }
         }
     }
-
-    // ─── Border ──────────────────────────────────────────────────────────────
 
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
@@ -339,18 +313,9 @@ public class GameMap {
         return getHexAt(startQ, startR);
     }
 
-    // ─── Bear Cooldown (F-33) ─────────────────────────────────────────────────
-
-    /** مقدار فعلی cooldown خرس. */
     public int getBearCooldown() { return bearCooldown; }
-
-    /** تنظیم cooldown بعد از spawn خرس. */
     public void setBearCooldown(int turns) { this.bearCooldown = turns; }
-
-    /** کاهش ۱ واحد cooldown در هر ترن (از TurnController). */
     public void decrementBearCooldown() { if (bearCooldown > 0) bearCooldown--; }
-
-    // ─── Queries ─────────────────────────────────────────────────────────────
 
     public boolean hasUnitAt(int q, int r) {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
@@ -392,8 +357,6 @@ public class GameMap {
         int seasonIndex = ((currentTurn - 1) / 10) % 4;
         return Season.values()[seasonIndex];
     }
-
-    // ─── Getters ─────────────────────────────────────────────────────────────
 
     public List<Hex>  getHexes()       { return hexes.getAll(); }
     public List<Unit> getUnits()       { return units.getAll(); }
