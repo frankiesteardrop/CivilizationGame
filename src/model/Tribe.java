@@ -1,16 +1,9 @@
 package model;
 
+import model.mission.Mission;
+
 /**
  * نگهداری وضعیت رابطه قبیله با بازیکن.
- *
- * بازه‌های رابطه طبق spec فاز دوم (اصلاح F-03):
- *   -100 تا -50 → Enemy
- *    -49 تا -20 → Displeased
- *    -19 تا +19 → Neutral
- *    +20 تا +69 → Friendly
- *    +70 تا +100 → Allied
- *
- * F-31: هر بار وضعیت رابطه تغییر می‌کند، notification به HUD ارسال می‌شود.
  */
 public class Tribe {
 
@@ -18,10 +11,18 @@ public class Tribe {
     private int     relationship;
     private boolean isAllied;
 
+    // فیلدهای جدید سیستم مأموریت
+    private Mission mission;
+    private int     missionCooldown;
+    private boolean tradeBonus; // برای جایزه قبیله تجاری
+
     public Tribe(TribeType type) {
         this.type         = type;
         this.relationship = 0;
         this.isAllied     = false;
+        this.mission      = null;
+        this.missionCooldown = 0;
+        this.tradeBonus   = false;
     }
 
     public TribeType getType()       { return type; }
@@ -29,26 +30,25 @@ public class Tribe {
     public boolean isAllied()        { return isAllied; }
     public void setAllied(boolean a) { this.isAllied = a; }
 
-    /**
-     * تغییر مقدار رابطه با clamp -100 تا +100.
-     *
-     * F-31: اگر وضعیت (Status) تغییر کرد، یک notification به HUD ارسال می‌شود.
-     * این به بازیکن اطلاع می‌دهد که رابطه وارد مرحله جدیدی شده است.
-     */
+    public Mission getMission() { return mission; }
+    public void setMission(Mission mission) { this.mission = mission; }
+
+    public int getMissionCooldown() { return missionCooldown; }
+    public void setMissionCooldown(int cooldown) { this.missionCooldown = cooldown; }
+    public void decrementMissionCooldown() { if (missionCooldown > 0) missionCooldown--; }
+
+    public boolean hasTradeBonus() { return tradeBonus; }
+    public void setTradeBonus(boolean b) { this.tradeBonus = b; }
+
     public void addRelationship(int amount) {
         if (amount == 0) return;
-
-        // وضعیت قبل از تغییر برای مقایسه
         String previousStatus = getStatus();
-
         this.relationship = Math.max(-100, Math.min(100, this.relationship + amount));
 
-        // اگر رابطه از allied threshold پایین آمد، اتحاد لغو می‌شود
         if (this.relationship < 70 && this.isAllied) {
             this.isAllied = false;
         }
 
-        // F-31: notification فقط وقتی وضعیت واقعاً تغییر کرده است (نه هر تغییر عددی)
         String newStatus = getStatus();
         if (!previousStatus.equals(newStatus)) {
             String emoji = switch (newStatus) {
@@ -65,9 +65,6 @@ public class Tribe {
         }
     }
 
-    /**
-     * وضعیت رابطه بر اساس بازه‌های دقیق spec (اصلاح F-03).
-     */
     public String getStatus() {
         if (relationship <= -50) return "Enemy";
         if (relationship <= -20) return "Displeased";

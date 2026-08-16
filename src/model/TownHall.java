@@ -157,4 +157,11 @@ public class TownHall extends Building {
         this.setDefense(30);
         this.heal(350);
     }
+
+    // ─── جوایز مأموریت قبیله ساحلی ─────────────────────────────────────────────────────
+    private int discountedDocks = 0;
+
+    public int getDiscountedDocks() { return discountedDocks; }
+    public void addDiscountedDock() { discountedDocks++; }
+    public void consumeDiscountedDock() { if (discountedDocks > 0) discountedDocks--; }
 }
