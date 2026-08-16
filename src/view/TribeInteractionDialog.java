@@ -125,7 +125,6 @@ public class TribeInteractionDialog extends JDialog {
         actionsPanel.setBackground(BG_DARK);
         actionsPanel.setBorder(new EmptyBorder(12, 16, 12, 16));
 
-        // ۱. ارسال هدیه
         actionsPanel.add(buildActionButton(
                 "🎁  Send Gift",
                 "Send resources to improve relations (+2 or +3)",
