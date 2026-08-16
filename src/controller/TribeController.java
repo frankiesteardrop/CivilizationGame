@@ -268,9 +268,13 @@ public class TribeController implements GameEventListener {
             inv.addResource(ResourceType.STONE, 20);
             tribe.addRelationship(15);
         } else if (tribe.getType() == TribeType.WARRIOR) {
-            for(int i=0; i<3; i++) {
-                Hex spawn = map.findEmptySpawnHex(camp.getQ(), camp.getR());
-                if(spawn != null) map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawn.getQ(), spawn.getR()));
+            // اصلاح باگ: پیدا کردن هکس مربوط به کمپ برای دادن جایزه (اسپاون شمشیرزن)
+            Hex campHex = getHexOfCamp(camp);
+            if (campHex != null) {
+                for(int i=0; i<3; i++) {
+                    Hex spawn = map.findEmptySpawnHex(campHex.getQ(), campHex.getR());
+                    if(spawn != null) map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawn.getQ(), spawn.getR()));
+                }
             }
             tribe.addRelationship(20);
         } else if (tribe.getType() == TribeType.COMMERCIAL) {
