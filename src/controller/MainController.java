@@ -154,7 +154,12 @@ public class MainController {
                 actions.add(createBuildAction(builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement"));
-                actions.add(createBuildAction(builder, targetHex, BuildingType.DOCK,        "⚓ Dock [TH L2]"));
+
+                // ─── داینامیک شدن متن دکمه Dock بر اساس پاداش مأموریت ───
+                boolean hasDockDiscount = gameMap.getTownHall().getDiscountedDocks() > 0;
+                String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
+                actions.add(createBuildAction(builder, targetHex, BuildingType.DOCK, dockLabel));
+
                 actions.add(createBuildAction(builder, targetHex, BuildingType.MONUMENT,    "🏛️ Monument"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.BAZAAR,      "⚖️ Bazaar [TH L2]"));
             }
@@ -192,7 +197,6 @@ public class MainController {
     }
 
     // ─── Attack / Capture menu ────────────────────────────────────────────────
-// ─── Attack / Capture menu ────────────────────────────────────────────────
 
     private List<MenuAction> buildAttackMenu(Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();

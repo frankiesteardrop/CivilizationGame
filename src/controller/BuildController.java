@@ -93,6 +93,11 @@ public class BuildController {
         if (!hasRequiredTech(type, th))         return false;
         if (!isValidTerrainForBuilding(type, hex)) return false;
 
+        // ─── اعمال پاداش مأموریت قبیله ساحلی (Coastal Tribe) ───
+        if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
+            return true; // بدون چک کردن منابع انبار اجازه ساخت داده می‌شود
+        }
+
         Inventory inv = th.getInventory();
         return inv.hasEnough(ResourceType.WOOD, type.getWoodCost())
                 && inv.hasEnough(ResourceType.STONE, type.getStoneCost())
@@ -110,10 +115,17 @@ public class BuildController {
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
 
-        Inventory inv = gameMap.getTownHall().getInventory();
-        inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
-        inv.consumeResource(ResourceType.STONE, type.getStoneCost());
-        inv.consumeResource(ResourceType.IRON,  type.getIronCost());
+        TownHall th = gameMap.getTownHall();
+        Inventory inv = th.getInventory();
+
+        // ─── کسر منابع با احتساب تخفیف ───
+        if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
+            th.consumeDiscountedDock(); // یک کوپن تخفیف مصرف می‌شود، اما منبعی کسر نمی‌شود
+        } else {
+            inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
+            inv.consumeResource(ResourceType.STONE, type.getStoneCost());
+            inv.consumeResource(ResourceType.IRON,  type.getIronCost());
+        }
 
         builder.consumeAP(type.getApCost());
         builder.useCharge();
