@@ -1,38 +1,33 @@
 package model;
 
 import model.mission.Mission;
+import model.state.tribe.*;
 
-/**
- * نگهداری وضعیت رابطه قبیله با بازیکن.
- */
 public class Tribe {
-
     private final TribeType type;
-    private int     relationship;
+    private int relationship;
     private boolean isAllied;
-
-    // فیلدهای جدید سیستم مأموریت
+    private TribeState state; // State Pattern
     private Mission mission;
-    private int     missionCooldown;
-    private boolean tradeBonus; // برای جایزه قبیله تجاری
+    private int missionCooldown;
+    private boolean tradeBonus;
 
     public Tribe(TribeType type) {
-        this.type         = type;
+        this.type = type;
         this.relationship = 0;
-        this.isAllied     = false;
-        this.mission      = null;
-        this.missionCooldown = 0;
-        this.tradeBonus   = false;
+        this.isAllied = false;
+        this.tradeBonus = false;
+        updateState();
     }
 
-    public TribeType getType()       { return type; }
-    public int  getRelationship()    { return relationship; }
-    public boolean isAllied()        { return isAllied; }
-    public void setAllied(boolean a) { this.isAllied = a; }
+    public TribeType getType() { return type; }
+    public int getRelationship() { return relationship; }
+    public boolean isAllied() { return isAllied; }
+    public void setAllied(boolean a) { this.isAllied = a; updateState(); }
 
+    public TribeState getState() { return state; }
     public Mission getMission() { return mission; }
     public void setMission(Mission mission) { this.mission = mission; }
-
     public int getMissionCooldown() { return missionCooldown; }
     public void setMissionCooldown(int cooldown) { this.missionCooldown = cooldown; }
     public void decrementMissionCooldown() { if (missionCooldown > 0) missionCooldown--; }
@@ -42,44 +37,30 @@ public class Tribe {
 
     public void addRelationship(int amount) {
         if (amount == 0) return;
-        String previousStatus = getStatus();
+        String prevStatus = state.getName();
         this.relationship = Math.max(-100, Math.min(100, this.relationship + amount));
+        if (this.relationship < 70 && this.isAllied) this.isAllied = false;
 
-        if (this.relationship < 70 && this.isAllied) {
-            this.isAllied = false;
-        }
+        updateState();
 
-        String newStatus = getStatus();
-        if (!previousStatus.equals(newStatus)) {
-            String emoji = switch (newStatus) {
-                case "Allied"     -> "🤝";
-                case "Friendly"   -> "😊";
-                case "Neutral"    -> "😐";
-                case "Displeased" -> "😠";
-                case "Enemy"      -> "⚔️";
-                default           -> "🔔";
-            };
-            GameEventDispatcher.fireNotification(String.format(
-                    "%s %s Tribe: %s → %s",
-                    emoji, type.getDisplayName(), previousStatus, newStatus));
+        if (!prevStatus.equals(state.getName())) {
+            GameEventDispatcher.fireNotification("🔔 " + type.getDisplayName() + " Tribe: " + prevStatus + " → " + state.getName());
         }
     }
 
-    public String getStatus() {
-        if (relationship <= -50) return "Enemy";
-        if (relationship <= -20) return "Displeased";
-        if (isAllied || relationship >= 70) return "Allied";
-        if (relationship >= 20) return "Friendly";
-        return "Neutral";
+    private void updateState() {
+        if (relationship <= -50) this.state = new EnemyState();
+        else if (relationship <= -20) this.state = new DispleasedState();
+        else if (isAllied || relationship >= 70) this.state = new AlliedState();
+        else if (relationship >= 20) this.state = new FriendlyState();
+        else this.state = new NeutralState();
     }
 
-    public boolean canTrade()          { return relationship >= 20; }
-    public boolean canReceiveGift()    { return relationship > -50; }
-    public boolean canFormAlliance()   { return relationship >= 70 && !isAllied; }
-    public boolean canRequestPeace()   { return relationship <= -50; }
+    // Delegation to State
+    public boolean canTrade() { return state.canTrade(); }
+    public boolean canReceiveGift() { return state.canReceiveGift(); }
+    public boolean canFormAlliance() { return state.canFormAlliance(); }
+    public boolean canRequestPeace() { return state.canRequestPeace(); }
 
-    public String getDetailedStatus() {
-        return String.format("[%s] %s (%d/100)",
-                type.getDisplayName(), getStatus(), relationship);
-    }
+    public String getDetailedStatus() { return String.format("[%s] %s (%d/100)", type.getDisplayName(), state.getName(), relationship); }
 }

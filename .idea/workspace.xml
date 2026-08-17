@@ -4,7 +4,31 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn." />
+    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/model/mission/MissionGoal.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/mission/ActiveMissionState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/mission/AvailableState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/mission/CompletedFailedState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/mission/MissionState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/mission/ReadyMissionState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/AlliedState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/DispleasedState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/EnemyState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/FriendlyState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/NeutralState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/state/tribe/TribeState.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/trade/BazaarTradeStrategy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/trade/TradeStrategy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/trade/TradingPostTradeStrategy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Tribe.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Tribe.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TribeType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TribeType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/mission/Mission.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/mission/Mission.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/mission/MissionState.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/mission/MissionStateEnum.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/TribeInteractionDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/TribeInteractionDialog.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

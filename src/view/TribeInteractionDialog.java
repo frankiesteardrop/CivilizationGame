@@ -4,7 +4,6 @@ import controller.MainController;
 import controller.TribeController;
 import model.*;
 import model.mission.Mission;
-import model.mission.MissionStateEnum;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;

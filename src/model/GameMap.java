@@ -365,4 +365,73 @@ public class GameMap {
     public boolean    isStarving()     { return isStarving; }
     public void       setStarving(boolean s) { this.isStarving = s; }
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
+
+    // ─── متدهای انتقال یافته از TribeController برای رعایت MVC ───
+
+    public Hex getHexOfBuilding(Building building) {
+        for (Hex h : hexes.getAll()) {
+            if (h.getBuilding() == building) return h;
+        }
+        return null;
+    }
+
+    public Hex findNearbyEmptyHex(int centerQ, int centerR, int radius) {
+        for (Hex h : hexes.getAll()) {
+            int dist = getHexDistance(centerQ, centerR, h.getQ(), h.getR());
+            if (dist > 0 && dist <= radius && h.getTerrainType() != TerrainType.SEA
+                    && h.getTerrainType() != TerrainType.MOUNTAIN_RANGE && !hasUnitAt(h.getQ(), h.getR())
+                    && (h.getBuilding() == null || h.getBuilding().isDestroyed())) {
+                return h;
+            }
+        }
+        return null;
+    }
+
+    public boolean isRoadConnectedToCamp(TribeCamp camp) {
+        Hex campHex = getHexOfBuilding(camp);
+        if (campHex == null) return false;
+
+        Set<Hex> visited = new HashSet<>();
+        Queue<Hex> queue = new LinkedList<>();
+
+        for (int i = 0; i < 6; i++) {
+            Hex n = getNeighbor(campHex, i);
+            if (n != null && n.hasRoad()) {
+                queue.add(n);
+                visited.add(n);
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            Hex current = queue.poll();
+            Building b = current.getBuilding();
+            if (b != null && !b.isDestroyed() &&
+                    !(b instanceof TribeCamp) && !(b instanceof TradingPost)) {
+                return true;
+            }
+            for (int i = 0; i < 6; i++) {
+                Hex n = getNeighbor(current, i);
+                if (n != null && n.hasRoad() && !visited.contains(n)) {
+                    visited.add(n);
+                    queue.add(n);
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean hasDockWithinRadius(TribeCamp camp, int radius) {
+        Hex campHex = getHexOfBuilding(camp);
+        if (campHex == null) return false;
+
+        for (Hex h : hexes.getAll()) {
+            if (getHexDistance(campHex.getQ(), campHex.getR(), h.getQ(), h.getR()) <= radius) {
+                Building b = h.getBuilding();
+                if (b != null && b.getType() == BuildingType.DOCK && !b.isDestroyed()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

@@ -1,6 +1,9 @@
 package controller;
 
 import model.*;
+import model.trade.BazaarTradeStrategy;
+import model.trade.TradeStrategy;
+import model.trade.TradingPostTradeStrategy;
 
 public class TradeController implements GameEventListener {
 
@@ -11,98 +14,42 @@ public class TradeController implements GameEventListener {
         GameEventDispatcher.addListener(this);
     }
 
-    // ─── F-26: بررسی اتحاد COMMERCIAL ────────────────────────────────────────
-
-    /**
-     * اگر قبیله تجاری (COMMERCIAL) متحد باشد، تمام تراکنش‌های Bazaar و
-     * TradingPost 10% بیشتر برمی‌گرداند.
-     * طبق spec: "Alliance با قبیله تجاری → +10% نرخ تجارت روی همه تراکنش‌ها"
-     */
     private boolean isCommercialAllied() {
-        return map.getHexes().stream()
-                .anyMatch(h -> h.getBuilding() instanceof TribeCamp
-                        && !h.getBuilding().isDestroyed()
-                        && ((TribeCamp) h.getBuilding()).getTribe().isAllied()
-                        && ((TribeCamp) h.getBuilding()).getTribe().getType()
-                        == TribeType.COMMERCIAL);
+        return map.getHexes().stream().anyMatch(h -> h.getBuilding() instanceof TribeCamp && !h.getBuilding().isDestroyed()
+                && ((TribeCamp) h.getBuilding()).getTribe().isAllied() && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COMMERCIAL);
     }
 
-    /**
-     * multiplier نرخ تجارت بر اساس اتحاد COMMERCIAL.
-     * اتحاد COMMERCIAL → 1.10، بدون اتحاد → 1.00
-     */
-    private double getCommercialMultiplier() {
-        return isCommercialAllied() ? 1.10 : 1.00;
-    }
-
-    // ─── Bazaar ──────────────────────────────────────────────────────────────
-
-    /**
-     * تجارت با Bazaar.
-     * F-26: اگر COMMERCIAL متحد باشد، مقدار دریافتی ×1.10 می‌شود.
-     *
-     * نرخ‌های پایه (طبق spec):
-     *   Level 1: 50% ← 10 واحد ورودی
-     *   Level 2: 60% ← 100 واحد ورودی
-     *   Level 3: 70% ← 500 واحد ورودی
-     */
-    public boolean tradeWithBazaar(Bazaar bazaar, int level,
-                                   ResourceType give, ResourceType get) {
+    public boolean tradeWithBazaar(Bazaar bazaar, int level, ResourceType give, ResourceType get) {
         if (bazaar.hasTraded()) return false;
+        int amountToGive = (level == 1) ? 10 : (level == 2) ? 100 : 500;
 
-        int    amountToGive = (level == 1) ? 10 : (level == 2) ? 100 : 500;
-        double baseRate     = (level == 1) ? 0.5 : (level == 2) ? 0.6 : 0.7;
-        double effectiveRate = baseRate * getCommercialMultiplier();
+        TradeStrategy strategy = new BazaarTradeStrategy(level);
+        return executeTrade(give, amountToGive, get, strategy, () -> bazaar.setTraded(true));
+    }
 
+    public boolean tradeWithTradingPost(TradingPost post, Hex postHex, ResourceType give, int amount, ResourceType get) {
+        if (post.hasTraded() || postHex == null || !postHex.isInsideBorder()) return false;
+
+        TradeStrategy strategy = new TradingPostTradeStrategy();
+        return executeTrade(give, amount, get, strategy, () -> post.setTraded(true));
+    }
+
+    private boolean executeTrade(ResourceType give, int amountToGive, ResourceType get, TradeStrategy strategy, Runnable onSuccess) {
         Inventory inv = map.getTownHall().getInventory();
         if (!inv.hasEnough(give, amountToGive)) return false;
 
+        int received = strategy.calculateReceivedAmount(amountToGive, get, isCommercialAllied());
+        if (received <= 0) return false;
+
         inv.consumeResource(give, amountToGive);
-        int received = (int) Math.floor(amountToGive * effectiveRate);
         inv.addResource(get, received);
-        bazaar.setTraded(true);
+        onSuccess.run();
 
-        // notification اگر bonus فعال بود
         if (isCommercialAllied()) {
-            GameEventDispatcher.fireNotification(
-                    "💰 Commercial Alliance bonus: +10% trade rate applied!");
+            GameEventDispatcher.fireNotification("💰 Commercial Alliance bonus: +10% trade rate applied!");
         }
         return true;
     }
-
-    // ─── Trading Post ─────────────────────────────────────────────────────────
-
-    /**
-     * تجارت با Trading Post.
-     * F-17 (از گام ۹): هکس باید در قلمرو بازیکن باشد.
-     * F-26: اگر COMMERCIAL متحد باشد، نرخ ×1.10 می‌شود.
-     *
-     * نرخ پایه Trading Post: 80%
-     */
-    public boolean tradeWithTradingPost(TradingPost post, Hex postHex,
-                                        ResourceType give, int amount,
-                                        ResourceType get) {
-        if (post.hasTraded()) return false;
-        if (postHex == null || !postHex.isInsideBorder()) return false;
-
-        double effectiveRate = 0.8 * getCommercialMultiplier();
-
-        Inventory inv = map.getTownHall().getInventory();
-        if (!inv.hasEnough(give, amount)) return false;
-
-        inv.consumeResource(give, amount);
-        int received = (int) Math.floor(amount * effectiveRate);
-        inv.addResource(get, received);
-        post.setTraded(true);
-
-        if (isCommercialAllied()) {
-            GameEventDispatcher.fireNotification(
-                    "💰 Commercial Alliance bonus: +10% trade rate applied!");
-        }
-        return true;
-    }
-
-    // ─── Turn reset ───────────────────────────────────────────────────────────
 
     @Override
     public void onTurnEnded(int newTurn) {
@@ -115,6 +62,7 @@ public class TradeController implements GameEventListener {
         }
     }
 
+    // متدهای خالی اینترفیس
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {}
     @Override public void onUnitKilled(Unit unit) {}
@@ -124,10 +72,7 @@ public class TradeController implements GameEventListener {
     @Override public void onBuildingConstructed(Hex hex) {}
     @Override public void onBuildingDestroyed(Hex hex) {}
     @Override public void onBorderExpanded(int centerQ, int centerR) {}
-    @Override public void onDisasterTriggered(String type, Hex center,
-                                              java.util.List<Hex> affected) {}
-    @Override public void onCombatTriggered(java.util.List<Integer> atk,
-                                            java.util.List<Integer> def,
-                                            int a, int d) {}
+    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
+    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int a, int d) {}
     @Override public void onNotification(String message) {}
 }
