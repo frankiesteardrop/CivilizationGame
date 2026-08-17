@@ -26,6 +26,12 @@ public class Worker extends Unit {
         return true;
     }
 
+    // ─── متد جدید برای سیستم Save/Load (رعایت کپسوله‌سازی و حذف Reflection) ───
+    public void restoreStation(Building building) {
+        this.isStationed = true;
+        this.stationedBuilding = building;
+    }
+
     // رفع باگ 18: اورلود کردن متد eject برای دریافت مپ و خروج از هکسِ در حال تخریب
     public void eject(GameMap map) {
         if (!isStationed || stationedBuilding == null) return;
@@ -42,7 +48,6 @@ public class Worker extends Unit {
                 for (int i = 0; i < 6; i++) {
                     Hex n = map.getNeighbor(currentHex, i);
                     if (n != null && n.getTerrainType() != TerrainType.SEA && n.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
-                        // چک کردن اینکه یونیتی روی همسایه نباشد (ساده‌سازی)
                         boolean hasUnit = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == n.getQ() && u.getR() == n.getR());
                         if (!hasUnit) {
                             this.q = n.getQ();
@@ -52,7 +57,6 @@ public class Worker extends Unit {
                         }
                     }
                 }
-                // اگر هکس خالی پیدا نشد، در همان جا می‌ماند
             }
         }
 
@@ -65,21 +69,11 @@ public class Worker extends Unit {
 
     @Override
     public void kill() {
-        if (isStationed) {
-            eject();
-        }
+        if (isStationed) eject();
         super.kill();
     }
 
-    public boolean isStationed() {
-        return isStationed;
-    }
-
-    public Building getStationedBuilding() {
-        return stationedBuilding;
-    }
-
-    public static int getStationApCost() {
-        return GameConfig.WORKER_STATION_AP_COST;
-    }
+    public boolean isStationed() { return isStationed; }
+    public Building getStationedBuilding() { return stationedBuilding; }
+    public static int getStationApCost() { return GameConfig.WORKER_STATION_AP_COST; }
 }

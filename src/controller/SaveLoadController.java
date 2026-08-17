@@ -5,7 +5,6 @@ import model.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.lang.reflect.Type;
-import java.lang.reflect.Field;
 import java.util.Base64;
 import java.util.Random;
 
@@ -22,7 +21,6 @@ public class SaveLoadController {
                 .registerTypeAdapter(Building.class, new BuildingAdapter())
                 .registerTypeAdapter(Unit.class, new UnitAdapter())
                 .registerTypeAdapter(ProductionCommand.class, new ProductionCommandAdapter(mainController))
-                // ثبت آداپتور جدید برای سریالایز کردن دقیق هسته Random
                 .registerTypeAdapter(Random.class, new RandomAdapter())
                 .setPrettyPrinting()
                 .create();
@@ -58,26 +56,18 @@ public class SaveLoadController {
             String json = Files.readString(file.toPath());
             GameMap loadedMap = gson.fromJson(json, GameMap.class);
 
-            // آن خط مخرب new Random() از اینجا حذف شد! Gson حالا با کمک RandomAdapter وضعیت قبلی را دقیقاً لود می‌کند.
-
             TownHall th = loadedMap.getTownHall();
             Hex thHex = loadedMap.getHexAt(th.getQ(), th.getR());
             if (thHex != null) thHex.setBuilding(th);
 
-            // رفع باگ 08: اتصال مجدد (Reconnection) رفرنس‌های کارگران به ساختمان‌های روی نقشه
+            // رفع باگ 08 و رعایت اصول SOLID با استفاده از متد داخلی Worker
             for (Unit unit : loadedMap.getUnits()) {
                 if (unit instanceof Worker) {
                     Worker worker = (Worker) unit;
                     if (worker.isStationed()) {
                         Hex workerHex = loadedMap.getHexAt(worker.getQ(), worker.getR());
                         if (workerHex != null && workerHex.getBuilding() != null && !workerHex.getBuilding().isDestroyed()) {
-                            try {
-                                Field stationedBuildingField = Worker.class.getDeclaredField("stationedBuilding");
-                                stationedBuildingField.setAccessible(true);
-                                stationedBuildingField.set(worker, workerHex.getBuilding());
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
+                            worker.restoreStation(workerHex.getBuilding());
                         } else {
                             worker.eject();
                         }
@@ -94,11 +84,8 @@ public class SaveLoadController {
         }
     }
 
-    public void autosave() {
-        saveGame("autosave");
-    }
+    public void autosave() { saveGame("autosave"); }
 
-    // ─── آداپتور اختصاصی برای حفظ State کلاس Random ─────────────────────────
     private static class RandomAdapter implements JsonSerializer<Random>, JsonDeserializer<Random> {
         @Override
         public JsonElement serialize(Random src, Type typeOfSrc, JsonSerializationContext context) {
@@ -116,7 +103,6 @@ public class SaveLoadController {
                 return new JsonObject();
             }
         }
-
         @Override
         public Random deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             try {
@@ -128,7 +114,7 @@ public class SaveLoadController {
                 return random;
             } catch (Exception e) {
                 e.printStackTrace();
-                return new Random(); // Fallback در صورت خرابی دیتای ذخیره شده
+                return new Random();
             }
         }
     }
@@ -140,7 +126,6 @@ public class SaveLoadController {
             obj.addProperty("CLASS_TYPE", src.getType().name());
             return obj;
         }
-
         @Override
         public Building deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject obj = json.getAsJsonObject();
@@ -171,7 +156,6 @@ public class SaveLoadController {
             obj.addProperty("CLASS_TYPE", src.getType().name());
             return obj;
         }
-
         @Override
         public Unit deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject obj = json.getAsJsonObject();
@@ -191,6 +175,7 @@ public class SaveLoadController {
         }
     }
 
+    // ─── آداپتور قدرتمند جدید برای هندل کردن داینامیک Command ───
     private static class ProductionCommandAdapter implements JsonSerializer<ProductionCommand>, JsonDeserializer<ProductionCommand> {
         private final MainController mc;
         public ProductionCommandAdapter(MainController mc) { this.mc = mc; }
@@ -198,55 +183,41 @@ public class SaveLoadController {
         @Override
         public JsonElement serialize(ProductionCommand src, Type typeOfSrc, JsonSerializationContext context) {
             JsonObject obj = new JsonObject();
+            obj.addProperty("commandType", src.getCommandType());
             obj.addProperty("name", src.getName());
             obj.addProperty("turnsRemaining", src.getTurnsRemaining());
             obj.addProperty("isPopulationTask", src.isPopulationTask());
             obj.addProperty("isCanceled", src.isCanceled());
+
+            if (src instanceof ProductionCommand.TechCommand) {
+                obj.addProperty("techId", ((ProductionCommand.TechCommand) src).getTechId());
+            } else if (src instanceof ProductionCommand.UnitCommand) {
+                obj.addProperty("unitType", ((ProductionCommand.UnitCommand) src).getUnitType().name());
+            }
             return obj;
         }
 
         @Override
         public ProductionCommand deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             JsonObject obj = json.getAsJsonObject();
+            String cmdType = obj.get("commandType").getAsString();
             String name = obj.get("name").getAsString();
             int turns = obj.get("turnsRemaining").getAsInt();
-            boolean isPop = obj.get("isPopulationTask").getAsBoolean();
-            boolean isCanceled = obj.has("isCanceled") && obj.get("isCanceled").getAsBoolean();
 
-            ProductionCommand cmd = new ProductionCommand(name, turns, isPop) {
-                @Override
-                public void execute() {
-                    GameMap map = mc.getGameMap();
-                    TownHall th = map.getTownHall();
-                    switch(name) {
-                        case "Warehouse Upgrade": th.upgradeLevel(); break;
-                        case "Upgrade to Settlement": th.upgradeLevel(); break;
-                        case "Upgrade to Capital": th.upgradeLevel(); break;
-                        case "Tech: Stone Mine": th.setStoneMineUnlocked(true); break;
-                        case "Tech: Iron Mine": th.setIronMineUnlocked(true); break;
-                        case "Tech: Steel Tools": th.setSteelToolsUnlocked(true); break;
-                        case "Tech: Seafaring": th.setSeafaringUnlocked(true); break;
-                        case "Tech: Defensive Arch": th.applyDefensiveArchitecture(); break;
-                        default:
-                            Hex spawnHex = map.findEmptySpawnHex(th.getQ(), th.getR());
-                            int tq = spawnHex != null ? spawnHex.getQ() : th.getQ();
-                            int tr = spawnHex != null ? spawnHex.getR() : th.getR();
-                            try {
-                                UnitType ut = UnitType.valueOf(name);
-                                map.addUnit(UnitFactory.createUnit(ut, tq, tr));
-                            } catch(Exception ignored) {}
-                            break;
-                    }
-                }
-            };
-            if (isCanceled) cmd.cancel();
+            ProductionCommand cmd = null;
+            if ("TECH".equals(cmdType)) {
+                cmd = new ProductionCommand.TechCommand(name, turns, obj.get("techId").getAsString());
+            } else if ("UNIT".equals(cmdType)) {
+                cmd = new ProductionCommand.UnitCommand(name, turns, UnitType.valueOf(obj.get("unitType").getAsString()));
+            } else if ("UPGRADE_TH".equals(cmdType)) {
+                cmd = new ProductionCommand.UpgradeTHCommand(name, turns);
+            }
 
-            try {
-                Field tField = ProductionCommand.class.getDeclaredField("turnsRemaining");
-                tField.setAccessible(true);
-                tField.set(cmd, turns);
-            } catch(Exception ignored) {}
-
+            if (cmd != null) {
+                if (obj.has("isCanceled") && obj.get("isCanceled").getAsBoolean()) cmd.cancel();
+                // تزریق وابستگی (Dependency Injection) برای کار کردن Command
+                cmd.setContextMap(mc.getGameMap());
+            }
             return cmd;
         }
     }
