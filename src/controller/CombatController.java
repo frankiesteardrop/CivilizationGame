@@ -53,38 +53,30 @@ public class CombatController {
             if (swords > 2 || archers > 2 || cavs > 1) return -1;
         }
 
-        // مصرف ۱ AP از همه مهاجمان
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // ─── حمله به سازه یا دیوار (Siege) — بدون تاس ──────────────────────────────────
+        // ─── Siege ───
         if (!isTargetAnimal && !isTargetBarbarian) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
 
             int dir = getDirection(sourceHex, targetHex);
             if (dir >= 0 && targetHasWall) {
-                // اعمال آسیب مستقیماً به خود دیوار
                 targetHex.damageWall((dir + 3) % 6, siegeDmg);
                 sourceHex.damageWall(dir, siegeDmg);
                 GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
             } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
-                // اعمال آسیب به ساختمان (کمپ، سازه‌های پلیر و ...)
                 Building b = targetHex.getBuilding();
                 b.takeDamage(siegeDmg);
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
                 if (b.isDestroyed()) {
                     GameEventDispatcher.fireBuildingDestroyed(targetHex);
-
-                    // اگر هدف، کمپ قبیله بوده باشد، طبق داکیومنت فتح می‌شود
-                    if (b instanceof TribeCamp) {
-                        TribeCamp camp = (TribeCamp) b;
+                    if (b instanceof TribeCamp camp) {
                         GameEventDispatcher.fireNotification("⛺ " + camp.getTribe().getType().getDisplayName() + " tribe defeated!");
                         targetHex.setInsideBorder(true);
                         map.getTownHall().getInventory().addResource(ResourceType.FOOD, 50);
                         map.getTownHall().getInventory().addResource(ResourceType.WOOD, 50);
                     }
-
-                    // کارگرهای داخل سازه باید به بیرون رانده شوند
                     for (Unit u : map.getUnits()) {
                         if (u instanceof Worker && ((Worker) u).getStationedBuilding() == b) {
                             ((Worker) u).eject(map);
@@ -93,16 +85,13 @@ public class CombatController {
                 }
             }
 
-            GameEventDispatcher.fireCombatTriggered(
-                    new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
+            GameEventDispatcher.fireCombatTriggered(new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
+            map.removeDeadUnits();
             return siegeDmg;
         }
 
-        // ─── سیستم تاس (Combat against units) ──────────────────────────────────────────────────────────
-        int attackerDiceCount = (dist == 2)
-                ? 1
-                : (int) validAttackers.stream().map(Unit::getType).distinct().count();
-
+        // ─── Unit Combat ───
+        int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
         int defenderDiceCount = isTargetBarbarian ? 2 : 1;
         int wallModifier = (dist == 1 && targetHasWall) ? 2 : 0;
 
@@ -121,12 +110,10 @@ public class CombatController {
             }
         }
 
-        // اعمال دمیج به مهاجمین (از طریق Chain of Responsibility)
         if (attackerTakesDmg > 0) {
             damageChain.handleDamage(validAttackers, attackerTakesDmg);
         }
 
-        // اصلاح باگ: اعمال دمیج به مدافعین (سربازهای دشمن یا خرس‌ها)
         if (defenderTakesDmg > 0) {
             List<Unit> validDefenders = map.getUnits().stream()
                     .filter(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
@@ -135,7 +122,6 @@ public class CombatController {
                     .collect(Collectors.toList());
 
             if (isTargetAnimal) {
-                // طبق spec خرس مستقیماً کشته می‌شود
                 for (Unit bear : validDefenders) {
                     if (defenderTakesDmg > 0) {
                         bear.kill();
@@ -147,9 +133,10 @@ public class CombatController {
             }
         }
 
-        GameEventDispatcher.fireCombatTriggered(
-                attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
+        // ایمنی نهایی: پاکسازی فوری کشته‌شدگان نبرد
+        map.removeDeadUnits();
 
+        GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
         return defenderTakesDmg;
     }
 

@@ -26,12 +26,11 @@ public class TurnController {
         int effectiveHappiness = mainController.getEconomyController()
                 .getEffectiveHappiness(gameMap);
 
-        // ─── ۱. تجدید AP یونیت‌ها ────────────────────────────────────────────
+        // ─── ۱. تجدید AP یونیت‌ها و اعمال جریمه شورش (Rebellion) ───
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
 
-                // F-14: Rebellion penalty فقط برای نظامیان و کارگران
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();
                     if (t == UnitType.WORKER    || t == UnitType.SWORDSMAN
@@ -49,24 +48,21 @@ public class TurnController {
             }
         }
 
+        // ─── ۳. پاکسازی ایمن واحدهای مرده ───────────────────────────────────
         gameMap.removeDeadUnits();
         gameMap.incrementTurn();
         gameMap.updateFogOfWar();
 
-        // ─── ۳. Bear AI + بلایای طبیعی ───────────────────────────────────────
-        // F-33: DisasterController از GameMap.bearCooldown استفاده می‌کند،
-        // پس هر ترن ساختن آن اشکالی ندارد (state در GameMap نگهداری می‌شود).
+        // ─── ۴. هوش مصنوعی خرس و بلایای طبیعی ─────────────────────────────
         DisasterController disasterController = new DisasterController(gameMap);
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // ─── ۴. اطلاع‌رسانی پایان نوبت ──────────────────────────────────────
+        // ─── ۵. اطلاع‌رسانی پایان نوبت و رفتار قبایل ────────────────────────
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
-
-        // ─── ۵. رفتار قبایل بعد از End Turn بازیکن ──────────────────────────
         mainController.getTribeController().processTribesTurn();
 
-        // ─── ۶. Autosave ─────────────────────────────────────────────────────
+        // ─── ۶. ذخیره خودکار (Autosave) ───────────────────────────────────
         mainController.getSaveLoadController().autosave();
     }
 }
