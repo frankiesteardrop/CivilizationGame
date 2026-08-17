@@ -101,23 +101,17 @@ public class GameInputHandler extends MouseAdapter {
             BuildingType bType = clickedHex.getBuilding().getType();
 
             if (bType == BuildingType.TOWN_HALL) {
-                boolean isMilitarySelected = selectedUnit != null
-                        && selectedUnit.getAttackRange() > 0;
-                if (!isMilitarySelected) {
+                if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);
-                    panel.showContextMenu(e.getPoint(),
-                            mainController.getTownHallMenuActions());
+                    panel.showContextMenu(e.getPoint(), mainController.getTownHallMenuActions());
                     return;
                 }
             }
 
             if (bType == BuildingType.TRIBE_CAMP) {
-                TribeCamp camp    = (TribeCamp) clickedHex.getBuilding();
-                boolean isEnemy   = camp.getTribe().getRelationship() <= -50;
-
-                if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && isEnemy) {
-                    panel.showContextMenu(e.getPoint(),
-                            mainController.getUnitMenuActions(selectedUnit, clickedHex));
+                // پاکسازی MVC: هندلر دیگه مستقیماً منطق دشمنی رو چک نمی‌کنه!
+                if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isHostile(clickedHex)) {
+                    panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
                     return;
                 }
                 panel.setSelectedUnit(null);
@@ -128,56 +122,23 @@ public class GameInputHandler extends MouseAdapter {
 
         // ─── ۲. یونیت انتخاب‌شده ────────────────────────────────────────────
         if (selectedUnit != null) {
-            boolean isSameHex = (selectedUnit.getQ() == clickedHex.getQ()
-                    && selectedUnit.getR() == clickedHex.getR());
+            boolean isSameHex = (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR());
 
             if (isSameHex) {
-                panel.showContextMenu(e.getPoint(),
-                        mainController.getUnitMenuActions(selectedUnit, clickedHex));
+                panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
                 return;
             }
 
-            // ─── تشخیص دشمن روی hex هدف ──────────────────────────────────────
-            // F-28: استفاده از getType() به جای getSimpleName()
-            boolean hasEnemyUnit = mainController.getGameMap().getUnits().stream()
-                    .anyMatch(u -> u.isAlive()
-                            && u.getQ() == clickedHex.getQ()
-                            && u.getR() == clickedHex.getR()
-                            && u.getType() == UnitType.BEAR);
+            // پاکسازی MVC: تمام محاسبات فاصله و تصرف به کنترلر واگذار شد
+            boolean hasEnemy = mainController.isHostile(clickedHex);
+            boolean hexIsCapturable = mainController.isCapturable(selectedUnit, clickedHex);
 
-            boolean hasEnemyBuilding = (clickedHex.getBuilding() instanceof TribeCamp)
-                    && ((TribeCamp) clickedHex.getBuilding())
-                    .getTribe().getRelationship() <= -50;
-
-            boolean hasEnemy = hasEnemyUnit || hasEnemyBuilding;
-
-            // ─── محاسبه فاصله برای تشخیص Capture ────────────────────────────
-            int dist = mainController.getGameMap().getHexDistance(
-                    selectedUnit.getQ(), selectedUnit.getR(),
-                    clickedHex.getQ(), clickedHex.getR());
-
-            // F-22: یونیت نظامی مجاور hex خالی و تصرف‌نشده → نمایش منوی Capture
-            boolean hexIsCapturableByMilitary = selectedUnit.getAttackRange() > 0
-                    && !hasEnemy
-                    && !clickedHex.isInsideBorder()
-                    && dist == 1;
-
-            if (hasEnemy && selectedUnit.getAttackRange() > 0) {
-                // حمله به دشمن
-                panel.showContextMenu(e.getPoint(),
-                        mainController.getUnitMenuActions(selectedUnit, clickedHex));
-
-            } else if (hexIsCapturableByMilitary) {
-                // F-22: نمایش منوی Capture برای hex خالی
-                panel.showContextMenu(e.getPoint(),
-                        mainController.getUnitMenuActions(selectedUnit, clickedHex));
-
+            if ((hasEnemy && selectedUnit.getAttackRange() > 0) || hexIsCapturable) {
+                panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
             } else if (mainController.canMove(selectedUnit, clickedHex)) {
-                // حرکت معمولی
                 Point startPt  = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
                 Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
-                panel.startAnimation(selectedUnit, clickedHex,
-                        startPt.x, startPt.y, targetPt.x, targetPt.y);
+                panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
             }
         }
     }

@@ -68,7 +68,7 @@ public class TribeInteractionDialog extends JDialog {
         title.setFont(new Font("Segoe UI", Font.BOLD, 20));
         title.setForeground(TEXT_MAIN);
 
-        Color statusColor = getStatusColor(tribe.getStatus());
+        Color statusColor = getStatusColor(tribe.getState().getName());
         JLabel statusLbl = new JLabel(tribe.getDetailedStatus());
         statusLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
         statusLbl.setForeground(statusColor);
@@ -105,7 +105,7 @@ public class TribeInteractionDialog extends JDialog {
 
                 int rel      = tribe.getRelationship();
                 int fillW    = (int)((rel + 100) / 200.0 * w);
-                Color fillC  = getStatusColor(tribe.getStatus());
+                Color fillC  = getStatusColor(tribe.getState().getName());
                 g2.setColor(fillC);
                 g2.fillRoundRect(0, h/3, fillW, h/3, 4, 4);
 
@@ -132,7 +132,6 @@ public class TribeInteractionDialog extends JDialog {
                 ACCENT_GREEN,
                 this::showGiftDialog));
 
-        // ۲. شروع تجارت
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         boolean canTrade = tribe.canTrade() && !camp.hasTraded();
         actionsPanel.add(buildActionButton(
@@ -143,21 +142,19 @@ public class TribeInteractionDialog extends JDialog {
                 ACCENT_BLUE,
                 this::showTradeDialog));
 
-        // ۳. مشاهده/درخواست مأموریت (متصل به State)
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        boolean canRequest = tribe.getRelationship() >= 20 && tribe.getMission() != null
-                && tribe.getMission().getState() == MissionStateEnum.AVAILABLE;
+        // پاکسازی MVC: خواندن قوانین مستقیماً از State Pattern
+        boolean canRequest = tribe.getRelationship() >= 20 && tribe.getMission() != null && tribe.getMission().getState().canAccept();
         actionsPanel.add(buildActionButton(
                 "📜  Mission Board",
                 "View or Accept tribe missions",
-                true, // همیشه قابل مشاهده برای بررسی جزئیات
+                true,
                 null,
                 ACCENT_GOLD,
                 this::showMissionInfo));
 
-        // ۴. تحویل مأموریت (متصل به State)
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        boolean canDeliver = tribe.getMission() != null && tribe.getMission().getState() == MissionStateEnum.READY_TO_DELIVER;
+        boolean canDeliver = tribe.getMission() != null && tribe.getMission().getState().canDeliver();
         actionsPanel.add(buildActionButton(
                 "✅  Deliver Mission",
                 "Deliver completed mission for rewards",
@@ -173,7 +170,6 @@ public class TribeInteractionDialog extends JDialog {
                     rebuildAndRefresh();
                 }));
 
-        // ۵. درخواست اتحاد
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         boolean canAlliance = tribe.canFormAlliance();
         String allianceReason = getAllianceDisabledReason();
@@ -185,9 +181,8 @@ public class TribeInteractionDialog extends JDialog {
                 ACCENT_PURP,
                 this::tryFormAlliance));
 
-        // ۶. اعلام جنگ
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        boolean canWar = !tribe.getStatus().equals("Enemy");
+        boolean canWar = !tribe.getState().getName().equals("Enemy");
         actionsPanel.add(buildActionButton(
                 "⚔️  Declare War",
                 "Start a war — causes happiness penalty!",
@@ -196,7 +191,6 @@ public class TribeInteractionDialog extends JDialog {
                 ACCENT_RED,
                 this::confirmDeclareWar));
 
-        // ۷. درخواست صلح
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         actionsPanel.add(buildActionButton(
                 "🕊️  Request Peace",
@@ -327,9 +321,10 @@ public class TribeInteractionDialog extends JDialog {
         content.add(preview, gbc);
 
         Runnable updatePreview = () -> {
-            int    amt  = (int) amountSpinner.getValue();
-            double rate = getTradeRateForSelected(allRes[getBox.getSelectedIndex()]);
-            int    recv = (int) Math.floor(amt * rate);
+            int amt = (int) amountSpinner.getValue();
+            ResourceType getRes = allRes[getBox.getSelectedIndex()];
+            // پاکسازی MVC: ویو بجای محاسبه مستقیم، فقط از Strategy موجود در مدل استفاده میکند تا پیش‌نمایش را نشان دهد
+            int recv = tribe.getType().getTradeStrategy().calculateReceivedAmount(amt, getRes, tribe.hasTradeBonus());
             preview.setText("You receive: ~" + recv + " " + resEmoji[getBox.getSelectedIndex()].split(" ")[1]);
         };
         amountSpinner.addChangeListener(e -> updatePreview.run());
@@ -376,7 +371,7 @@ public class TribeInteractionDialog extends JDialog {
         btnPanel.setBackground(BG_DARK);
 
         Mission m = tribe.getMission();
-        if (m != null && m.getState() == MissionStateEnum.AVAILABLE && tribe.getRelationship() >= 20) {
+        if (m != null && m.getState().canAccept() && tribe.getRelationship() >= 20) {
             JButton acceptBtn = buildSubButton("✅ Accept Mission", true);
             acceptBtn.addActionListener(e -> {
                 tribeController.acceptMission(camp);
@@ -384,7 +379,7 @@ public class TribeInteractionDialog extends JDialog {
                 rebuildAndRefresh();
             });
             btnPanel.add(acceptBtn);
-        } else if (m != null && (m.getState() == MissionStateEnum.ACTIVE || m.getState() == MissionStateEnum.READY_TO_DELIVER)) {
+        } else if (m != null && (m.getState().getDisplayName().equals("Active") || m.getState().getDisplayName().equals("Ready to Deliver"))) {
             JButton cancelBtn = buildSubButton("🚫 Cancel Mission", true);
             cancelBtn.setBackground(ACCENT_RED);
             cancelBtn.addActionListener(e -> {
@@ -541,18 +536,6 @@ public class TribeInteractionDialog extends JDialog {
         };
     }
 
-    private double getTradeRateForSelected(ResourceType get) {
-        double rate = switch (tribe.getType()) {
-            case FARMER -> (get == ResourceType.FOOD) ? 0.75 : 0.0;
-            case MOUNTAIN -> (get == ResourceType.STONE || get == ResourceType.IRON) ? 0.75 : 0.0;
-            case COMMERCIAL -> 0.80;
-            case COASTAL -> (get == ResourceType.FOOD) ? 0.75 : 0.0;
-            case WARRIOR -> 0.0;
-        };
-        if (rate > 0 && tribe.hasTradeBonus()) rate += 0.10;
-        return rate;
-    }
-
     private String getAllianceDisabledReason() {
         if (!tribe.canFormAlliance()) return "Requires ≥70 relation (current: " + tribe.getRelationship() + ")";
         for (Hex h : mainController.getGameMap().getHexes()) {
@@ -577,7 +560,7 @@ public class TribeInteractionDialog extends JDialog {
         }
 
         String stateStr = m.getState().getDisplayName();
-        String turnsStr = (m.getState() == MissionStateEnum.AVAILABLE || m.getState() == MissionStateEnum.COMPLETED || m.getState() == MissionStateEnum.FAILED || m.getState() == MissionStateEnum.CANCELLED)
+        String turnsStr = (!m.getState().canAccept() && !m.getState().canDeliver() && !stateStr.equals("Active"))
                 ? "N/A" : m.getTurnsRemaining() + " turns";
 
         String base = switch (tribe.getType()) {
@@ -588,7 +571,7 @@ public class TribeInteractionDialog extends JDialog {
             case COASTAL -> "Mission: Coastal Development\n─────────────────────────\nRequirement: Build a Dock within 4 hexes of this camp.\nReward: 30 Food + discounted Dock cost";
         };
 
-        if(tribe.getType() == TribeType.WARRIOR && (m.getState() == MissionStateEnum.ACTIVE || m.getState() == MissionStateEnum.READY_TO_DELIVER)) {
+        if(tribe.getType() == TribeType.WARRIOR && (stateStr.equals("Active") || stateStr.equals("Ready to Deliver"))) {
             base += "\n\nProgress: " + m.getProgress() + "/2 kills";
         }
 

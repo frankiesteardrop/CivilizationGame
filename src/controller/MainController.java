@@ -1,7 +1,6 @@
 package controller;
 
 import model.*;
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,22 +33,39 @@ public class MainController {
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
-    // ─── Getters ──────────────────────────────────────────────────────────────
     public GameMap            getGameMap()             { return gameMap; }
     public TurnController     getTurnController()      { return turnController; }
     public UnitController     getUnitController()      { return unitController; }
     public BuildController    getBuildController()     { return buildController; }
-    public UpgradeController  getUpgradeController()  { return upgradeController; }
-    public EconomyController  getEconomyController()  { return economyController; }
-    public TradeController    getTradeController()    { return tradeController; }
-    public TribeController    getTribeController()    { return tribeController; }
-    public SaveLoadController getSaveLoadController() { return saveLoadController; }
+    public UpgradeController  getUpgradeController()   { return upgradeController; }
+    public EconomyController  getEconomyController()   { return economyController; }
+    public TradeController    getTradeController()     { return tradeController; }
+    public TribeController    getTribeController()     { return tribeController; }
+    public SaveLoadController getSaveLoadController()  { return saveLoadController; }
 
     public Unit    selectUnitAt(Hex hex)               { return unitController.selectUnitAt(hex, gameMap); }
     public boolean canMove(Unit unit, Hex targetHex)   { return unitController.canMove(unit, targetHex, gameMap); }
     public void    executeMove(Unit unit, Hex targetHex) { unitController.executeMove(unit, targetHex, gameMap); }
 
-    // ─── TownHall menu ────────────────────────────────────────────────────────
+    // ─── متدهای جدید منطقی برای رهایی View از شرط‌های بازی (MVC) ───
+
+    public boolean isHostile(Hex hex) {
+        if (hex == null) return false;
+        boolean hasAnimal = gameMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.getType() == UnitType.BEAR);
+        boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getStatus().equals("Enemy");
+        boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()
+                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
+        return hasAnimal || hasTribeEnemy || hasEnemyGuard;
+    }
+
+    public boolean isCapturable(Unit unit, Hex hex) {
+        if (unit == null || hex == null) return false;
+        int dist = gameMap.getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR());
+        return unit.getAttackRange() > 0 && !isHostile(hex) && !hex.isInsideBorder() && dist == 1;
+    }
+
     public List<MenuAction> getTownHallMenuActions() {
         List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
@@ -113,38 +129,30 @@ public class MainController {
         return actions;
     }
 
-    // ─── Unit menu ────────────────────────────────────────────────────────────
     public List<MenuAction> getUnitMenuActions(Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
 
-        boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ()
-                && selectedUnit.getR() == targetHex.getR());
+        boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ() && selectedUnit.getR() == targetHex.getR());
 
         if (!isSameHex && selectedUnit.getAttackRange() > 0) {
             return buildAttackMenu(selectedUnit, targetHex);
         }
 
         if (selectedUnit.getType() == UnitType.BUILDER) {
-            Builder  builder  = (Builder) selectedUnit;
+            Builder builder = (Builder) selectedUnit;
             Building existing = targetHex.getBuilding();
 
             if (existing != null && !existing.isDestroyed()) {
                 boolean canDestroy = buildController.canDestroy(targetHex, "BUILDING", 0, builder);
                 BuildingType bType = existing.getType();
+
+                // جایگزینی JOptionPane با پاس دادن پیام تاییدیه‌ به MenuAction
                 actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
                         canDestroy,
                         getDestroyDisabledReason(bType, builder),
-                        () -> {
-                            int confirm = JOptionPane.showConfirmDialog(null,
-                                    "Destroy " + bType.name() + "?\n\n"
-                                            + "⚠️ No resources will be refunded.\n"
-                                            + "Workers inside will be relocated.",
-                                    "Confirm Destruction",
-                                    JOptionPane.YES_NO_OPTION,
-                                    JOptionPane.WARNING_MESSAGE);
-                            if (confirm == JOptionPane.YES_OPTION)
-                                buildController.destroyStructure(builder, targetHex, "BUILDING", 0);
-                        }));
+                        () -> buildController.destroyStructure(builder, targetHex, "BUILDING", 0))
+                        .setConfirmation("Destroy " + bType.name() + "?\n\n⚠️ No resources will be refunded.\nWorkers inside will be relocated."));
+
             } else if (!targetHex.isInsideBorder()) {
                 actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
             } else {
@@ -155,7 +163,6 @@ public class MainController {
                 actions.add(createBuildAction(builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement"));
 
-                // ─── داینامیک شدن متن دکمه Dock بر اساس پاداش مأموریت ───
                 boolean hasDockDiscount = gameMap.getTownHall().getDiscountedDocks() > 0;
                 String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
                 actions.add(createBuildAction(builder, targetHex, BuildingType.DOCK, dockLabel));
@@ -172,10 +179,7 @@ public class MainController {
                         () -> unitController.handleEject(worker)));
             } else {
                 Building b = targetHex.getBuilding();
-                if (b != null && !b.isDestroyed()
-                        && b.getType() != BuildingType.TOWN_HALL
-                        && b.getType() != BuildingType.MONUMENT
-                        && b.getMaxWorkers() > 0) {
+                if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL && b.getType() != BuildingType.MONUMENT && b.getMaxWorkers() > 0) {
                     boolean can = unitController.canStation(worker, targetHex);
                     actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
                             () -> unitController.handleStation(worker, targetHex)));
@@ -196,16 +200,12 @@ public class MainController {
         return "Builder must be on or adjacent to the hex";
     }
 
-    // ─── Attack / Capture menu ────────────────────────────────────────────────
-
     private List<MenuAction> buildAttackMenu(Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
         Hex sourceHex = gameMap.getHexAt(selectedUnit.getQ(), selectedUnit.getR());
         if (sourceHex == null) return actions;
 
-        int dist = gameMap.getHexDistance(
-                selectedUnit.getQ(), selectedUnit.getR(),
-                targetHex.getQ(), targetHex.getR());
+        int dist = gameMap.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), targetHex.getQ(), targetHex.getR());
 
         if (dist < 1 || dist > 2) {
             actions.add(new MenuAction("⛔ Target out of range (max 2)", false, null));
@@ -213,44 +213,22 @@ public class MainController {
         }
 
         List<Unit> attackers = gameMap.getUnits().stream()
-                .filter(u -> u.isAlive()
-                        && u.getQ() == selectedUnit.getQ()
-                        && u.getR() == selectedUnit.getR()
-                        && (u.getType() == UnitType.SWORDSMAN
-                        || u.getType() == UnitType.ARCHER
-                        || u.getType() == UnitType.CAVALRY))
+                .filter(u -> u.isAlive() && u.getQ() == selectedUnit.getQ() && u.getR() == selectedUnit.getR()
+                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY))
                 .collect(Collectors.toList());
 
-        boolean hasAnimal = gameMap.getUnits().stream()
-                .anyMatch(u -> u.isAlive()
-                        && u.getQ() == targetHex.getQ()
-                        && u.getR() == targetHex.getR()
-                        && u.getType() == UnitType.BEAR);
-
-        boolean hasTribeEnemy = (targetHex.getBuilding() instanceof TribeCamp)
-                && ((TribeCamp) targetHex.getBuilding()).getTribe().getRelationship() <= -50;
-
-        // تشخیص گاردهای نظامی قبیله روی کمپ دشمن
-        boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
-                .anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
-                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
-
-        boolean hasAnyEnemy = hasAnimal || hasTribeEnemy || hasEnemyGuard;
-        boolean isMilTarget = hasAnimal || hasEnemyGuard;
+        boolean hasAnyEnemy = isHostile(targetHex);
+        boolean isMilTarget = hasAnyEnemy; // Simplified for siege logic check
 
         boolean hasWall = false;
         if (dist == 1) {
-            int dq  = targetHex.getQ() - sourceHex.getQ();
-            int dr  = targetHex.getR() - sourceHex.getR();
-            int dir = getAttackDirection(dq, dr);
+            int dir = getAttackDirection(targetHex.getQ() - sourceHex.getQ(), targetHex.getR() - sourceHex.getR());
             if (dir >= 0) hasWall = sourceHex.hasWall(dir);
         }
 
-        // ─── Attack action ────────────────────────────────────────
         if (hasAnyEnemy) {
             boolean hasReadyAttacker = attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
-            boolean hasValidForDist  = (dist == 1) || attackers.stream()
-                    .anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
+            boolean hasValidForDist  = (dist == 1) || attackers.stream().anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
             boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
             String typeLabel = isMilTarget ? "🎲 Dice" : "🏰 Siege";
@@ -263,13 +241,12 @@ public class MainController {
             else if (!hasValidForDist)  disabledReason = "No Archer for range-2 attack";
             else                        disabledReason = "Ready";
 
-            final Hex fSource   = sourceHex;
+            final Hex fSource = sourceHex;
             final boolean fWall = hasWall;
             final List<Unit> fAtk = attackers;
-            final boolean fAnimal = hasAnimal;
-            final boolean fBarbarian = hasEnemyGuard;
+            final boolean fBarbarian = targetHex.getBuilding() instanceof TribeCamp;
+            final boolean fAnimal = gameMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
 
-            // گزینه 1: حمله استاندارد (اگر یونیت باشد تاس می‌ریزد، اگر فقط سازه باشد تخریب می‌کند)
             actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
                 CombatController cc = new CombatController(gameMap);
                 cc.executeAttack(fAtk, fSource, targetHex, fAnimal, fBarbarian, fWall);
@@ -277,11 +254,9 @@ public class MainController {
                 gameMap.updateFogOfWar();
             }));
 
-            // گزینه 2 (طبق داکیومنت): حمله مستقیم به دیوار برای دور زدن پنالتی دفاعی یونیت‌های پشت آن
             if (hasWall && isMilTarget && dist == 1) {
                 actions.add(new MenuAction("⚔️ Attack Wall [🏰 Siege]", canAttack, disabledReason, () -> {
                     CombatController cc = new CombatController(gameMap);
-                    // برای حمله مستقیم به سازه، فلگ‌های یونیت دشمن موقتاً false ارسال می‌شود
                     cc.executeAttack(fAtk, fSource, targetHex, false, false, true);
                     gameMap.removeDeadUnits();
                     gameMap.updateFogOfWar();
@@ -289,27 +264,16 @@ public class MainController {
             }
         }
 
-        // ─── F-22: Capture action (هکس خالی از دشمن، خارج از قلمرو، dist == 1) ──
-        if (!hasAnyEnemy && dist == 1 && !targetHex.isInsideBorder()) {
-            boolean canCapture = !attackers.isEmpty()
-                    && attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
-
-            actions.add(new MenuAction(
-                    "🏴 Capture Hex (1 AP)",
-                    canCapture,
-                    canCapture ? "No defenders — seize this hex"
-                            : "Need military unit with AP ≥ 1",
+        if (isCapturable(selectedUnit, targetHex)) {
+            boolean canCapture = !attackers.isEmpty() && attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
+            actions.add(new MenuAction("🏴 Capture Hex (1 AP)", canCapture,
+                    canCapture ? "No defenders — seize this hex" : "Need military unit with AP ≥ 1",
                     () -> {
-                        attackers.stream()
-                                .filter(u -> u.getCurrentAP() >= 1)
-                                .findFirst()
-                                .ifPresent(u -> u.consumeAP(1));
-
+                        attackers.stream().filter(u -> u.getCurrentAP() >= 1).findFirst().ifPresent(u -> u.consumeAP(1));
                         targetHex.setInsideBorder(true);
                         targetHex.setExplored(true);
                         gameMap.updateFogOfWar();
-                        GameEventDispatcher.fireBorderExpanded(
-                                targetHex.getQ(), targetHex.getR());
+                        GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
                     }));
         }
 
@@ -326,8 +290,7 @@ public class MainController {
         return -1;
     }
 
-    private MenuAction createBuildAction(Builder builder, Hex hex,
-                                         BuildingType type, String label) {
+    private MenuAction createBuildAction(Builder builder, Hex hex, BuildingType type, String label) {
         boolean canBuild = buildController.canBuild(type, hex, builder);
         return new MenuAction(label + " (-" + type.getApCost() + "AP)", canBuild, () -> {
             buildController.buildStructure(builder, type, hex);
