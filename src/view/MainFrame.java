@@ -2,6 +2,7 @@ package view;
 
 import controller.MainController;
 import controller.AudioController;
+import controller.SaveLoadController;
 import model.GameEventDispatcher;
 import model.GameMap;
 import javax.swing.*;
@@ -62,6 +63,37 @@ public class MainFrame extends JFrame {
         GameMap freshGameMap = new GameMap(20);
         this.mainController = new MainController(freshGameMap);
 
+        this.gamePanel = new GamePanel(mainController);
+
+        gameWrapper = new JPanel(new BorderLayout());
+        HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
+
+        gameWrapper.add(hudPanel, BorderLayout.NORTH);
+        gameWrapper.add(gamePanel, BorderLayout.CENTER);
+
+        mainContainer.add(gameWrapper, "GAME_UI");
+        cardLayout.show(mainContainer, "GAME_UI");
+
+        gamePanel.requestFocusInWindow();
+    }
+
+    // اصلاح گام سوم: متد بارگذاری مستقیم بازی از منوی اصلی
+    public void loadGameFromMenu(String slot) {
+        GameMap loadedMap = SaveLoadController.loadGameMap(slot);
+        if (loadedMap == null) {
+            JOptionPane.showMessageDialog(this, "Save file not found or corrupted!", "Load Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        GameEventDispatcher.clearAllListeners();
+
+        if (gameWrapper != null) {
+            mainContainer.remove(gameWrapper);
+            gameWrapper = null;
+        }
+
+        // ساخت کنترلر جدید با مپ بارگذاری شده (جلوگیری از ساخت مپ اضافی)
+        this.mainController = new MainController(loadedMap);
         this.gamePanel = new GamePanel(mainController);
 
         gameWrapper = new JPanel(new BorderLayout());

@@ -22,26 +22,57 @@ public class MainMenuPanel extends JPanel {
         gbc.gridy = 0;
         add(titleLabel, gbc);
 
-        JButton startButton = new JButton("Start");
+        JButton startButton = new JButton("Start Game");
         startButton.setFont(new Font("Arial", Font.BOLD, 20));
         startButton.setFocusPainted(false);
         startButton.addActionListener(e -> mainFrame.startGame());
         gbc.gridy = 1;
         add(startButton, gbc);
 
+        // اصلاح گام سوم: اضافه کردن دکمه لود بازی در منوی اصلی
+        JButton loadButton = new JButton("Load Game");
+        loadButton.setFont(new Font("Arial", Font.BOLD, 20));
+        loadButton.setFocusPainted(false);
+        loadButton.addActionListener(e -> openLoadGameDialog());
+        gbc.gridy = 2;
+        add(loadButton, gbc);
+
         JButton settingsButton = new JButton("Settings");
         settingsButton.setFont(new Font("Arial", Font.BOLD, 20));
         settingsButton.setFocusPainted(false);
         settingsButton.addActionListener(e -> openSettings());
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         add(settingsButton, gbc);
 
         JButton exitButton = new JButton("Exit");
         exitButton.setFont(new Font("Arial", Font.BOLD, 20));
         exitButton.setFocusPainted(false);
         exitButton.addActionListener(e -> mainFrame.exitGameSafely());
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         add(exitButton, gbc);
+    }
+
+    private void openLoadGameDialog() {
+        String[] slots = {"autosave", "slot1", "slot2", "slot3"};
+
+        // استایل دادن به پنجره پاپ‌آپ برای حفظ زیبایی ظاهری پروژه
+        UIManager.put("OptionPane.background", new Color(30, 33, 40));
+        UIManager.put("Panel.background", new Color(30, 33, 40));
+        UIManager.put("OptionPane.messageForeground", Color.WHITE);
+
+        String choice = (String) JOptionPane.showInputDialog(
+                mainFrame,
+                "Select a save slot to load:",
+                "Load Game",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                slots,
+                "autosave"
+        );
+
+        if (choice != null && !choice.trim().isEmpty()) {
+            mainFrame.loadGameFromMenu(choice);
+        }
     }
 
     private void openSettings() {

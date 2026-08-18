@@ -10,17 +10,19 @@ import java.util.Random;
 
 public class SaveLoadController {
     private final MainController mainController;
-    private final Gson gson;
     private static final String SAVE_DIR = "saves/";
 
     public SaveLoadController(MainController mainController) {
         this.mainController = mainController;
         new File(SAVE_DIR).mkdirs();
+    }
 
-        this.gson = new GsonBuilder()
+    // اصلاح گام سوم: متمرکز کردن ساخت Gson برای استفاده استاتیک
+    private static Gson createGson() {
+        return new GsonBuilder()
                 .registerTypeAdapter(Building.class, new BuildingAdapter())
                 .registerTypeAdapter(Unit.class, new UnitAdapter())
-                .registerTypeAdapter(ProductionCommand.class, new ProductionCommandAdapter(mainController))
+                .registerTypeAdapter(ProductionCommand.class, new ProductionCommandAdapter())
                 .registerTypeAdapter(Random.class, new RandomAdapter())
                 .setPrettyPrinting()
                 .create();
@@ -31,7 +33,7 @@ public class SaveLoadController {
             File tempFile = new File(SAVE_DIR + slot + ".tmp");
             File finalFile = new File(SAVE_DIR + slot + ".json");
 
-            String json = gson.toJson(mainController.getGameMap());
+            String json = createGson().toJson(mainController.getGameMap());
             Files.writeString(tempFile.toPath(), json);
 
             if (finalFile.exists()) finalFile.delete();
@@ -45,22 +47,27 @@ public class SaveLoadController {
         }
     }
 
-    public GameMap loadGame(String slot) {
+    // اصلاح گام سوم: متد استاتیک برای لود کردن مپ از منوی اصلی بدون نیاز به کنترلر قدیمی
+    public static GameMap loadGameMap(String slot) {
         try {
             File file = new File(SAVE_DIR + slot + ".json");
             if (!file.exists()) {
-                GameEventDispatcher.fireNotification("Save file not found!");
                 return null;
             }
 
             String json = Files.readString(file.toPath());
-            GameMap loadedMap = gson.fromJson(json, GameMap.class);
+            GameMap loadedMap = createGson().fromJson(json, GameMap.class);
 
             TownHall th = loadedMap.getTownHall();
             Hex thHex = loadedMap.getHexAt(th.getQ(), th.getR());
             if (thHex != null) thHex.setBuilding(th);
 
-            // رفع باگ 08 و رعایت اصول SOLID با استفاده از متد داخلی Worker
+            // رفع باگ پارادوکس: تزریق مپ جدید مستقیماً به کامندهای لود شده
+            for (ProductionCommand cmd : th.getProductionQueue()) {
+                if (cmd != null) cmd.setContextMap(loadedMap);
+            }
+
+            // رفع باگ استقرار کارگرها
             for (Unit unit : loadedMap.getUnits()) {
                 if (unit instanceof Worker) {
                     Worker worker = (Worker) unit;
@@ -75,13 +82,21 @@ public class SaveLoadController {
                 }
             }
 
-            GameEventDispatcher.fireNotification("Game Loaded Successfully from: " + slot);
             return loadedMap;
         } catch (Exception e) {
             e.printStackTrace();
-            GameEventDispatcher.fireNotification("Load Failed!");
             return null;
         }
+    }
+
+    public GameMap loadGame(String slot) {
+        GameMap map = loadGameMap(slot);
+        if (map != null) {
+            GameEventDispatcher.fireNotification("Game Loaded Successfully from: " + slot);
+        } else {
+            GameEventDispatcher.fireNotification("Load Failed! File not found.");
+        }
+        return map;
     }
 
     public void autosave() { saveGame("autosave"); }
@@ -175,10 +190,9 @@ public class SaveLoadController {
         }
     }
 
-    // ─── آداپتور قدرتمند جدید برای هندل کردن داینامیک Command ───
+    // آداپتور اصلاح شده: بدون وابستگی مخرب به MainController
     private static class ProductionCommandAdapter implements JsonSerializer<ProductionCommand>, JsonDeserializer<ProductionCommand> {
-        private final MainController mc;
-        public ProductionCommandAdapter(MainController mc) { this.mc = mc; }
+        public ProductionCommandAdapter() { }
 
         @Override
         public JsonElement serialize(ProductionCommand src, Type typeOfSrc, JsonSerializationContext context) {
@@ -215,8 +229,7 @@ public class SaveLoadController {
 
             if (cmd != null) {
                 if (obj.has("isCanceled") && obj.get("isCanceled").getAsBoolean()) cmd.cancel();
-                // تزریق وابستگی (Dependency Injection) برای کار کردن Command
-                cmd.setContextMap(mc.getGameMap());
+                // تزریق وابستگی در اینجا انجام نمی‌شود و برون‌سپاری شده است به لودینگ اصلی
             }
             return cmd;
         }
