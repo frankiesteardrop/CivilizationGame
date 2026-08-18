@@ -1,9 +1,15 @@
 package model.state.mission;
+
 import model.*;
 import model.mission.Mission;
 
 public class ActiveMissionState implements MissionState {
+
     @Override public String getDisplayName() { return "Active"; }
+
+    // ─── پیاده‌سازی قراردادهای جامانده اینترفیس ───
+    @Override public boolean canAccept() { return false; }
+    @Override public boolean canDeliver() { return false; }
 
     @Override
     public void handleTurn(Mission mission, Tribe tribe) {

@@ -1,4 +1,5 @@
 package model.state.mission;
+
 import model.GameMap;
 import model.Tribe;
 import model.TribeCamp;
@@ -6,7 +7,12 @@ import model.Unit;
 import model.mission.Mission;
 
 public class ReadyMissionState implements MissionState {
+
     @Override public String getDisplayName() { return "Ready to Deliver"; }
+
+    // ─── پیاده‌سازی قراردادهای جامانده اینترفیس ───
+    @Override public boolean canAccept() { return false; }
+    @Override public boolean canDeliver() { return true; } // در این استیت دکمه تحویل روشن می‌شود
 
     @Override
     public void handleTurn(Mission mission, Tribe tribe) {
