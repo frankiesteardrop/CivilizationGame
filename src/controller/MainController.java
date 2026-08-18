@@ -49,14 +49,11 @@ public class MainController {
     public boolean canMove(Unit unit, Hex targetHex)   { return unitController.canMove(unit, targetHex, gameMap); }
     public void    executeMove(Unit unit, Hex targetHex) { unitController.executeMove(unit, targetHex, gameMap); }
 
-    // ─── متدهای جدید منطقی برای رهایی View از شرط‌های بازی (MVC) ───
-
     public boolean isHostile(Hex hex) {
         if (hex == null) return false;
         boolean hasAnimal = gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.getType() == UnitType.BEAR);
 
-        // اصلاح کلیدی گام سوم: فراخوانی اصولی و شی‌گرایانه (حذف هاردکد equals("Enemy"))
         boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getState().isHostile();
 
         boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
@@ -79,6 +76,12 @@ public class MainController {
         String  prefix    = qEmpty ? "" : "⏳ [BUSY] ";
         boolean isMilCap  = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
         String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
+
+        // اصلاح گام چهارم: اضافه کردن دکمه‌ی اختصاصی برای لغو صف تولید با تاییدیه گرافیکی
+        if (!qEmpty) {
+            actions.add(new MenuAction("🚫 Cancel Current Production (No Refund)", true, () -> th.cancelCurrentProduction())
+                    .setConfirmation("Are you sure you want to cancel the current production?\n\n⚠️ ALL INVESTED RESOURCES WILL BE LOST!"));
+        }
 
         String whLabel = th.getLevel() >= 3 ? "✅ Capital MAXED"
                 : String.format(prefix + "📦 Upgrade TH → Level %d", th.getLevel() + 1);

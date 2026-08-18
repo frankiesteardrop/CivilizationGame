@@ -25,7 +25,6 @@ public class BuildController {
         techRequirements.put(BuildingType.BAZAAR, th -> th.getLevel() >= 2);
         techRequirements.put(BuildingType.DOCK,   th -> th.getLevel() >= 2);
 
-        // ─── پیش‌نیازهای Terrain ─────────────────────────────────────────────────
         terrainRequirements.put(BuildingType.LUMBER_MILL,
                 (hex, map) -> hex.getTerrainType() == TerrainType.FOREST
                         && hex.hasResource(ResourceType.WOOD));
@@ -55,16 +54,13 @@ public class BuildController {
                         && !hex.hasResource(ResourceType.IRON)
                         && !hex.hasResource(ResourceType.FOOD));
 
-        // Monument فقط روی دشت (PLAINS) — طبق spec
         terrainRequirements.put(BuildingType.MONUMENT,
                 (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
 
-        // Bazaar: هر terrain زمینی مجاز
         terrainRequirements.put(BuildingType.BAZAAR,
                 (hex, map) -> hex.getTerrainType() != TerrainType.SEA
                         && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE);
 
-        // Dock: هکس ساحلی — حتماً مجاور دریا، اما خودش دریا نباشد
         terrainRequirements.put(BuildingType.DOCK, (hex, map) -> {
             if (hex.getTerrainType() == TerrainType.SEA
                     || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
@@ -76,15 +72,12 @@ public class BuildController {
         });
     }
 
-    // ─── Build ────────────────────────────────────────────────────────────────
-
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
         if (!hex.isInsideBorder()) return false;
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
 
-        // MOUNTAIN_RANGE: هیچ ساختمانی ممکن نیست
         if (hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         if (builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) return false;
@@ -93,9 +86,8 @@ public class BuildController {
         if (!hasRequiredTech(type, th))         return false;
         if (!isValidTerrainForBuilding(type, hex)) return false;
 
-        // ─── اعمال پاداش مأموریت قبیله ساحلی (Coastal Tribe) ───
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
-            return true; // بدون چک کردن منابع انبار اجازه ساخت داده می‌شود
+            return true;
         }
 
         Inventory inv = th.getInventory();
@@ -118,9 +110,8 @@ public class BuildController {
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
-        // ─── کسر منابع با احتساب تخفیف ───
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
-            th.consumeDiscountedDock(); // یک کوپن تخفیف مصرف می‌شود، اما منبعی کسر نمی‌شود
+            th.consumeDiscountedDock();
         } else {
             inv.consumeResource(ResourceType.WOOD,  type.getWoodCost());
             inv.consumeResource(ResourceType.STONE, type.getStoneCost());
@@ -133,17 +124,13 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
-        // رویداد لحظه‌ای رضایت فقط برای Settlement
         if (type == BuildingType.SETTLEMENT) {
             gameMap.getTownHall().addHappiness(-1);
         }
-        // Monument: اثر per-turn در EconomyController.applyPerTurnHappiness() پردازش می‌شود
 
         gameMap.updateFogOfWar();
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
-
-    // ─── Road ─────────────────────────────────────────────────────────────────
 
     public boolean canBuildRoad(Hex hex, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
@@ -158,9 +145,12 @@ public class BuildController {
         builder.consumeAP(1);
         builder.useCharge();
         hex.setRoad(true);
-    }
 
-    // ─── Wall ─────────────────────────────────────────────────────────────────
+        // اصلاح گام چهارم: فایر کردن Eventها برای اطمینان از آپدیت بلادرنگ View
+        GameEventDispatcher.fireUnitStateChanged(builder);
+        GameEventDispatcher.fireBuildingConstructed(hex); // برای Repaint نقشه
+        GameEventDispatcher.fireNotification("🛣️ Road successfully constructed!");
+    }
 
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
@@ -187,19 +177,13 @@ public class BuildController {
 
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
+
+        // فایر کردن Eventها برای دیوار (مشابه جاده)
+        GameEventDispatcher.fireUnitStateChanged(builder);
+        GameEventDispatcher.fireBuildingConstructed(hex);
+        GameEventDispatcher.fireNotification("🧱 Defensive wall successfully constructed!");
     }
 
-    // ─── Destroy ─────────────────────────────────────────────────────────────
-
-    /**
-     * بررسی امکان تخریب.
-     *
-     * طبق spec (F-19): ساختمان‌های غیرقابل تخریب:
-     * - TOWN_HALL (همیشه)
-     * - TRIBE_CAMP (کمپ فعال قبیله)
-     * - TRADING_POST (بازار بی‌طرف)
-     * - ساختمان‌های دشمن (در فاز تک‌نفره تحت کنترل قبیله)
-     */
     public boolean canDestroy(Hex hex, String type, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (builder.getCurrentAP() < 1) return false;
@@ -212,10 +196,9 @@ public class BuildController {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed()) return false;
 
-            // F-19: ساختمان‌های غیرقابل تخریب
             if (b.getType() == BuildingType.TOWN_HALL)     return false;
-            if (b.getType() == BuildingType.TRIBE_CAMP)    return false; // F-19
-            if (b.getType() == BuildingType.TRADING_POST)  return false; // F-19
+            if (b.getType() == BuildingType.TRIBE_CAMP)    return false;
+            if (b.getType() == BuildingType.TRADING_POST)  return false;
 
             return true;
 
@@ -249,11 +232,16 @@ public class BuildController {
 
         } else if (type.equals("ROAD")) {
             hex.setRoad(false);
+            // آپدیت بصری تخریب جاده
+            GameEventDispatcher.fireBuildingConstructed(hex);
 
         } else if (type.equals("WALL")) {
             hex.setWall(dir, false, 0);
             Hex neighbor = gameMap.getNeighbor(hex, dir);
             if (neighbor != null) neighbor.setWall((dir + 3) % 6, false, 0);
+            // آپدیت بصری تخریب دیوار
+            GameEventDispatcher.fireBuildingConstructed(hex);
         }
+        GameEventDispatcher.fireUnitStateChanged(builder);
     }
 }

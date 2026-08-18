@@ -95,7 +95,12 @@ public class TownHall extends Building {
     public void cancelCurrentProduction() {
         if (!productionQueue.isEmpty()) {
             ProductionCommand cmd = productionQueue.peek();
-            if (cmd != null) { cmd.cancel(); productionQueue.poll(); }
+            if (cmd != null) {
+                cmd.cancel();
+                productionQueue.poll();
+                // اصلاح گام چهارم: فایر کردن Notification برای اطلاع‌رسانی به View
+                GameEventDispatcher.fireNotification("🚫 Production Canceled! Resources lost.");
+            }
         }
     }
 
@@ -117,13 +122,6 @@ public class TownHall extends Building {
 
     public int getHappiness() { return happiness; }
 
-    /**
-     * تغییر رضایت انباشته با اعمال soft cap [-20, +20].
-     *
-     * F-36: بدون cap، با ۱۰ Monument فعال (+2/ترن هر کدام) مقدار بی‌نهایت
-     * بالا می‌رود. محدوده -20 تا +20 تمام حالت‌های spec را پوشش می‌دهد
-     * (بالاترین سطح در +3 و پایین‌ترین در -5 است).
-     */
     public void addHappiness(int amount) {
         this.happiness = Math.max(HAPPINESS_MIN,
                 Math.min(HAPPINESS_MAX, this.happiness + amount));
@@ -148,9 +146,6 @@ public class TownHall extends Building {
 
     public boolean isDefensiveArchUnlocked()        { return defensiveArchUnlocked; }
 
-    /**
-     * F-11: دیوار فیزیکی در UpgradeController ساخته می‌شود (نیاز به GameMap دارد).
-     */
     public void applyDefensiveArchitecture() {
         this.defensiveArchUnlocked = true;
         this.setMaxHp(350);
