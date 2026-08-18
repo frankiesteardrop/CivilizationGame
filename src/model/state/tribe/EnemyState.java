@@ -9,6 +9,10 @@ public class EnemyState implements TribeState {
     @Override public boolean canFormAlliance() { return false; }
     @Override public boolean canRequestPeace() { return true; }
 
+    // اصلاح گام سوم: قبیله دشمن، متخاصم است و نمی‌توان دوباره به آن اعلان جنگ داد
+    @Override public boolean isHostile() { return true; }
+    @Override public boolean canDeclareWar() { return false; }
+
     @Override
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
         int currentCount = camp.getAndIncrementGuardCounter();

@@ -9,6 +9,10 @@ public class DispleasedState implements TribeState {
     @Override public boolean canFormAlliance() { return false; }
     @Override public boolean canRequestPeace() { return false; }
 
+    // اصلاح گام سوم
+    @Override public boolean isHostile() { return false; }
+    @Override public boolean canDeclareWar() { return true; }
+
     @Override
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
         boolean hasMilitaryNearby = map.getUnits().stream().anyMatch(u -> u.isAlive()

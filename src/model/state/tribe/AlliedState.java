@@ -19,14 +19,17 @@ public class AlliedState implements TribeState {
     public boolean canReceiveGift() { return true; }
 
     @Override
-    public boolean canFormAlliance() { return false; } // از قبل متحد است، پس دکمه قفل می‌شود
+    public boolean canFormAlliance() { return false; }
 
     @Override
     public boolean canRequestPeace() { return false; }
 
+    // اصلاح گام سوم
+    @Override public boolean isHostile() { return false; }
+    @Override public boolean canDeclareWar() { return true; }
+
     @Override
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
-        // در حالت متحد، قبیله پاداش‌های دائمی خود را هر ترن به بازیکن می‌دهد
         switch (tribe.getType()) {
             case FARMER -> map.getTownHall().getInventory().addResource(ResourceType.FOOD, 5);
             case MOUNTAIN -> map.getTownHall().getInventory().addResource(ResourceType.STONE, 5);
@@ -34,7 +37,6 @@ public class AlliedState implements TribeState {
             case COASTAL -> map.getTownHall().getInventory().addResource(ResourceType.FOOD, 3);
             case WARRIOR -> {
                 // قبیله جنگجو در پایان ترن منبعی نمی‌دهد
-                // (پاداش آن، قدرت نظامی و جایزه مأموریت‌هایش است که در جای دیگر هندل شده)
             }
         }
     }

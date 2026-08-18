@@ -12,10 +12,10 @@ public class NeutralState implements TribeState {
     public String getName() { return "Neutral"; }
 
     @Override
-    public boolean canTrade() { return false; } // تجارت نیاز به رابطه دوستانه یا متحد دارد
+    public boolean canTrade() { return false; }
 
     @Override
-    public boolean canReceiveGift() { return true; } // در حالت خنثی می‌توان هدیه داد
+    public boolean canReceiveGift() { return true; }
 
     @Override
     public boolean canFormAlliance() { return false; }
@@ -23,9 +23,12 @@ public class NeutralState implements TribeState {
     @Override
     public boolean canRequestPeace() { return false; }
 
+    // اصلاح گام سوم
+    @Override public boolean isHostile() { return false; }
+    @Override public boolean canDeclareWar() { return true; }
+
     @Override
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
         // قبیله‌ی خنثی رفتار تهاجمی یا دوستانه خاصی در پایان نوبت ندارد
-        // فقط در محدوده‌ی خود باقی می‌ماند و کار خاصی نمی‌کند.
     }
 }

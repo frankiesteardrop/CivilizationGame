@@ -182,7 +182,8 @@ public class TribeInteractionDialog extends JDialog {
                 this::tryFormAlliance));
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
-        boolean canWar = !tribe.getState().getName().equals("Enemy");
+        // اصلاح کلیدی گام سوم: استفاده از منطق شی‌گرایانه (حذف هاردکد equals("Enemy"))
+        boolean canWar = tribe.getState().canDeclareWar();
         actionsPanel.add(buildActionButton(
                 "⚔️  Declare War",
                 "Start a war — causes happiness penalty!",

@@ -11,5 +11,10 @@ public interface TribeState {
     boolean canReceiveGift();
     boolean canFormAlliance();
     boolean canRequestPeace();
+
+    // اصلاح کلیدی گام سوم: اضافه شدن متدهای اختصاصی برای جلوگیری از String comparison
+    boolean isHostile();
+    boolean canDeclareWar();
+
     void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions);
 }

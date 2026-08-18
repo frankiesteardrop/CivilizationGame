@@ -56,8 +56,8 @@ public class MainController {
         boolean hasAnimal = gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.getType() == UnitType.BEAR);
 
-        // اصلاح باگ: فراخوانی اصولی State Pattern به جای متد منقرض شده getStatus
-        boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getState().getName().equals("Enemy");
+        // اصلاح کلیدی گام سوم: فراخوانی اصولی و شی‌گرایانه (حذف هاردکد equals("Enemy"))
+        boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getState().isHostile();
 
         boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()
