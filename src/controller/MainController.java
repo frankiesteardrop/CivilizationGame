@@ -1,6 +1,7 @@
 package controller;
 
 import model.*;
+import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,6 +34,7 @@ public class MainController {
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
+    // ─── Getters ──────────────────────────────────────────────────────────────
     public GameMap            getGameMap()             { return gameMap; }
     public TurnController     getTurnController()      { return turnController; }
     public UnitController     getUnitController()      { return unitController; }
@@ -53,7 +55,10 @@ public class MainController {
         if (hex == null) return false;
         boolean hasAnimal = gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.getType() == UnitType.BEAR);
-        boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getStatus().equals("Enemy");
+
+        // اصلاح باگ: فراخوانی اصولی State Pattern به جای متد منقرض شده getStatus
+        boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getState().getName().equals("Enemy");
+
         boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
@@ -146,7 +151,6 @@ public class MainController {
                 boolean canDestroy = buildController.canDestroy(targetHex, "BUILDING", 0, builder);
                 BuildingType bType = existing.getType();
 
-                // جایگزینی JOptionPane با پاس دادن پیام تاییدیه‌ به MenuAction
                 actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
                         canDestroy,
                         getDestroyDisabledReason(bType, builder),
@@ -218,7 +222,7 @@ public class MainController {
                 .collect(Collectors.toList());
 
         boolean hasAnyEnemy = isHostile(targetHex);
-        boolean isMilTarget = hasAnyEnemy; // Simplified for siege logic check
+        boolean isMilTarget = hasAnyEnemy;
 
         boolean hasWall = false;
         if (dist == 1) {

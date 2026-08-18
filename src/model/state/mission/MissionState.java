@@ -1,4 +1,5 @@
 package model.state.mission;
+
 import model.GameMap;
 import model.Tribe;
 import model.TribeCamp;
@@ -7,6 +8,8 @@ import model.mission.Mission;
 
 public interface MissionState {
     String getDisplayName();
+    boolean canAccept();
+    boolean canDeliver();
     void handleTurn(Mission mission, Tribe tribe);
     void checkConditions(Mission mission, TribeCamp camp, GameMap map);
     boolean deliver(Mission mission, TribeCamp camp, GameMap map);
