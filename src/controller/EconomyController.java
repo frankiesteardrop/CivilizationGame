@@ -105,38 +105,9 @@ public class EconomyController implements GameEventListener {
                 continue;
             }
 
-            int production = b.calculateProduction(townHall);
+            // اصلاح کلیدی گام دوم: استفاده از متد کمکی استخراج شده (DRY Principle)
+            int production = calculateBuildingGrossProduction(b, hex, map, townHall, season, happiness, coastalAllied);
 
-            if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
-                production += 1;
-            } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
-                production -= 1;
-            }
-
-            if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
-                boolean nearSea = false;
-                for (int i = 0; i < 6; i++) {
-                    Hex n = map.getNeighbor(hex, i);
-                    if (n != null && n.getTerrainType() == TerrainType.SEA) nearSea = true;
-                }
-                if (nearSea) production += 2;
-            } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
-                int mCount = 0;
-                for (int i = 0; i < 6; i++) {
-                    Hex n = map.getNeighbor(hex, i);
-                    if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
-                }
-                if (mCount >= 2) production += 1;
-            }
-
-            if (b.getType() == BuildingType.DOCK && coastalAllied) {
-                production += 2;
-            }
-
-            if (happiness <= -3) production -= b.getStationedWorkers();
-            if (happiness >= 3)  production += production / 10;
-
-            production = Math.max(0, production);
             if (production <= 0) continue;
 
             int currentAmount = inventory.getResourceAmount(targetRes);
@@ -152,6 +123,7 @@ public class EconomyController implements GameEventListener {
             if (!targetExtractionHex.hasResource(targetRes))
                 ejectWorkersFromHex(map, hex);
 
+            // محاسبه Farm Synergy
             if (b.getType() == BuildingType.FARM) {
                 for (int i = 0; i < 6; i++) {
                     Hex neighbor = map.getNeighbor(hex, i);
@@ -250,38 +222,8 @@ public class EconomyController implements GameEventListener {
                 }
 
                 if (hasResourceForNet) {
-                    int prod = b.calculateProduction(townHall);
-
-                    if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
-                        prod += 1;
-                    } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
-                        prod -= 1;
-                    }
-
-                    if (b.getType() == BuildingType.LUMBER_MILL && type == ResourceType.WOOD) {
-                        boolean nearSea = false;
-                        for (int i = 0; i < 6; i++) {
-                            Hex n = map.getNeighbor(h, i);
-                            if (n != null && n.getTerrainType() == TerrainType.SEA) nearSea = true;
-                        }
-                        if (nearSea) prod += 2;
-                    } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
-                        int mCount = 0;
-                        for (int i = 0; i < 6; i++) {
-                            Hex n = map.getNeighbor(h, i);
-                            if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
-                        }
-                        if (mCount >= 2) prod += 1;
-                    }
-
-                    if (b.getType() == BuildingType.DOCK && coastalAllied) {
-                        prod += 2;
-                    }
-
-                    if (happiness <= -3) prod -= b.getStationedWorkers();
-                    if (happiness >= 3)  prod += prod / 10;
-
-                    prod = Math.max(0, prod);
+                    // اصلاح کلیدی گام دوم: استفاده از متد کمکی استخراج شده (DRY Principle)
+                    int prod = calculateBuildingGrossProduction(b, h, map, townHall, season, happiness, coastalAllied);
                     grossProduction += prod;
                 }
             }
@@ -312,6 +254,54 @@ public class EconomyController implements GameEventListener {
         return Math.min(grossProduction, availableSpace) - grossConsumption;
     }
 
+    /**
+     * متد کمکی استخراج شده جهت رعایت اصل DRY (Don't Repeat Yourself).
+     * تمام منطق مربوط به محاسبه مجاورت، تأثیر فصول، و رضایت در اینجا تجمیع شده است.
+     */
+    private int calculateBuildingGrossProduction(Building b, Hex hex, GameMap map, TownHall townHall, Season season, int happiness, boolean coastalAllied) {
+        int production = b.calculateProduction(townHall);
+        ResourceType targetRes = b.getType().getProducedResource();
+
+        // تأثیرات فصل (Season Effects)
+        if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
+            production += 1;
+        } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
+            production -= 1;
+        }
+
+        // پاداش مجاورت (Adjacency Bonus)
+        if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
+            boolean nearSea = false;
+            for (int i = 0; i < 6; i++) {
+                Hex n = map.getNeighbor(hex, i);
+                if (n != null && n.getTerrainType() == TerrainType.SEA) {
+                    nearSea = true;
+                    break;
+                }
+            }
+            if (nearSea) production += 2;
+        } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
+            int mCount = 0;
+            for (int i = 0; i < 6; i++) {
+                Hex n = map.getNeighbor(hex, i);
+                if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
+            }
+            if (mCount >= 2) production += 1;
+        }
+
+        // تأثیر اتحاد قبیله ساحلی
+        if (b.getType() == BuildingType.DOCK && coastalAllied) {
+            production += 2;
+        }
+
+        // تأثیر سطح رضایت (Happiness Penalty/Bonus)
+        if (happiness <= -3) production -= b.getStationedWorkers();
+        if (happiness >= 3)  production += production / 10;
+
+        return Math.max(0, production);
+    }
+
+    // מתد های خالی اینترفیس
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit u, int oQ, int oR, int nQ, int nR) {}
     @Override public void onUnitKilled(Unit unit) {}
