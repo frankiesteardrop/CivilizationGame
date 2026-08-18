@@ -40,6 +40,14 @@ public class GameInputHandler extends MouseAdapter {
                 panel.setSelectedUnit(selected);
                 panel.repaint();
             } else if (SwingUtilities.isRightMouseButton(e)) {
+
+                // اصلاح گام اول: جلوگیری از صدور دستور به نیروهای دشمن
+                Unit currentSelected = panel.getSelectedUnit();
+                if (currentSelected != null && currentSelected.isEnemy()) {
+                    GameEventDispatcher.fireNotification("⛔ You cannot command enemy units!");
+                    return;
+                }
+
                 handleRightClick(e, clickedHex);
             }
         }

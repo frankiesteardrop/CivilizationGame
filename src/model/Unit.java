@@ -15,6 +15,9 @@ public abstract class Unit {
     protected int attackRange;
     protected int siegeDamage;
 
+    // اصلاح گام اول: اضافه شدن فیلد مالکیت برای رفع باگ کنترل ذهن
+    protected boolean isEnemy;
+
     public Unit(int q, int r, UnitType type) {
         this.q = q;
         this.r = r;
@@ -29,6 +32,9 @@ public abstract class Unit {
         this.attackRange = type.getAttackRange();
         this.siegeDamage = type.getSiegeDamage();
         this.isAlive = true;
+
+        // به صورت پیش‌فرض تمام نیروهای ساخته شده توسط کارخانه، نیروی خودی هستند
+        this.isEnemy = false;
     }
 
     public void resetAP() { if (isAlive) currentAP = maxAP; }
@@ -75,6 +81,10 @@ public abstract class Unit {
     public int getAttackRange() { return attackRange; }
     public int getSiegeDamage() { return siegeDamage; }
     public boolean isAlive() { return isAlive; }
+
+    // اصلاح گام اول: Getter و Setter برای کنترل مالکیت
+    public boolean isEnemy() { return isEnemy; }
+    public void setEnemy(boolean enemy) { this.isEnemy = enemy; }
 
     public void kill() {
         if (this.isAlive) {

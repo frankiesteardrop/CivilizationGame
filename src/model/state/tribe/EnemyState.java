@@ -9,7 +9,7 @@ public class EnemyState implements TribeState {
     @Override public boolean canFormAlliance() { return false; }
     @Override public boolean canRequestPeace() { return true; }
 
-    // اصلاح گام سوم: قبیله دشمن، متخاصم است و نمی‌توان دوباره به آن اعلان جنگ داد
+    // اصلاح گام سوم
     @Override public boolean isHostile() { return true; }
     @Override public boolean canDeclareWar() { return false; }
 
@@ -27,7 +27,11 @@ public class EnemyState implements TribeState {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
                     if (spawnHex != null) {
-                        map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawnHex.getQ(), spawnHex.getR()));
+                        // اصلاح گام اول: گارد بربر باید به عنوان دشمن علامت‌گذاری شود
+                        Unit guard = UnitFactory.createUnit(UnitType.SWORDSMAN, spawnHex.getQ(), spawnHex.getR());
+                        guard.setEnemy(true);
+                        map.addUnit(guard);
+
                         if (campHex.isVisible()) {
                             GameEventDispatcher.fireNotification("⚠️ " + tribe.getType().getDisplayName() + " tribe mobilized guards!");
                         }
