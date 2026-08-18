@@ -148,7 +148,8 @@ public class CombatController {
     }
 
     private List<Integer> rollDice(int count, int modifier) {
-        Random rand = new Random();
+        // اصلاح کلیدی گام اول: استفاده از شیء رندوم ذخیره شده در نقشه
+        Random rand = map.getRandom();
         List<Integer> rolls = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             int roll = Math.max(1, Math.min(6, rand.nextInt(6) + 1 + modifier));

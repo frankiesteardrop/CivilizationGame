@@ -366,6 +366,9 @@ public class GameMap {
     public void       setStarving(boolean s) { this.isStarving = s; }
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
 
+    // متد اضافه شده برای رعایت اصل Deterministic Save/Load
+    public Random     getRandom()      { return random; }
+
     // ─── متدهای انتقال یافته از TribeController برای رعایت MVC ───
 
     public Hex getHexOfBuilding(Building building) {

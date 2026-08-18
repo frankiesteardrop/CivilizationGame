@@ -17,7 +17,8 @@ public class DisasterController {
 
     public DisasterController(GameMap map) {
         this.map    = map;
-        this.random = new Random();
+        // اصلاح کلیدی گام اول: جایگزینی new Random() با شیء مرکزی
+        this.random = map.getRandom();
     }
 
     // ─── Per-Turn Entry Points ────────────────────────────────────────────────
