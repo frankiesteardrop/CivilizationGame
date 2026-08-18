@@ -25,8 +25,9 @@ public class CombatController {
         this.damageChain = swordsman;
     }
 
+    // اصلاح گام دوم: اضافه شدن فلگ قطعی isSiegeAttack برای جلوگیری از باگ گاردهای روئین‌تن
     public int executeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex,
-                             boolean isTargetAnimal, boolean isTargetBarbarian,
+                             boolean isSiegeAttack, boolean isTargetAnimal,
                              boolean targetHasWall) {
 
         int dist = map.getHexDistance(sourceHex.getQ(), sourceHex.getR(),
@@ -56,7 +57,7 @@ public class CombatController {
         validAttackers.forEach(u -> u.consumeAP(1));
 
         // ─── Siege ───
-        if (!isTargetAnimal && !isTargetBarbarian) {
+        if (isSiegeAttack) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
 
             int dir = getDirection(sourceHex, targetHex);
@@ -92,7 +93,10 @@ public class CombatController {
 
         // ─── Unit Combat ───
         int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
-        int defenderDiceCount = isTargetBarbarian ? 2 : 1;
+
+        // اصلاح گام دوم: تمام دشمنان در بازی یا حیوان هستند یا بربر/نیروی دشمن.
+        // پس اگر حمله محاصره نبود و هدف حیوان هم نبود، قطعا نیروی انسانی دشمن است (۲ تاس تدافعی).
+        int defenderDiceCount = isTargetAnimal ? 1 : 2;
         int wallModifier = (dist == 1 && targetHasWall) ? 2 : 0;
 
         List<Integer> attackerRolls = rollDice(attackerDiceCount, 0);
@@ -148,7 +152,6 @@ public class CombatController {
     }
 
     private List<Integer> rollDice(int count, int modifier) {
-        // اصلاح کلیدی گام اول: استفاده از شیء رندوم ذخیره شده در نقشه
         Random rand = map.getRandom();
         List<Integer> rolls = new ArrayList<>();
         for (int i = 0; i < count; i++) {

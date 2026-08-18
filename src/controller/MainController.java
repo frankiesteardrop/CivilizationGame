@@ -49,17 +49,19 @@ public class MainController {
     public boolean canMove(Unit unit, Hex targetHex)   { return unitController.canMove(unit, targetHex, gameMap); }
     public void    executeMove(Unit unit, Hex targetHex) { unitController.executeMove(unit, targetHex, gameMap); }
 
+    // اصلاح گام دوم: استفاده دقیق از isEnemy() برای پیدا کردن دشمنان در هر جای نقشه
     public boolean isHostile(Hex hex) {
         if (hex == null) return false;
+
         boolean hasAnimal = gameMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.getType() == UnitType.BEAR);
 
+        boolean hasEnemyUnit = gameMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR() && u.isEnemy());
+
         boolean hasTribeEnemy = (hex.getBuilding() instanceof TribeCamp camp) && camp.getTribe().getState().isHostile();
 
-        boolean hasEnemyGuard = hasTribeEnemy && gameMap.getUnits().stream()
-                .anyMatch(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR()
-                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
-        return hasAnimal || hasTribeEnemy || hasEnemyGuard;
+        return hasAnimal || hasEnemyUnit || hasTribeEnemy;
     }
 
     public boolean isCapturable(Unit unit, Hex hex) {
@@ -77,7 +79,6 @@ public class MainController {
         boolean isMilCap  = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
         String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
 
-        // اصلاح گام چهارم: اضافه کردن دکمه‌ی اختصاصی برای لغو صف تولید با تاییدیه گرافیکی
         if (!qEmpty) {
             actions.add(new MenuAction("🚫 Cancel Current Production (No Refund)", true, () -> th.cancelCurrentProduction())
                     .setConfirmation("Are you sure you want to cancel the current production?\n\n⚠️ ALL INVESTED RESOURCES WILL BE LOST!"));
@@ -238,8 +239,14 @@ public class MainController {
             boolean hasValidForDist  = (dist == 1) || attackers.stream().anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
             boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
-            String typeLabel = isMilTarget ? "🎲 Dice" : "🏰 Siege";
-            String wallLabel = (hasWall && dist == 1 && isMilTarget) ? " [🧱 Wall +2 def]" : "";
+            // اصلاح گام دوم: تشخیص دقیق نوع هدف بر اساس حضور نیروی زنده
+            final boolean fAnimal = gameMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
+            final boolean fEnemyUnit = gameMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.isEnemy());
+            // اگر نیروی زنده دشمن وجود نداشته باشد، حمله قطعاً از نوع محاصره (تخریب سازه) است
+            final boolean fSiege = !(fAnimal || fEnemyUnit);
+
+            String typeLabel = fSiege ? "🏰 Siege" : "🎲 Dice";
+            String wallLabel = (hasWall && dist == 1 && !fSiege) ? " [🧱 Wall +2 def]" : "";
             String label     = String.format("⚔️ Attack! [%s] dist:%d%s", typeLabel, dist, wallLabel);
 
             String disabledReason;
@@ -251,20 +258,19 @@ public class MainController {
             final Hex fSource = sourceHex;
             final boolean fWall = hasWall;
             final List<Unit> fAtk = attackers;
-            final boolean fBarbarian = targetHex.getBuilding() instanceof TribeCamp;
-            final boolean fAnimal = gameMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
 
             actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
                 CombatController cc = new CombatController(gameMap);
-                cc.executeAttack(fAtk, fSource, targetHex, fAnimal, fBarbarian, fWall);
+                cc.executeAttack(fAtk, fSource, targetHex, fSiege, fAnimal, fWall);
                 gameMap.removeDeadUnits();
                 gameMap.updateFogOfWar();
             }));
 
+            // محاصره مستقیم دیوار (نادیده گرفتن نیروی پشت دیوار)
             if (hasWall && isMilTarget && dist == 1) {
                 actions.add(new MenuAction("⚔️ Attack Wall [🏰 Siege]", canAttack, disabledReason, () -> {
                     CombatController cc = new CombatController(gameMap);
-                    cc.executeAttack(fAtk, fSource, targetHex, false, false, true);
+                    cc.executeAttack(fAtk, fSource, targetHex, true, false, true); // fSiege اجباراً true است
                     gameMap.removeDeadUnits();
                     gameMap.updateFogOfWar();
                 }));
