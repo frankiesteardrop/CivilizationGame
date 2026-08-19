@@ -3,6 +3,7 @@ package model.state.mission;
 import model.GameMap;
 import model.Tribe;
 import model.TribeCamp;
+import model.TribeType;
 import model.Unit;
 import model.mission.Mission;
 
@@ -10,9 +11,8 @@ public class ReadyMissionState implements MissionState {
 
     @Override public String getDisplayName() { return "Ready to Deliver"; }
 
-    // ─── پیاده‌سازی قراردادهای جامانده اینترفیس ───
     @Override public boolean canAccept() { return false; }
-    @Override public boolean canDeliver() { return true; } // در این استیت دکمه تحویل روشن می‌شود
+    @Override public boolean canDeliver() { return true; }
 
     @Override
     public void handleTurn(Mission mission, Tribe tribe) {
@@ -26,14 +26,33 @@ public class ReadyMissionState implements MissionState {
 
     @Override
     public void checkConditions(Mission mission, TribeCamp camp, GameMap map) {
+        // اصلاح C2: قبیله جنگجو — isCompleted() همیشه false است؛ progress چک می‌شود
+        if (camp.getTribe().getType() == TribeType.WARRIOR) {
+            // اگر به هر دلیلی progress از دست رفت (مثل load قدیمی)، به Active برگرد
+            if (mission.getProgress() < 2) {
+                mission.setState(new ActiveMissionState());
+            }
+            // اگر progress >= 2 باشد، در ReadyMissionState باقی می‌مانیم
+            return;
+        }
+
+        // سایر قبیله‌ها: اگر شرط از دست رفت (مثلاً منابع خرج شد)، به Active برگرد
         if (!mission.getGoal().isCompleted(map, camp)) {
-            mission.setState(new ActiveMissionState()); // اگر منابع را پیش از تحویل خرج کرد
+            mission.setState(new ActiveMissionState());
         }
     }
 
     @Override
     public boolean deliver(Mission mission, TribeCamp camp, GameMap map) {
-        if (mission.getGoal().isCompleted(map, camp)) {
+        // اصلاح C2: قبیله جنگجو — isCompleted() همیشه false است؛ progress چک می‌شود
+        boolean isCompleted;
+        if (camp.getTribe().getType() == TribeType.WARRIOR) {
+            isCompleted = (mission.getProgress() >= 2);
+        } else {
+            isCompleted = mission.getGoal().isCompleted(map, camp);
+        }
+
+        if (isCompleted) {
             mission.getGoal().grantReward(map, camp.getTribe(), camp);
             mission.setState(new CompletedFailedState("Completed"));
             return true;

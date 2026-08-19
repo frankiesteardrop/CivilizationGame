@@ -7,7 +7,6 @@ public class ActiveMissionState implements MissionState {
 
     @Override public String getDisplayName() { return "Active"; }
 
-    // ─── پیاده‌سازی قراردادهای جامانده اینترفیس ───
     @Override public boolean canAccept() { return false; }
     @Override public boolean canDeliver() { return false; }
 
@@ -34,13 +33,27 @@ public class ActiveMissionState implements MissionState {
 
     @Override
     public void onUnitKilled(Mission mission, TribeCamp camp, Unit unit, GameMap map) {
-        // اختصاصی برای قبیله جنگجو
-        if (camp.getTribe().getType() == TribeType.WARRIOR) {
-            Hex campHex = map.getHexOfBuilding(camp);
-            if (campHex != null && map.getHexDistance(unit.getQ(), unit.getR(), campHex.getQ(), campHex.getR()) <= 5) {
-                mission.addProgress(1);
-                checkConditions(mission, camp, map);
-            }
+        // اصلاح C2: منطق خاص قبیله جنگجو
+        if (camp.getTribe().getType() != TribeType.WARRIOR) return;
+
+        // اصلاح C2: فقط یونیت‌های دشمن (isEnemy) یا حیوانات وحشی (BEAR) محاسبه می‌شوند
+        // کشتن یونیت‌های خودی نباید count شود
+        if (!unit.isEnemy() && unit.getType() != UnitType.BEAR) return;
+
+        Hex campHex = map.getHexOfBuilding(camp);
+        if (campHex == null) return;
+
+        int distToKill = map.getHexDistance(unit.getQ(), unit.getR(), campHex.getQ(), campHex.getR());
+        if (distToKill > 5) return;
+
+        mission.addProgress(1);
+        GameEventDispatcher.fireNotification("⚔️ Warrior Mission: " + mission.getProgress() + "/2 enemies defeated near camp.");
+
+        // اصلاح C2: بررسی مستقیم progress بجای isCompleted()
+        // چون TribeType.WARRIOR.getMissionGoal().isCompleted() همیشه false برمی‌گرداند
+        if (mission.getProgress() >= 2) {
+            mission.setState(new ReadyMissionState());
+            GameEventDispatcher.fireNotification("✅ Mission for Warrior Tribe is ready to deliver!");
         }
     }
 }

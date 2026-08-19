@@ -56,6 +56,14 @@ public class Tribe {
         else this.state = new NeutralState();
     }
 
+    /**
+     * اصلاح C1: فراخوانی پس از Load برای بازسازی TribeState از روی مقادیر primitive.
+     * TribeStateAdapter این کار را انجام می‌دهد، اما این متد به عنوان safety net باقی می‌ماند.
+     */
+    public void postLoad() {
+        updateState();
+    }
+
     // Delegation to State
     public boolean canTrade() { return state.canTrade(); }
     public boolean canReceiveGift() { return state.canReceiveGift(); }
