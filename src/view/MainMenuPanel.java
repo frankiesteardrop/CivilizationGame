@@ -1,5 +1,7 @@
 package view;
 
+import controller.SaveLoadController;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -29,7 +31,7 @@ public class MainMenuPanel extends JPanel {
         gbc.gridy = 1;
         add(startButton, gbc);
 
-        // اصلاح گام سوم: اضافه کردن دکمه لود بازی در منوی اصلی
+        // I1: جایگزینی JOptionPane ساده با LoadGameDialog حرفه‌ای
         JButton loadButton = new JButton("Load Game");
         loadButton.setFont(new Font("Arial", Font.BOLD, 20));
         loadButton.setFocusPainted(false);
@@ -52,26 +54,45 @@ public class MainMenuPanel extends JPanel {
         add(exitButton, gbc);
     }
 
+    /**
+     * I1: باز کردن LoadGameDialog با نمایش کامل metadata هر Slot.
+     *
+     * قبلاً از JOptionPane.showInputDialog استفاده می‌شد که فقط اسم Slot را نشان می‌داد.
+     * حالا LoadGameDialog اطلاعات کامل (Turn، Season، TH Level، زمان ذخیره) را نمایش می‌دهد.
+     *
+     * اگر تمام Slot‌ها خالی باشند، یک پیام راهنما نشان داده می‌شود.
+     */
     private void openLoadGameDialog() {
-        String[] slots = {"autosave", "slot1", "slot2", "slot3"};
+        // بررسی سریع: آیا حداقل یک Slot غیرخالی وجود دارد؟
+        boolean hasAnySave = false;
+        for (String slot : new String[]{"autosave", "slot1", "slot2", "slot3"}) {
+            SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata(slot);
+            if (meta != null && !meta.isEmpty) {
+                hasAnySave = true;
+                break;
+            }
+        }
 
-        // استایل دادن به پنجره پاپ‌آپ برای حفظ زیبایی ظاهری پروژه
-        UIManager.put("OptionPane.background", new Color(30, 33, 40));
-        UIManager.put("Panel.background", new Color(30, 33, 40));
-        UIManager.put("OptionPane.messageForeground", Color.WHITE);
+        if (!hasAnySave) {
+            // هیچ فایل ذخیره‌ای وجود ندارد
+            JOptionPane.showMessageDialog(
+                    mainFrame,
+                    "<html><center><b style='font-size:14px;'>No Save Files Found</b><br/><br/>"
+                            + "<span style='color:#888888;'>Start a new game to create save files.<br/>"
+                            + "Use the Pause Menu (Esc) during the game to save.</span></center></html>",
+                    "No Saves Available",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
 
-        String choice = (String) JOptionPane.showInputDialog(
-                mainFrame,
-                "Select a save slot to load:",
-                "Load Game",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                slots,
-                "autosave"
-        );
+        // I1: نمایش dialog با metadata کامل
+        LoadGameDialog dialog = new LoadGameDialog(mainFrame);
+        dialog.setVisible(true); // modal — اینجا block می‌کند تا dialog بسته شود
 
-        if (choice != null && !choice.trim().isEmpty()) {
-            mainFrame.loadGameFromMenu(choice);
+        String chosenSlot = dialog.getSelectedSlot();
+        if (chosenSlot != null && !chosenSlot.isBlank()) {
+            mainFrame.loadGameFromMenu(chosenSlot);
         }
     }
 
