@@ -44,7 +44,8 @@ public class GamePanel extends JPanel implements GameEventListener {
     private static class SeasonParticle {
         float x, y, speedX, speedY, size, alpha;
         SeasonParticle(float x, float y, float speedX, float speedY, float size, float alpha) {
-            this.x = x; this.y = y; this.speedX = speedX; this.speedY = speedY; this.size = size; this.alpha = alpha;
+            this.x = x; this.y = y; this.speedX = speedX; this.speedY = speedY;
+            this.size = size; this.alpha = alpha;
         }
     }
 
@@ -111,15 +112,31 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (needsRepaint) repaint();
         });
         animationTimer.start();
-        // I4: باز کردن Pause Menu با کلید Escape
+
+        // ─── I4: باز کردن Pause Menu با کلید Escape ──────────────────────────
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
                 KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "openPauseMenu");
-        getActionMap().put("openPauseMenu", new javax.swing.AbstractAction() {
+        getActionMap().put("openPauseMenu", new AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 openPauseMenu();
             }
         });
+    }
+
+    /**
+     * باز کردن Pause Menu.
+     * public است تا HUDPanel هم بتواند آن را فراخوانی کند.
+     *
+     * I3: isAnimating() و mainController.isProcessingTurn() به PauseMenuDialog پاس
+     * می‌شوند تا دکمه‌های Save در این حالات غیرفعال شوند.
+     */
+    public void openPauseMenu() {
+        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+        boolean locked = isAnimating() || mainController.isProcessingTurn();
+        PauseMenuDialog dialog = new PauseMenuDialog(parent, mainController, locked);
+        dialog.setVisible(true);
+        repaint();
     }
 
     private void updateSeasonalParticles(Season season) {
@@ -145,31 +162,22 @@ public class GamePanel extends JPanel implements GameEventListener {
         seasonParticles.removeIf(p -> p.y > panelH + 20 || p.x < -30 || p.x > panelW + 30);
     }
 
-    /**
-     * باز کردن Pause Menu با کلید Escape.
-     * I3: isAnimating() به PauseMenuDialog پاس می‌شود تا دکمه Save را disable کند.
-     * I4: منوی Pause از طریق GamePanel قابل دسترسی است.
-     */
-    private void openPauseMenu() {
-        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
-        // I3: ارسال وضعیت animation به PauseMenuDialog برای disable کردن Save
-        boolean locked = isAnimating() || mainController.isProcessingTurn();
-        PauseMenuDialog dialog = new PauseMenuDialog(parent, mainController, locked);
-        dialog.setVisible(true);
-        repaint();
-    }
-
     private SeasonParticle createParticle(Season season, int panelW, int panelH, boolean randomY) {
         float startX = particleRandom.nextFloat() * panelW;
         float startY = randomY ? particleRandom.nextFloat() * panelH : -particleRandom.nextFloat() * 20;
 
         if (season == Season.WINTER) {
-            return new SeasonParticle(startX, startY, -0.4f + particleRandom.nextFloat() * 0.8f,
-                    0.8f  + particleRandom.nextFloat() * 1.5f, 2f + particleRandom.nextFloat() * 3f,
+            return new SeasonParticle(startX, startY,
+                    -0.4f + particleRandom.nextFloat() * 0.8f,
+                    0.8f  + particleRandom.nextFloat() * 1.5f,
+                    2f + particleRandom.nextFloat() * 3f,
                     0.55f + particleRandom.nextFloat() * 0.45f);
         } else {
-            return new SeasonParticle(startX, startY, -2.5f - particleRandom.nextFloat() * 1.5f,
-                    7f + particleRandom.nextFloat() * 5f, 1f, 0.25f + particleRandom.nextFloat() * 0.3f);
+            return new SeasonParticle(startX, startY,
+                    -2.5f - particleRandom.nextFloat() * 1.5f,
+                    7f + particleRandom.nextFloat() * 5f,
+                    1f,
+                    0.25f + particleRandom.nextFloat() * 0.3f);
         }
     }
 
@@ -234,7 +242,6 @@ public class GamePanel extends JPanel implements GameEventListener {
         drawSeasonalParticles(g2d);
     }
 
-    // ─── منوی تعاملی با پشتیبانی از پیام‌های تاییدیه‌ای MVC ───
     public void showContextMenu(Point p, List<MenuAction> actions) {
         if (actions == null || actions.isEmpty()) return;
 
@@ -255,7 +262,6 @@ public class GamePanel extends JPanel implements GameEventListener {
                     item.setToolTipText(action.getDisabledReason());
             } else {
                 item.addActionListener(ev -> {
-                    // اجرای دیالوگ‌های گرافیکی مستقیماً در لایه View انجام می‌شود
                     if (action.requiresConfirmation()) {
                         int confirm = JOptionPane.showConfirmDialog(this, action.getConfirmationMessage(),
                                 "Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -361,10 +367,14 @@ public class GamePanel extends JPanel implements GameEventListener {
     public List<Hex> getBearAttackHexes() { return bearAttackHexes; }
     public float     getBearAlpha()       { return bearAlpha; }
 
-    public void startAnimation(Unit unit, Hex targetHex, int startX, int startY, int targetX, int targetY) {
-        this.animatingUnit = unit; this.animStartX = startX; this.animStartY = startY;
-        this.animTargetX = targetX; this.animTargetY = targetY; this.animTargetQ = targetHex.getQ();
-        this.animTargetR = targetHex.getR(); this.animProgress = 0.0;
+    public void startAnimation(Unit unit, Hex targetHex,
+                               int startX, int startY, int targetX, int targetY) {
+        this.animatingUnit = unit;
+        this.animStartX    = startX; this.animStartY  = startY;
+        this.animTargetX   = targetX; this.animTargetY = targetY;
+        this.animTargetQ   = targetHex.getQ();
+        this.animTargetR   = targetHex.getR();
+        this.animProgress  = 0.0;
     }
 
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}

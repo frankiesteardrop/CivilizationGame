@@ -1,18 +1,7 @@
 package view;
 
 import controller.MainController;
-import model.GameEventDispatcher;
-import model.GameMap;
-import model.Hex;
-import model.Inventory;
-import model.ResourceType;
-import model.Season;
-import model.TownHall;
-import model.Unit;
-import model.Explorer;
-import model.Builder;
-import model.Worker;
-import model.BorderExpander;
+import model.*;
 import model.GameEventListener;
 import model.ProductionCommand;
 
@@ -28,6 +17,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final GamePanel gamePanel;
     private final JPanel infoContainer;
     private final JButton endTurnBtn;
+    private final JButton pauseBtn; // I4: دکمه Pause جدید
 
     private final HUDCard foodCard;
     private final HUDCard woodCard;
@@ -59,8 +49,15 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.setOpaque(false);
         add(infoContainer, BorderLayout.CENTER);
 
+        // I4: ساخت هر دو دکمه و قرار دادن آن‌ها کنار هم در EAST
         endTurnBtn = buildEndTurnButton();
-        add(endTurnBtn, BorderLayout.EAST);
+        pauseBtn   = buildPauseButton();
+
+        JPanel eastPanel = new JPanel(new GridLayout(1, 2, 6, 0));
+        eastPanel.setOpaque(false);
+        eastPanel.add(pauseBtn);
+        eastPanel.add(endTurnBtn);
+        add(eastPanel, BorderLayout.EAST);
 
         foodCard      = new HUDCard("🍔 Food",      new Color(46, 204, 113),  false);
         woodCard      = new HUDCard("🪵 Wood",      new Color(211, 84, 0),    false);
@@ -93,6 +90,37 @@ public class HUDPanel extends JPanel implements GameEventListener {
         updateHUD();
     }
 
+    // ─── I4: دکمه Pause ───────────────────────────────────────────────────────
+
+    /**
+     * ساخت دکمه ⏸ PAUSE که Pause Menu را باز می‌کند.
+     * این دکمه همیشه فعال است — فقط دکمه‌های Save داخل Pause Menu قفل می‌شوند [I3].
+     */
+    private JButton buildPauseButton() {
+        JButton btn = new JButton("⏸  PAUSE  [ESC]");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setBackground(new Color(45, 52, 70));
+        btn.setForeground(new Color(175, 185, 210));
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.setToolTipText(
+                "<html><b>Pause Menu</b> — Save, Load, Return to Menu<br/>"
+                        + "<span style='color:#aaaaaa'>Keyboard: [Esc]</span><br/>"
+                        + "<span style='color:#e74c3c'>Note: Save is disabled during animation or turn processing</span></html>"
+        );
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(62, 72, 98)); }
+            @Override public void mouseExited(MouseEvent e)  { btn.setBackground(new Color(45, 52, 70)); }
+        });
+        // I4: باز کردن Pause Menu از طریق GamePanel (که Escape key binding هم دارد)
+        btn.addActionListener(e -> gamePanel.openPauseMenu());
+        return btn;
+    }
+
+    // ─── End Turn Button ──────────────────────────────────────────────────────
+
     private JButton buildEndTurnButton() {
         JButton btn = new JButton("END TURN");
         btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
@@ -105,7 +133,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { btn.setBackground(btn.getBackground().brighter()); }
-            @Override public void mouseExited(MouseEvent e) { updateButtonColor(); }
+            @Override public void mouseExited(MouseEvent e)  { updateButtonColor(); }
         });
 
         btn.addActionListener(e -> handleEndTurn());
@@ -124,11 +152,13 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount) { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onUnitKilled(Unit unit) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onProductionCompleted(String itemName) { SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); }); }
-    @Override public void onTurnEnded(int newTurn) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+    // ─── Event Listeners ─────────────────────────────────────────────────────
+
+    @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
+    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
+    @Override public void onUnitKilled(Unit unit)                                          { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
+    @Override public void onProductionCompleted(String itemName)                           { SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); }); }
+    @Override public void onTurnEnded(int newTurn)                                         { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
 
     @Override
     public void onStarvationChanged(boolean starving) {
@@ -136,35 +166,30 @@ public class HUDPanel extends JPanel implements GameEventListener {
             boolean wasStarving = this.isStarving;
             this.isStarving = starving;
             updateHUD();
-            if (starving && !wasStarving && !starvationAlertShown) { starvationAlertShown = true; showStarvationAlert(); }
+            if (starving && !wasStarving && !starvationAlertShown) {
+                starvationAlertShown = true;
+                showStarvationAlert();
+            }
             if (!starving) starvationAlertShown = false;
         });
     }
 
-    @Override public void onUnitStateChanged(Unit unit) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBuildingConstructed(Hex hex) { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBuildingDestroyed(Hex hex) { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onUnitStateChanged(Unit unit)       { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onBuildingConstructed(Hex hex)      { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onBuildingDestroyed(Hex hex)        { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
     @Override public void onBorderExpanded(int centerQ, int centerR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
 
-    /**
-     * نمایش اعلان بلای طبیعی در HUD.
-     * طبق spec: اگر بلا در تاریکی رخ داده، پلیر فقط alert متنی دریافت می‌کند.
-     * (حالت visible توسط DisasterController بررسی شده و notification fire شده)
-     */
     @Override
     public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
         // هیچ کاری نمی‌کند — نمایش alert به عهده onNotification است
-        // که توسط DisasterController برای رویدادهای خارج از دید fire می‌شود.
     }
 
-    /**
-     * نمایش پیام‌های سیستمی (بلایای طبیعی در تاریکی، اعلان‌های مهم) به صورت toast.
-     * رنگ نارنجی تیره برای تمایز از پیام‌های تولید (سبز).
-     */
     @Override
     public void onNotification(String message) {
         SwingUtilities.invokeLater(() -> showDisasterNotification(message));
     }
+
+    // ─── HUD Update ──────────────────────────────────────────────────────────
 
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
@@ -189,11 +214,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
         stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
         ironCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.IRON),  maxIron,  netIron));
 
-        // ─── Queue ───────────────────────────────────────────────────────────────
+        // ─── Queue ───────────────────────────────────────────────────────────
         ProductionCommand currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
             if (isStarving && currentTask.isPopulationTask()) {
-                queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
+                queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining()
+                        + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
             } else {
                 queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)");
             }
@@ -201,7 +227,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
             queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
         }
 
-        // ─── Units (نظامی + کل) ──────────────────────────────────────────────────
+        // ─── Units ───────────────────────────────────────────────────────────
         long milCount   = map.getMilitaryUnitCount();
         int  milCap     = map.getMilitaryUnitCap();
         long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
@@ -217,38 +243,30 @@ public class HUDPanel extends JPanel implements GameEventListener {
                         + "</span>";
         popCard.updateValue(unitText);
 
-        // ─── Happiness ───────────────────────────────────────────────────────────
+        // ─── Happiness ───────────────────────────────────────────────────────
         int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
         happinessCard.updateValue(formatHappinessText(happiness));
 
-        // ─── Season ──────────────────────────────────────────────────────────────
-        Season season = map.getCurrentSeason();
-        seasonCard.updateValue(formatSeasonText(season));
+        // ─── Season ──────────────────────────────────────────────────────────
+        seasonCard.updateValue(formatSeasonText(map.getCurrentSeason()));
 
-        // ─── Turn ────────────────────────────────────────────────────────────────
+        // ─── Turn ────────────────────────────────────────────────────────────
         turnCard.updateValue(String.valueOf(map.getCurrentTurn()));
 
         starvationAlertCard.setVisible(isStarving);
     }
+
+    // ─── Format Helpers ──────────────────────────────────────────────────────
 
     private String formatHappinessText(int happiness) {
         String sign = happiness > 0 ? "+" : "";
         String levelLabel;
         String levelColor;
 
-        if (happiness >= 3) {
-            levelLabel = "✨ Golden Age";
-            levelColor = "#f1c40f";
-        } else if (happiness >= -2) {
-            levelLabel = "😊 Normal";
-            levelColor = "#2ecc71";
-        } else if (happiness >= -4) {
-            levelLabel = "😠 Discontent";
-            levelColor = "#e67e22";
-        } else {
-            levelLabel = "🔥 Rebellion";
-            levelColor = "#e74c3c";
-        }
+        if      (happiness >= 3)  { levelLabel = "✨ Golden Age"; levelColor = "#f1c40f"; }
+        else if (happiness >= -2) { levelLabel = "😊 Normal";     levelColor = "#2ecc71"; }
+        else if (happiness >= -4) { levelLabel = "😠 Discontent"; levelColor = "#e67e22"; }
+        else                      { levelLabel = "🔥 Rebellion";  levelColor = "#e74c3c"; }
 
         return sign + happiness
                 + " <span style='color:" + levelColor + "; font-size:11px;'>[" + levelLabel + "]</span>";
@@ -269,6 +287,24 @@ public class HUDPanel extends JPanel implements GameEventListener {
         return amount + "<span style='color:#7f8c8d'>/" + max + "</span> "
                 + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
     }
+
+    // ─── End Turn Handler ─────────────────────────────────────────────────────
+
+    private void handleEndTurn() {
+        // I3: جلوگیری از End Turn در حین Animation یا پردازش ترن
+        if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
+
+        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+            confirmIdleMode = true;
+            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
+            updateButtonColor();
+        } else {
+            confirmIdleMode = false;
+            mainController.getTurnController().forceEndTurn();
+        }
+    }
+
+    // ─── Notification Dialogs ────────────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
@@ -334,10 +370,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.start();
     }
 
-    /**
-     * toast برای بلایای طبیعی در تاریکی و سایر اعلان‌های سیستمی.
-     * رنگ نارنجی تیره برای تمایز از تولید (سبز) و خطر (قرمز).
-     */
     private void showDisasterNotification(String message) {
         JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         notif.setUndecorated(true);
@@ -346,14 +378,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
         panel.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
         JLabel msg = new JLabel(
                 "<html><center><span style='color:white; font-family:Segoe UI; font-size:13px;'>"
-                        + message
-                        + "</span></center></html>", SwingConstants.CENTER
+                        + message + "</span></center></html>", SwingConstants.CENTER
         );
         msg.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
         panel.add(msg, BorderLayout.CENTER);
         notif.setContentPane(panel);
         notif.pack();
-        // موقعیت: گوشه چپ-پایین (برای تمایز از تولید که گوشه راست-پایین است)
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         notif.setLocation(20, screen.height - notif.getHeight() - 60);
         notif.setVisible(true);
@@ -362,17 +392,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.start();
     }
 
-    private void handleEndTurn() {
-        if (gamePanel.isAnimating()) return;
-        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
-            confirmIdleMode = true;
-            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
-            updateButtonColor();
-        } else {
-            confirmIdleMode = false;
-            mainController.getTurnController().forceEndTurn();
-        }
-    }
+    // ─── HUDCard Inner Class ─────────────────────────────────────────────────
 
     private static class HUDCard extends JPanel {
         private final JLabel label;
