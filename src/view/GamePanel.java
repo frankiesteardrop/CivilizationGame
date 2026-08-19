@@ -111,6 +111,15 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (needsRepaint) repaint();
         });
         animationTimer.start();
+        // I4: باز کردن Pause Menu با کلید Escape
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "openPauseMenu");
+        getActionMap().put("openPauseMenu", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                openPauseMenu();
+            }
+        });
     }
 
     private void updateSeasonalParticles(Season season) {
@@ -134,6 +143,20 @@ public class GamePanel extends JPanel implements GameEventListener {
         }
 
         seasonParticles.removeIf(p -> p.y > panelH + 20 || p.x < -30 || p.x > panelW + 30);
+    }
+
+    /**
+     * باز کردن Pause Menu با کلید Escape.
+     * I3: isAnimating() به PauseMenuDialog پاس می‌شود تا دکمه Save را disable کند.
+     * I4: منوی Pause از طریق GamePanel قابل دسترسی است.
+     */
+    private void openPauseMenu() {
+        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+        // I3: ارسال وضعیت animation به PauseMenuDialog برای disable کردن Save
+        boolean locked = isAnimating() || mainController.isProcessingTurn();
+        PauseMenuDialog dialog = new PauseMenuDialog(parent, mainController, locked);
+        dialog.setVisible(true);
+        repaint();
     }
 
     private SeasonParticle createParticle(Season season, int panelW, int panelH, boolean randomY) {

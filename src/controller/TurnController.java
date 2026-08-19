@@ -23,6 +23,20 @@ public class TurnController {
     }
 
     public void forceEndTurn() {
+        // I3: اطلاع به Pause Menu که Save در این لحظه مجاز نیست
+        mainController.setProcessingTurn(true);
+        try {
+            executeEndTurnLogic();
+        } finally {
+            // تضمین reset شدن flag حتی در صورت exception
+            mainController.setProcessingTurn(false);
+        }
+    }
+
+    /**
+     * منطق اصلی End Turn — جدا از flag management برای خوانایی بهتر.
+     */
+    private void executeEndTurnLogic() {
         int effectiveHappiness = mainController.getEconomyController()
                 .getEffectiveHappiness(gameMap);
 
@@ -30,7 +44,6 @@ public class TurnController {
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive()) {
                 unit.resetAP();
-
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();
                     if (t == UnitType.WORKER    || t == UnitType.SWORDSMAN
