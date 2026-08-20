@@ -4,8 +4,11 @@ package model;
  * کمپ قبیله بی‌طرف.
  *
  * F-25: دو counter برای رفتار per-turn:
- *   guardSpawnTurnCounter  → هر ۳ ترن برای قبیله دشمن
+ *   guardSpawnTurnCounter   → هر ۳ ترن برای قبیله دشمن
  *   missionOfferTurnCounter → هر ۵ ترن برای قبیله دوستانه
+ *
+ * I7: counter جدید برای رفتار Neutral State:
+ *   neutralMilitaryTurns → تعداد ترن‌های متوالی حضور نیروی نظامی در محدوده ممنوعه
  */
 public class TribeCamp extends Building {
 
@@ -13,17 +16,21 @@ public class TribeCamp extends Building {
     private boolean hasTradedThisTurn;
 
     // F-25: counter های رفتار per-turn قبیله
-    private int guardSpawnTurnCounter;    // برای Enemy: spawn guard هر ۳ ترن
-    private int missionOfferTurnCounter;  // برای Friendly: mission offer هر ۵ ترن
-    private int displeasedMilitaryTurns;  // برای Displeased: ترن‌های حضور نظامی
+    private int guardSpawnTurnCounter;     // برای Enemy: spawn guard هر ۳ ترن
+    private int missionOfferTurnCounter;   // برای Friendly: mission offer هر ۵ ترن
+    private int displeasedMilitaryTurns;   // برای Displeased: ترن‌های حضور نظامی
+
+    // I7: counter برای NeutralState — ترن‌های متوالی حضور نظامی در محدوده ممنوعه
+    private int neutralMilitaryTurns;
 
     public TribeCamp(TribeType type) {
         super(BuildingType.TRIBE_CAMP.getMaxWorkers());
-        this.tribe                  = new Tribe(type);
-        this.hasTradedThisTurn      = false;
-        this.guardSpawnTurnCounter  = 0;
+        this.tribe                   = new Tribe(type);
+        this.hasTradedThisTurn       = false;
+        this.guardSpawnTurnCounter   = 0;
         this.missionOfferTurnCounter = 0;
         this.displeasedMilitaryTurns = 0;
+        this.neutralMilitaryTurns    = 0;
         this.setMaxHp(type.getMaxHp());
         this.hp = type.getMaxHp();
     }
@@ -51,4 +58,14 @@ public class TribeCamp extends Building {
     public int  getDispleasedMilitaryTurns()     { return displeasedMilitaryTurns; }
     public void incrementDispleasedMilTurns()    { displeasedMilitaryTurns++; }
     public void resetDispleasedMilTurns()        { displeasedMilitaryTurns = 0; }
+
+    // ─── I7: Counter برای NeutralState ───────────────────────────────────────
+
+    /**
+     * تعداد ترن‌های متوالی که نیروی نظامی بازیکن در محدوده ممنوعه (شعاع ۱ از کمپ) بوده.
+     * ترن اول → هشدار؛ ترن‌های بعد → کاهش رابطه.
+     */
+    public int  getNeutralMilitaryTurns()        { return neutralMilitaryTurns; }
+    public void incrementNeutralMilTurns()       { neutralMilitaryTurns++; }
+    public void resetNeutralMilTurns()           { neutralMilitaryTurns = 0; }
 }

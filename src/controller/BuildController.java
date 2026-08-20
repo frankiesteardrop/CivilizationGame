@@ -9,8 +9,8 @@ import java.util.function.Function;
 public class BuildController {
 
     private final GameMap gameMap;
-    private final Map<BuildingType, Function<TownHall, Boolean>>      techRequirements    = new HashMap<>();
-    private final Map<BuildingType, BiPredicate<Hex, GameMap>>         terrainRequirements = new HashMap<>();
+    private final Map<BuildingType, Function<TownHall, Boolean>>    techRequirements    = new HashMap<>();
+    private final Map<BuildingType, BiPredicate<Hex, GameMap>>      terrainRequirements = new HashMap<>();
 
     public BuildController(GameMap gameMap) {
         this.gameMap = gameMap;
@@ -21,7 +21,6 @@ public class BuildController {
         techRequirements.put(BuildingType.STONE_MINE, TownHall::isStoneMineUnlocked);
         techRequirements.put(BuildingType.IRON_MINE,  TownHall::isIronMineUnlocked);
         techRequirements.put(BuildingType.SETTLEMENT, TownHall::isSettlementUnlocked);
-
         techRequirements.put(BuildingType.BAZAAR, th -> th.getLevel() >= 2);
         techRequirements.put(BuildingType.DOCK,   th -> th.getLevel() >= 2);
 
@@ -77,13 +76,11 @@ public class BuildController {
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
         if (!hex.isInsideBorder()) return false;
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
-
         if (hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
-
         if (builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) return false;
 
         TownHall th = gameMap.getTownHall();
-        if (!hasRequiredTech(type, th))         return false;
+        if (!hasRequiredTech(type, th))           return false;
         if (!isValidTerrainForBuilding(type, hex)) return false;
 
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
@@ -91,9 +88,9 @@ public class BuildController {
         }
 
         Inventory inv = th.getInventory();
-        return inv.hasEnough(ResourceType.WOOD, type.getWoodCost())
+        return inv.hasEnough(ResourceType.WOOD,  type.getWoodCost())
                 && inv.hasEnough(ResourceType.STONE, type.getStoneCost())
-                && inv.hasEnough(ResourceType.IRON, type.getIronCost());
+                && inv.hasEnough(ResourceType.IRON,  type.getIronCost());
     }
 
     private boolean hasRequiredTech(BuildingType type, TownHall th) {
@@ -107,7 +104,7 @@ public class BuildController {
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
 
-        TownHall th = gameMap.getTownHall();
+        TownHall th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
@@ -145,18 +142,48 @@ public class BuildController {
         builder.consumeAP(1);
         builder.useCharge();
         hex.setRoad(true);
-
-        // اصلاح گام چهارم: فایر کردن Eventها برای اطمینان از آپدیت بلادرنگ View
         GameEventDispatcher.fireUnitStateChanged(builder);
-        GameEventDispatcher.fireBuildingConstructed(hex); // برای Repaint نقشه
+        GameEventDispatcher.fireBuildingConstructed(hex);
         GameEventDispatcher.fireNotification("🛣️ Road successfully constructed!");
     }
 
+    /**
+     * I5: اصلاح چک‌های ناقص canBuildWall.
+     *
+     * چک‌های اضافه‌شده:
+     * 1. Builder باید روی hex یا neighbor باشد (نه فقط روی hex)
+     * 2. هر دو hex باید کشف شده (explored) باشند
+     * 3. حداقل یکی از دو hex باید داخل قلمرو باشد
+     * 4. neighbor نباید SEA یا MOUNTAIN_RANGE باشد
+     * 5. neighbor باید وجود داشته باشد
+     */
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
-        if (!hex.isInsideBorder() || hex.hasWall(dir)) return false;
+        if (dir < 0 || dir > 5) return false;
+
+        // I5: neighbor hex باید وجود داشته باشد
+        Hex neighbor = gameMap.getNeighbor(hex, dir);
+        if (neighbor == null) return false;
+
+        // I5: Builder باید روی یکی از دو hex مجاور مرز باشد
+        boolean builderOnHex      = (builder.getQ() == hex.getQ()      && builder.getR() == hex.getR());
+        boolean builderOnNeighbor = (builder.getQ() == neighbor.getQ() && builder.getR() == neighbor.getR());
+        if (!builderOnHex && !builderOnNeighbor) return false;
+
+        // I5: هر دو hex باید کشف شده باشند (طبق spec)
+        if (!hex.isExplored() || !neighbor.isExplored()) return false;
+
+        // I5: حداقل یکی از دو hex باید داخل قلمرو بازیکن باشد
+        if (!hex.isInsideBorder() && !neighbor.isInsideBorder()) return false;
+
+        // دیوار از قبل روی این مرز وجود ندارد
+        if (hex.hasWall(dir)) return false;
+
+        // I5: مرزهای مربوط به دریا یا رشته‌کوه غیرمجاز است (هر دو طرف چک می‌شوند)
         if (hex.getTerrainType() == TerrainType.SEA
                 || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
+        if (neighbor.getTerrainType() == TerrainType.SEA
+                || neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         Inventory inv = gameMap.getTownHall().getInventory();
         if (!inv.hasEnough(ResourceType.WOOD,  10)
@@ -168,7 +195,7 @@ public class BuildController {
     public void buildWall(Builder builder, Hex hex, int dir) {
         if (!canBuildWall(hex, dir, builder)) return;
 
-        gameMap.getTownHall().getInventory().consumeResource(ResourceType.WOOD, 10);
+        gameMap.getTownHall().getInventory().consumeResource(ResourceType.WOOD,  10);
         gameMap.getTownHall().getInventory().consumeResource(ResourceType.STONE, 20);
 
         builder.consumeAP(2);
@@ -178,7 +205,6 @@ public class BuildController {
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
 
-        // فایر کردن Eventها برای دیوار (مشابه جاده)
         GameEventDispatcher.fireUnitStateChanged(builder);
         GameEventDispatcher.fireBuildingConstructed(hex);
         GameEventDispatcher.fireNotification("🧱 Defensive wall successfully constructed!");
@@ -195,20 +221,15 @@ public class BuildController {
         if (type.equals("BUILDING")) {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed()) return false;
-
-            if (b.getType() == BuildingType.TOWN_HALL)     return false;
-            if (b.getType() == BuildingType.TRIBE_CAMP)    return false;
-            if (b.getType() == BuildingType.TRADING_POST)  return false;
-
+            if (b.getType() == BuildingType.TOWN_HALL)    return false;
+            if (b.getType() == BuildingType.TRIBE_CAMP)   return false;
+            if (b.getType() == BuildingType.TRADING_POST) return false;
             return true;
-
         } else if (type.equals("ROAD")) {
             return hex.hasRoad();
-
         } else if (type.equals("WALL")) {
             return hex.hasWall(dir);
         }
-
         return false;
     }
 
@@ -232,14 +253,12 @@ public class BuildController {
 
         } else if (type.equals("ROAD")) {
             hex.setRoad(false);
-            // آپدیت بصری تخریب جاده
             GameEventDispatcher.fireBuildingConstructed(hex);
 
         } else if (type.equals("WALL")) {
             hex.setWall(dir, false, 0);
             Hex neighbor = gameMap.getNeighbor(hex, dir);
             if (neighbor != null) neighbor.setWall((dir + 3) % 6, false, 0);
-            // آپدیت بصری تخریب دیوار
             GameEventDispatcher.fireBuildingConstructed(hex);
         }
         GameEventDispatcher.fireUnitStateChanged(builder);
