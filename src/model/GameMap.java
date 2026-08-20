@@ -8,7 +8,6 @@ public class GameMap {
     private final Map<String, Hex> hexMap;
     private final Repository<Unit> units;
     private final int radius;
-    // تغییر final بودن random برای قابلیت لود شدن بهتر توسط Gson
     private Random random;
     private final TownHall townHall;
     private int currentTurn = 1;
@@ -249,9 +248,21 @@ public class GameMap {
 
     public void incrementTurn() { currentTurn++; }
 
+    /**
+     * اصلاح M4: updateFogOfWar حالا دو مرحله جداگانه دارد:
+     *
+     * مرحله ۱ (موجود): ساختمان‌ها و یونیت‌ها hex‌ها را visible/explored می‌کنند.
+     * مرحله ۲ (جدید): فقط یونیت‌ها (نه ساختمان‌ها) TribeCamp را discovered می‌کنند.
+     *
+     * دلیل جداسازی: spec می‌گوید «کشف شدن قبیله» نیاز به یونیت دارد، نه ساختمان.
+     * ساختمان می‌تواند hex را visible کند (می‌توان کمپ را دید) اما نمی‌تواند
+     * قبیله را «کشف‌شده» کند (نمی‌توان با آن تعامل کرد).
+     */
     public void updateFogOfWar() {
+        // ─── مرحله ۱: reset تمام hexها ───────────────────────────────────────
         for (Hex hex : hexes.getAll()) hex.setVisible(false);
 
+        // ─── مرحله ۲: ساختمان‌ها → visible + explored ────────────────────────
         for (Hex hex : hexes.getAll()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed()) {
@@ -260,11 +271,13 @@ public class GameMap {
                             other.getQ(), other.getR()) <= b.getVisionRadius()) {
                         other.setVisible(true);
                         other.setExplored(true);
+                        // M4: ساختمان‌ها TribeCamp را discovered نمی‌کنند
                     }
                 }
             }
         }
 
+        // ─── مرحله ۳: یونیت‌ها → visible + (Explorer) explored ───────────────
         for (Unit unit : units.getAll()) {
             if (!unit.isAlive()) continue;
             boolean isExplorer = (unit instanceof Explorer);
@@ -273,6 +286,23 @@ public class GameMap {
                         hex.getQ(), hex.getR()) <= unit.getVisionRadius()) {
                     hex.setVisible(true);
                     if (isExplorer) hex.setExplored(true);
+                }
+            }
+        }
+
+        // ─── مرحله ۴ (M4): یونیت‌ها → TribeCamp.discovered ──────────────────
+        // فقط هنگامی که یک یونیت (هر نوعی — نه ساختمان) کمپ را ببیند،
+        // قبیله «کشف‌شده» محسوب می‌شود و پنل تعامل باز می‌شود.
+        for (Hex hex : hexes.getAll()) {
+            if (!(hex.getBuilding() instanceof TribeCamp camp)) continue;
+            if (camp.isDiscovered()) continue; // already discovered — skip expensive loop
+
+            for (Unit unit : units.getAll()) {
+                if (!unit.isAlive()) continue;
+                if (getHexDistance(unit.getQ(), unit.getR(),
+                        hex.getQ(), hex.getR()) <= unit.getVisionRadius()) {
+                    camp.setDiscovered(true);
+                    break; // one unit is enough
                 }
             }
         }
@@ -313,9 +343,9 @@ public class GameMap {
         return getHexAt(startQ, startR);
     }
 
-    public int getBearCooldown() { return bearCooldown; }
+    public int getBearCooldown()          { return bearCooldown; }
     public void setBearCooldown(int turns) { this.bearCooldown = turns; }
-    public void decrementBearCooldown() { if (bearCooldown > 0) bearCooldown--; }
+    public void decrementBearCooldown()   { if (bearCooldown > 0) bearCooldown--; }
 
     public boolean hasUnitAt(int q, int r) {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
@@ -332,8 +362,8 @@ public class GameMap {
     public long getMilitaryUnitCount() {
         return units.stream().filter(u -> u.isAlive()
                 && (u.getType() == UnitType.SWORDSMAN
-                || u.getType() == UnitType.ARCHER
-                || u.getType() == UnitType.CAVALRY)).count();
+                ||  u.getType() == UnitType.ARCHER
+                ||  u.getType() == UnitType.CAVALRY)).count();
     }
 
     public int getHexDistance(int q1, int r1, int q2, int r2) {
@@ -365,11 +395,9 @@ public class GameMap {
     public boolean    isStarving()     { return isStarving; }
     public void       setStarving(boolean s) { this.isStarving = s; }
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
-
-    // متد اضافه شده برای رعایت اصل Deterministic Save/Load
     public Random     getRandom()      { return random; }
 
-    // ─── متدهای انتقال یافته از TribeController برای رعایت MVC ───
+    // ─── متدهای کمکی برای TribeController و GameMap ─────────────────────────
 
     public Hex getHexOfBuilding(Building building) {
         for (Hex h : hexes.getAll()) {
@@ -381,8 +409,10 @@ public class GameMap {
     public Hex findNearbyEmptyHex(int centerQ, int centerR, int radius) {
         for (Hex h : hexes.getAll()) {
             int dist = getHexDistance(centerQ, centerR, h.getQ(), h.getR());
-            if (dist > 0 && dist <= radius && h.getTerrainType() != TerrainType.SEA
-                    && h.getTerrainType() != TerrainType.MOUNTAIN_RANGE && !hasUnitAt(h.getQ(), h.getR())
+            if (dist > 0 && dist <= radius
+                    && h.getTerrainType() != TerrainType.SEA
+                    && h.getTerrainType() != TerrainType.MOUNTAIN_RANGE
+                    && !hasUnitAt(h.getQ(), h.getR())
                     && (h.getBuilding() == null || h.getBuilding().isDestroyed())) {
                 return h;
             }
@@ -394,8 +424,8 @@ public class GameMap {
         Hex campHex = getHexOfBuilding(camp);
         if (campHex == null) return false;
 
-        Set<Hex> visited = new HashSet<>();
-        Queue<Hex> queue = new LinkedList<>();
+        Set<Hex>   visited = new HashSet<>();
+        Queue<Hex> queue   = new LinkedList<>();
 
         for (int i = 0; i < 6; i++) {
             Hex n = getNeighbor(campHex, i);
@@ -408,8 +438,9 @@ public class GameMap {
         while (!queue.isEmpty()) {
             Hex current = queue.poll();
             Building b = current.getBuilding();
-            if (b != null && !b.isDestroyed() &&
-                    !(b instanceof TribeCamp) && !(b instanceof TradingPost)) {
+            if (b != null && !b.isDestroyed()
+                    && !(b instanceof TribeCamp)
+                    && !(b instanceof TradingPost)) {
                 return true;
             }
             for (int i = 0; i < 6; i++) {
@@ -428,7 +459,8 @@ public class GameMap {
         if (campHex == null) return false;
 
         for (Hex h : hexes.getAll()) {
-            if (getHexDistance(campHex.getQ(), campHex.getR(), h.getQ(), h.getR()) <= radius) {
+            if (getHexDistance(campHex.getQ(), campHex.getR(),
+                    h.getQ(), h.getR()) <= radius) {
                 Building b = h.getBuilding();
                 if (b != null && b.getType() == BuildingType.DOCK && !b.isDestroyed()) {
                     return true;

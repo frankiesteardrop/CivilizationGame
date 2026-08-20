@@ -113,7 +113,7 @@ public class GamePanel extends JPanel implements GameEventListener {
         });
         animationTimer.start();
 
-        // ─── I4: باز کردن Pause Menu با کلید Escape ──────────────────────────
+        // I4 (گام ۳): باز کردن Pause Menu با کلید Escape
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
                 KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "openPauseMenu");
         getActionMap().put("openPauseMenu", new AbstractAction() {
@@ -127,9 +127,7 @@ public class GamePanel extends JPanel implements GameEventListener {
     /**
      * باز کردن Pause Menu.
      * public است تا HUDPanel هم بتواند آن را فراخوانی کند.
-     *
-     * I3: isAnimating() و mainController.isProcessingTurn() به PauseMenuDialog پاس
-     * می‌شوند تا دکمه‌های Save در این حالات غیرفعال شوند.
+     * I3: isAnimating() و mainController.isProcessingTurn() پاس می‌شوند.
      */
     public void openPauseMenu() {
         JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
@@ -282,16 +280,29 @@ public class GamePanel extends JPanel implements GameEventListener {
         popup.show(this, p.x, p.y);
     }
 
+    /**
+     * M4: اصلاح بررسی کشف‌شدن قبیله.
+     *
+     * قبلاً: campHex.isExplored() — ساختمان‌ها هم می‌توانستند این را true کنند.
+     * حالا: camp.isDiscovered() — فقط یونیت‌ها می‌توانند این را true کنند
+     * (در updateFogOfWar() مرحله ۴).
+     *
+     * نتیجه: بازیکن باید فیزیکاً یونیتی به کمپ نزدیک کند تا بتواند با قبیله تعامل داشته باشد.
+     */
     public void onTribeInteractionTriggered(Hex campHex) {
         if (campHex == null || !(campHex.getBuilding() instanceof TribeCamp)) return;
         if (campHex.getBuilding().isDestroyed()) return;
-        if (!campHex.isExplored()) {
-            GameEventDispatcher.fireNotification("⚠️ This tribe has not been discovered yet.");
+
+        TribeCamp camp = (TribeCamp) campHex.getBuilding();
+
+        // M4: بررسی discovered flag (نه isExplored) طبق spec
+        if (!camp.isDiscovered()) {
+            GameEventDispatcher.fireNotification(
+                    "⚠️ This tribe has not been discovered yet. Send a unit to explore the area.");
             return;
         }
 
-        TribeCamp camp   = (TribeCamp) campHex.getBuilding();
-        JFrame    parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+        JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
         TribeInteractionDialog dialog = new TribeInteractionDialog(
                 parent, camp, mainController, this::repaint);
         dialog.setVisible(true);
@@ -303,8 +314,8 @@ public class GamePanel extends JPanel implements GameEventListener {
         SwingUtilities.invokeLater(() -> {
             if (center == null || !center.isVisible()) return;
             switch (type) {
-                case "EARTHQUAKE" -> shakeDuration = 30;
-                case "FLOOD"      -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
+                case "EARTHQUAKE"  -> shakeDuration = 30;
+                case "FLOOD"       -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
                 case "BEAR_ATTACK" -> {
                     bearAttackHexes = new ArrayList<>(affected);
                     bearAlpha = 0f;
@@ -343,34 +354,34 @@ public class GamePanel extends JPanel implements GameEventListener {
         return mainController.getGameMap().getHexAt(hexQ, hexR);
     }
 
-    public boolean   isAnimating()     { return animatingUnit != null; }
-    public Unit      getSelectedUnit() { return selectedUnit; }
+    public boolean   isAnimating()       { return animatingUnit != null; }
+    public Unit      getSelectedUnit()   { return selectedUnit; }
     public void      setSelectedUnit(Unit u) { this.selectedUnit = u; }
     public Unit      getAnimatingUnit()  { return animatingUnit; }
-    public Hex       getHoveredHex()   { return hoveredHex; }
+    public Hex       getHoveredHex()     { return hoveredHex; }
     public void      setHoveredHex(Hex h) { this.hoveredHex = h; }
-    public double    getZoomFactor()   { return zoomFactor; }
-    public int       getZoomIndex()    { return zoomIndex; }
+    public double    getZoomFactor()     { return zoomFactor; }
+    public int       getZoomIndex()      { return zoomIndex; }
     public void      setZoomIndex(int i) { this.zoomIndex = i; this.zoomFactor = ZOOM_LEVELS[i]; }
-    public int       getOffsetX()      { return offsetX; }
-    public void      setOffsetX(int x) { this.offsetX = x; }
-    public int       getOffsetY()      { return offsetY; }
-    public void      setOffsetY(int y) { this.offsetY = y; }
-    public double    getPulseScale()   { return pulseScale; }
-    public double    getAnimProgress() { return animProgress; }
-    public int       getAnimStartX()   { return animStartX; }
-    public int       getAnimStartY()   { return animStartY; }
-    public int       getAnimTargetX()  { return animTargetX; }
-    public int       getAnimTargetY()  { return animTargetY; }
+    public int       getOffsetX()        { return offsetX; }
+    public void      setOffsetX(int x)   { this.offsetX = x; }
+    public int       getOffsetY()        { return offsetY; }
+    public void      setOffsetY(int y)   { this.offsetY = y; }
+    public double    getPulseScale()     { return pulseScale; }
+    public double    getAnimProgress()   { return animProgress; }
+    public int       getAnimStartX()     { return animStartX; }
+    public int       getAnimStartY()     { return animStartY; }
+    public int       getAnimTargetX()    { return animTargetX; }
+    public int       getAnimTargetY()    { return animTargetY; }
     public List<Hex> getFloodedHexes()   { return floodedHexes; }
-    public float     getFloodAlpha()      { return floodAlpha; }
-    public List<Hex> getBearAttackHexes() { return bearAttackHexes; }
-    public float     getBearAlpha()       { return bearAlpha; }
+    public float     getFloodAlpha()     { return floodAlpha; }
+    public List<Hex> getBearAttackHexes(){ return bearAttackHexes; }
+    public float     getBearAlpha()      { return bearAlpha; }
 
     public void startAnimation(Unit unit, Hex targetHex,
                                int startX, int startY, int targetX, int targetY) {
         this.animatingUnit = unit;
-        this.animStartX    = startX; this.animStartY  = startY;
+        this.animStartX    = startX;  this.animStartY  = startY;
         this.animTargetX   = targetX; this.animTargetY = targetY;
         this.animTargetQ   = targetHex.getQ();
         this.animTargetR   = targetHex.getR();
@@ -379,13 +390,13 @@ public class GamePanel extends JPanel implements GameEventListener {
 
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit unit, int oQ, int oR, int nQ, int nR) { repaint(); }
-    @Override public void onUnitKilled(Unit unit) { repaint(); }
-    @Override public void onProductionCompleted(String itemName) {}
+    @Override public void onUnitKilled(Unit unit)                                  { repaint(); }
+    @Override public void onProductionCompleted(String itemName)                   {}
     @Override public void onTurnEnded(int newTurn) { floodedHexes.clear(); floodAlpha = 0f; repaint(); }
-    @Override public void onStarvationChanged(boolean s) {}
-    @Override public void onUnitStateChanged(Unit unit) { repaint(); }
-    @Override public void onBuildingConstructed(Hex hex) { repaint(); }
-    @Override public void onBuildingDestroyed(Hex hex) { repaint(); }
-    @Override public void onBorderExpanded(int cq, int cr) { repaint(); }
-    @Override public void onNotification(String message) {}
+    @Override public void onStarvationChanged(boolean s)                           {}
+    @Override public void onUnitStateChanged(Unit unit)                            { repaint(); }
+    @Override public void onBuildingConstructed(Hex hex)                           { repaint(); }
+    @Override public void onBuildingDestroyed(Hex hex)                             { repaint(); }
+    @Override public void onBorderExpanded(int cq, int cr)                         { repaint(); }
+    @Override public void onNotification(String message)                           {}
 }

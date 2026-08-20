@@ -1,12 +1,14 @@
 package model;
 
+import java.util.LinkedList;
+import java.util.Queue;
+
 public abstract class ProductionCommand {
     private final String name;
     private int turnsRemaining;
     private final boolean isPopulationTask;
     private boolean isCanceled;
 
-    // زمینه (Context) برای اجرا شدن. در هنگام لودینگ تزریق می‌شود
     protected transient GameMap contextMap;
 
     public ProductionCommand(String name, int turnsRemaining, boolean isPopulationTask) {
@@ -16,10 +18,10 @@ public abstract class ProductionCommand {
         this.isCanceled = false;
     }
 
-    public String getName() { return name; }
-    public int getTurnsRemaining() { return turnsRemaining; }
-    public boolean isPopulationTask() { return isPopulationTask; }
-    public boolean isCanceled() { return isCanceled; }
+    public String getName()              { return name; }
+    public int    getTurnsRemaining()    { return turnsRemaining; }
+    public boolean isPopulationTask()   { return isPopulationTask; }
+    public boolean isCanceled()         { return isCanceled; }
     public void setContextMap(GameMap map) { this.contextMap = map; }
 
     public void decrementTurn() {
@@ -27,12 +29,12 @@ public abstract class ProductionCommand {
     }
 
     public boolean isCompleted() { return turnsRemaining <= 0; }
-    public void cancel() { this.isCanceled = true; }
+    public void cancel()         { this.isCanceled = true; }
 
     public abstract void execute();
     public abstract String getCommandType();
 
-    // ─── Concrete Commands (داینامیک و قابل سریالایز شدن) ───
+    // ─── Concrete Commands ────────────────────────────────────────────────────
 
     public static class TechCommand extends ProductionCommand {
         private final String techId;
@@ -50,10 +52,10 @@ public abstract class ProductionCommand {
         public void execute() {
             TownHall th = contextMap.getTownHall();
             switch (techId) {
-                case "STONE_MINE" -> th.setStoneMineUnlocked(true);
-                case "IRON_MINE" -> th.setIronMineUnlocked(true);
-                case "PROF_TOOLS" -> th.setSteelToolsUnlocked(true);
-                case "SEAFARING" -> th.setSeafaringUnlocked(true);
+                case "STONE_MINE"     -> th.setStoneMineUnlocked(true);
+                case "IRON_MINE"      -> th.setIronMineUnlocked(true);
+                case "PROF_TOOLS"     -> th.setSteelToolsUnlocked(true);
+                case "SEAFARING"      -> th.setSeafaringUnlocked(true);
                 case "DEFENSIVE_ARCH" -> {
                     th.applyDefensiveArchitecture();
                     buildWallsAroundTownHall();
@@ -62,8 +64,8 @@ public abstract class ProductionCommand {
         }
 
         private void buildWallsAroundTownHall() {
-            TownHall th = contextMap.getTownHall();
-            Hex thHex = contextMap.getHexAt(th.getQ(), th.getR());
+            TownHall th    = contextMap.getTownHall();
+            Hex      thHex = contextMap.getHexAt(th.getQ(), th.getR());
             if (thHex == null) return;
             for (int i = 0; i < 6; i++) {
                 thHex.setWall(i, true, 100);
@@ -88,16 +90,23 @@ public abstract class ProductionCommand {
 
         @Override
         public void execute() {
-            TownHall th = contextMap.getTownHall();
-            Hex spawnHex = contextMap.findEmptySpawnHex(th.getQ(), th.getR());
+            TownHall th       = contextMap.getTownHall();
+            Hex      spawnHex = contextMap.findEmptySpawnHex(th.getQ(), th.getR());
             int tq = spawnHex != null ? spawnHex.getQ() : th.getQ();
             int tr = spawnHex != null ? spawnHex.getR() : th.getR();
 
             contextMap.addUnit(UnitFactory.createUnit(unitType, tq, tr));
 
-            if (unitType == UnitType.SWORDSMAN || unitType == UnitType.ARCHER || unitType == UnitType.CAVALRY) {
+            // M3: Notification هنگام رسیدن به سقف یونیت نظامی + کاهش Happiness
+            if (unitType == UnitType.SWORDSMAN
+                    || unitType == UnitType.ARCHER
+                    || unitType == UnitType.CAVALRY) {
                 if (contextMap.getMilitaryUnitCount() >= contextMap.getMilitaryUnitCap()) {
                     th.addHappiness(-1);
+                    // M3: اطلاع‌رسانی واضح به بازیکن طبق spec
+                    GameEventDispatcher.fireNotification(
+                            "⚔️ Military Unit Cap reached! (Cap: "
+                                    + contextMap.getMilitaryUnitCap() + ") -1 Happiness.");
                 }
             }
         }

@@ -193,6 +193,12 @@ public class SaveLoadController {
                 Mission m = camp.getTribe().getMission();
                 if (m != null) {
                     m.setGoal(camp.getTribe().getType().getMissionGoal());
+                    // M4: Backward compatibility — saves before this version had no 'discovered' field
+// Gson deserializes missing boolean fields as false (default).
+// If the tribe camp hex was already explored in the old save, treat it as discovered.
+                    if (!camp.isDiscovered() && hex.isExplored()) {
+                        camp.setDiscovered(true);
+                    }
                 }
             }
 

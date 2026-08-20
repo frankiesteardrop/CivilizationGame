@@ -25,7 +25,6 @@ public class CombatController {
         this.damageChain = swordsman;
     }
 
-    // اصلاح گام دوم: اضافه شدن فلگ قطعی isSiegeAttack برای جلوگیری از باگ گاردهای روئین‌تن
     public int executeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex,
                              boolean isSiegeAttack, boolean isTargetAnimal,
                              boolean targetHasWall) {
@@ -48,7 +47,7 @@ public class CombatController {
         if (validAttackers.stream().anyMatch(u -> u.getCurrentAP() < 1)) return -1;
 
         if (dist == 1) {
-            long swords = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
+            long swords  = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
             long archers = validAttackers.stream().filter(u -> u.getType() == UnitType.ARCHER).count();
             long cavs    = validAttackers.stream().filter(u -> u.getType() == UnitType.CAVALRY).count();
             if (swords > 2 || archers > 2 || cavs > 1) return -1;
@@ -56,15 +55,26 @@ public class CombatController {
 
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // ─── Siege ───
+        // ─── Siege Attack ─────────────────────────────────────────────────────
         if (isSiegeAttack) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
 
             int dir = getDirection(sourceHex, targetHex);
             if (dir >= 0 && targetHasWall) {
+                // M5: اعمال آسیب به هر دو طرف دیوار به طور همزمان
                 targetHex.damageWall((dir + 3) % 6, siegeDmg);
                 sourceHex.damageWall(dir, siegeDmg);
-                GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
+
+                // M5: اگر هر یک از دو طرف destroyed شد، هر دو را clear کن
+                // این از inconsistency جلوگیری می‌کند (یک طرف destroyed، طرف دیگر هنوز HP دارد)
+                if (!targetHex.hasWall((dir + 3) % 6) || !sourceHex.hasWall(dir)) {
+                    targetHex.setWall((dir + 3) % 6, false, 0);
+                    sourceHex.setWall(dir, false, 0);
+                    GameEventDispatcher.fireNotification("🧱 Wall destroyed!");
+                } else {
+                    GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
+                }
+
             } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
                 Building b = targetHex.getBuilding();
                 b.takeDamage(siegeDmg);
@@ -73,7 +83,8 @@ public class CombatController {
                 if (b.isDestroyed()) {
                     GameEventDispatcher.fireBuildingDestroyed(targetHex);
                     if (b instanceof TribeCamp camp) {
-                        GameEventDispatcher.fireNotification("⛺ " + camp.getTribe().getType().getDisplayName() + " tribe defeated!");
+                        GameEventDispatcher.fireNotification(
+                                "⛺ " + camp.getTribe().getType().getDisplayName() + " tribe defeated!");
                         targetHex.setInsideBorder(true);
                         map.getTownHall().getInventory().addResource(ResourceType.FOOD, 50);
                         map.getTownHall().getInventory().addResource(ResourceType.WOOD, 50);
@@ -91,16 +102,15 @@ public class CombatController {
             return siegeDmg;
         }
 
-        // ─── Unit Combat ───
-        int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
+        // ─── Unit Combat (Dice) ───────────────────────────────────────────────
+        int attackerDiceCount = (dist == 2) ? 1
+                : (int) validAttackers.stream().map(Unit::getType).distinct().count();
 
-        // اصلاح گام دوم: تمام دشمنان در بازی یا حیوان هستند یا بربر/نیروی دشمن.
-        // پس اگر حمله محاصره نبود و هدف حیوان هم نبود، قطعا نیروی انسانی دشمن است (۲ تاس تدافعی).
         int defenderDiceCount = isTargetAnimal ? 1 : 2;
-        int wallModifier = (dist == 1 && targetHasWall) ? 2 : 0;
+        int wallModifier      = (dist == 1 && targetHasWall) ? 2 : 0;
 
-        List<Integer> attackerRolls = rollDice(attackerDiceCount, 0);
-        List<Integer> defenderRolls = rollDice(defenderDiceCount, wallModifier);
+        List<Integer> attackerRolls  = rollDice(attackerDiceCount, 0);
+        List<Integer> defenderRolls  = rollDice(defenderDiceCount, wallModifier);
 
         int attackerTakesDmg = 0;
         int defenderTakesDmg = 0;
@@ -120,9 +130,13 @@ public class CombatController {
 
         if (defenderTakesDmg > 0) {
             List<Unit> validDefenders = map.getUnits().stream()
-                    .filter(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
-                            && (isTargetAnimal ? u.getType() == UnitType.BEAR :
-                            (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY)))
+                    .filter(u -> u.isAlive()
+                            && u.getQ() == targetHex.getQ()
+                            && u.getR() == targetHex.getR()
+                            && (isTargetAnimal ? u.getType() == UnitType.BEAR
+                            : (u.getType() == UnitType.SWORDSMAN
+                            || u.getType() == UnitType.ARCHER
+                            || u.getType() == UnitType.CAVALRY)))
                     .collect(Collectors.toList());
 
             if (isTargetAnimal) {
@@ -137,10 +151,10 @@ public class CombatController {
             }
         }
 
-        // ایمنی نهایی: پاکسازی فوری کشته‌شدگان نبرد
         map.removeDeadUnits();
 
-        GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
+        GameEventDispatcher.fireCombatTriggered(
+                attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
         return defenderTakesDmg;
     }
 
