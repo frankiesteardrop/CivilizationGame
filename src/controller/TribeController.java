@@ -43,32 +43,25 @@ public class TribeController implements GameEventListener {
     }
 
     /**
-     * I6: اصلاح انتخاب بهترین hex برای قبیله ساحلی.
-     *
-     * قبلاً COASTAL → TerrainType.PLAINS بود که هیچ تضمینی برای مجاورت با دریا نداشت.
-     * حالا برای COASTAL، ابتدا hex‌های ساحلی واقعی (مجاور دریا) جستجو می‌شوند.
+     * I6 (گام ۵): اصلاح انتخاب بهترین hex برای قبیله ساحلی.
      */
     private Hex findBestHexForTribe(TribeType type, List<Hex> candidates, List<Hex> occupied) {
-        // I6: قبیله ساحلی باید روی hex مجاور دریا قرار گیرد
         if (type == TribeType.COASTAL) {
-            // اولویت اول: hex زمینی که حداقل یک همسایه دریایی دارد
             for (Hex h : candidates) {
                 if (isCoastalHex(h) && isFarEnough(h, occupied)) return h;
             }
-            // fallback: هر hex معتبر که به اندازه کافی دور باشد
             for (Hex h : candidates) {
                 if (isFarEnough(h, occupied)) return h;
             }
             return null;
         }
 
-        // سایر قبیله‌ها: انتخاب بر اساس terrain ترجیحی
         TerrainType preferred = switch (type) {
-            case FARMER   -> TerrainType.MEADOW;
-            case WARRIOR  -> TerrainType.PLAINS;
+            case FARMER     -> TerrainType.MEADOW;
+            case WARRIOR    -> TerrainType.PLAINS;
             case COMMERCIAL -> TerrainType.PLAINS;
-            case MOUNTAIN -> TerrainType.MOUNTAIN;
-            default       -> TerrainType.PLAINS;
+            case MOUNTAIN   -> TerrainType.MOUNTAIN;
+            default         -> TerrainType.PLAINS;
         };
 
         for (Hex h : candidates) {
@@ -80,10 +73,6 @@ public class TribeController implements GameEventListener {
         return null;
     }
 
-    /**
-     * I6: بررسی اینکه آیا یک hex «ساحلی» است:
-     * یعنی خودش زمینی باشد (نه دریا/رشته‌کوه) و حداقل یک همسایه دریایی داشته باشد.
-     */
     private boolean isCoastalHex(Hex h) {
         if (h.getTerrainType() == TerrainType.SEA
                 || h.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
@@ -105,7 +94,6 @@ public class TribeController implements GameEventListener {
     // ─── اجرای ترن قبیله با استفاده از State Pattern ───────────────────────
 
     public void processTribesTurn() {
-        // ۱. بررسی شرایط مأموریت‌ها توسط MissionState
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
                 Mission m = camp.getTribe().getMission();
@@ -115,7 +103,6 @@ public class TribeController implements GameEventListener {
 
         List<Runnable> deferredActions = new ArrayList<>();
 
-        // ۲. هندل کردن تایمر مأموریت و رفتار خود قبیله (TribeState)
         for (Hex hex : map.getHexes()) {
             if (!(hex.getBuilding() instanceof TribeCamp camp) || camp.isDestroyed()) continue;
 
@@ -133,7 +120,7 @@ public class TribeController implements GameEventListener {
         }
     }
 
-    // ─── تعاملات و دیپلماسی (وابسته به State) ───────────────────────────────
+    // ─── تعاملات و دیپلماسی ─────────────────────────────────────────────────
 
     public void acceptMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();
@@ -163,15 +150,27 @@ public class TribeController implements GameEventListener {
         return m.getState().deliver(m, camp, map);
     }
 
+    /**
+     * I10: اصلاح formAlliance — افزودن چک cooldown مأموریت شکست‌خورده.
+     *
+     * طبق spec: «فقط زمانی فعال است که... هیچ مأموریت فعال شکست‌خوردهای از آن قبیله
+     * در ۵ Turn اخیر نداشته باشد.»
+     *
+     * missionCooldown بعد از هر شکست مأموریت به ۵ set می‌شود و هر ترن یک واحد کم می‌شود.
+     * پس missionCooldown > 0 دقیقاً معادل «شکست مأموریت در ۵ ترن اخیر» است.
+     */
     public boolean formAlliance(Tribe targetTribe) {
         if (!targetTribe.canFormAlliance()) return false;
+
+        // I10: بررسی شرط عدم شکست مأموریت در ۵ ترن اخیر
+        if (targetTribe.getMissionCooldown() > 0) return false;
 
         boolean hasFarmer = false, hasMountain = false, hasWarrior = false;
         for (Hex h : map.getHexes()) {
             if (h.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
                 Tribe t = camp.getTribe();
                 if (!t.isAllied()) continue;
-                if (t.getType() == TribeType.FARMER)   hasFarmer  = true;
+                if (t.getType() == TribeType.FARMER)   hasFarmer   = true;
                 if (t.getType() == TribeType.MOUNTAIN) hasMountain = true;
                 if (t.getType() == TribeType.WARRIOR)  hasWarrior  = true;
             }
@@ -188,14 +187,47 @@ public class TribeController implements GameEventListener {
         return true;
     }
 
-    public boolean sendGift(Tribe tribe, ResourceType resourceType) {
+    /**
+     * I11: اصلاح sendGift — پذیرش مقدار دلخواه از بازیکن با محاسبه proportional relation gain.
+     *
+     * طبق spec:
+     *   هر ۱۰ واحد غذا یا چوب → +۲ رابطه
+     *   هر ۱۰ واحد سنگ → +۳ رابطه
+     *   هر ۵ واحد آهن → +۳ رابطه
+     *   مقدار رابطه هیچ‌وقت از ۱۰۰ بیشتر نمی‌شود (addRelationship این را handle می‌کند).
+     *
+     * @param amount مقدار منبع انتخاب‌شده توسط بازیکن
+     */
+    public boolean sendGift(Tribe tribe, ResourceType resourceType, int amount) {
         if (!tribe.canReceiveGift()) return false;
-        int requiredAmount = (resourceType == ResourceType.IRON) ? 5 : 10;
-        int relationGain   = (resourceType == ResourceType.STONE
-                || resourceType == ResourceType.IRON) ? 3 : 2;
+        if (amount <= 0) return false;
 
-        if (!map.getTownHall().getInventory().consumeResource(resourceType, requiredAmount)) return false;
+        // حداقل واحد معنادار برای هدیه
+        int unitSize = (resourceType == ResourceType.IRON) ? 5 : 10;
+        if (amount < unitSize) return false;
+
+        // بررسی موجودی قبل از برداشت
+        if (!map.getTownHall().getInventory().hasEnough(resourceType, amount)) return false;
+
+        // I11: محاسبه proportional relation gain طبق spec
+        int relationGain;
+        if (resourceType == ResourceType.IRON) {
+            relationGain = (amount / 5) * 3;   // هر ۵ آهن → +۳
+        } else if (resourceType == ResourceType.STONE) {
+            relationGain = (amount / 10) * 3;  // هر ۱۰ سنگ → +۳
+        } else {
+            // FOOD و WOOD
+            relationGain = (amount / 10) * 2;  // هر ۱۰ واحد → +۲
+        }
+
+        if (relationGain <= 0) return false;
+
+        map.getTownHall().getInventory().consumeResource(resourceType, amount);
         tribe.addRelationship(relationGain);
+
+        GameEventDispatcher.fireNotification(String.format(
+                "🎁 Gift sent: %d %s → +%d relation with %s",
+                amount, resourceType.name(), relationGain, tribe.getType().getDisplayName()));
         return true;
     }
 
