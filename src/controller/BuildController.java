@@ -34,11 +34,22 @@ public class BuildController {
                         && (hex.getResourceSubtype() == ResourceSubtype.WHEAT
                         || hex.getResourceSubtype() == ResourceSubtype.RICE));
 
+        /**
+         * N1: اصلاح شرط terrain برای اصطبل.
+         *
+         * spec: «اصطبل نظامی فقط روی هکس‌های دشت یا هکس‌هایی که منبع اسب دارند ساخته شود.»
+         *
+         * قبلاً: PLAINS && (CATTLE || SHEEP) — محدودیت بیشتر از spec بود.
+         * این یعنی بازیکن فقط روی hex دشتی که گاو یا گوسفند داشته باشد می‌توانست اصطبل بسازد.
+         *
+         * اکنون: PLAINS terrain کافی است.
+         * دلیل: «منبع اسب» به عنوان ResourceSubtype جداگانه در بازی وجود ندارد.
+         * spec اجازه می‌دهد روی هر hex دشت (TerrainType.PLAINS) اصطبل ساخته شود.
+         * بازیکن برای تولید Cavalry نیاز به اصطبل دارد و محدود کردن به CATTLE/SHEEP
+         * دسترسی به یونیت مهم Cavalry را بیش از حد سخت می‌کرد.
+         */
         terrainRequirements.put(BuildingType.STABLE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS
-                        && hex.hasResource(ResourceType.FOOD)
-                        && (hex.getResourceSubtype() == ResourceSubtype.CATTLE
-                        || hex.getResourceSubtype() == ResourceSubtype.SHEEP));
+                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
 
         terrainRequirements.put(BuildingType.STONE_MINE,
                 (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
@@ -104,7 +115,7 @@ public class BuildController {
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
         if (!canBuild(type, hex, builder)) return;
 
-        TownHall th  = gameMap.getTownHall();
+        TownHall  th  = gameMap.getTownHall();
         Inventory inv = th.getInventory();
 
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
@@ -148,38 +159,25 @@ public class BuildController {
     }
 
     /**
-     * I5: اصلاح چک‌های ناقص canBuildWall.
-     *
-     * چک‌های اضافه‌شده:
-     * 1. Builder باید روی hex یا neighbor باشد (نه فقط روی hex)
-     * 2. هر دو hex باید کشف شده (explored) باشند
-     * 3. حداقل یکی از دو hex باید داخل قلمرو باشد
-     * 4. neighbor نباید SEA یا MOUNTAIN_RANGE باشد
-     * 5. neighbor باید وجود داشته باشد
+     * I5 (گام ۵): اصلاح کامل canBuildWall.
      */
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (dir < 0 || dir > 5) return false;
 
-        // I5: neighbor hex باید وجود داشته باشد
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor == null) return false;
 
-        // I5: Builder باید روی یکی از دو hex مجاور مرز باشد
-        boolean builderOnHex      = (builder.getQ() == hex.getQ()      && builder.getR() == hex.getR());
-        boolean builderOnNeighbor = (builder.getQ() == neighbor.getQ() && builder.getR() == neighbor.getR());
+        boolean builderOnHex      = (builder.getQ() == hex.getQ()
+                && builder.getR() == hex.getR());
+        boolean builderOnNeighbor = (builder.getQ() == neighbor.getQ()
+                && builder.getR() == neighbor.getR());
         if (!builderOnHex && !builderOnNeighbor) return false;
 
-        // I5: هر دو hex باید کشف شده باشند (طبق spec)
         if (!hex.isExplored() || !neighbor.isExplored()) return false;
-
-        // I5: حداقل یکی از دو hex باید داخل قلمرو بازیکن باشد
         if (!hex.isInsideBorder() && !neighbor.isInsideBorder()) return false;
-
-        // دیوار از قبل روی این مرز وجود ندارد
         if (hex.hasWall(dir)) return false;
 
-        // I5: مرزهای مربوط به دریا یا رشته‌کوه غیرمجاز است (هر دو طرف چک می‌شوند)
         if (hex.getTerrainType() == TerrainType.SEA
                 || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
         if (neighbor.getTerrainType() == TerrainType.SEA
