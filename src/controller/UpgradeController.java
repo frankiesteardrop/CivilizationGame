@@ -59,7 +59,11 @@ public class UpgradeController {
 
         techStrategies.put("PROF_TOOLS", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) {
-                return th.getLevel() >= 2 && !th.isSteelToolsUnlocked() && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON);
+                // [C2] Fix: Added th.isIronMineUnlocked() to enforce tech tree progression
+                return th.getLevel() >= 2
+                        && th.isIronMineUnlocked()
+                        && !th.isSteelToolsUnlocked()
+                        && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON);
             }
             public void unlock(TownHall th, Inventory inv) {
                 ProductionCommand cmd = new ProductionCommand.TechCommand("Tech: Steel Tools", GameConfig.TECH_STEEL_TOOLS_TURN, "PROF_TOOLS");
