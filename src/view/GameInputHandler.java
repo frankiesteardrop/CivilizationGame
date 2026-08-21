@@ -116,6 +116,15 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
+            // [C1] Fix: اضافه شدن هندلینگ راست‌کلیک برای اصطبل
+            if (bType == BuildingType.STABLE) {
+                if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
+                    panel.setSelectedUnit(null);
+                    panel.showContextMenu(e.getPoint(), mainController.getStableMenuActions());
+                    return;
+                }
+            }
+
             if (bType == BuildingType.TRIBE_CAMP) {
                 // پاکسازی MVC: هندلر دیگه مستقیماً منطق دشمنی رو چک نمی‌کنه!
                 if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isHostile(clickedHex)) {

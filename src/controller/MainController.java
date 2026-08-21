@@ -130,7 +130,22 @@ public class MainController {
                 upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
-        actions.add(new MenuAction(milPrefix + "🏇 Cavalry (30F, 20I) [TH L2 + Stable]",
+        // [C1] Fix: Cavalry از اینجا حذف شد و به متد getStableMenuActions منتقل شد.
+
+        return actions;
+    }
+
+    // [C1] Fix: متد جدید برای هندل کردن منوی اختصاصی اصطبل
+    public List<MenuAction> getStableMenuActions() {
+        List<MenuAction> actions = new ArrayList<>();
+        TownHall th = gameMap.getTownHall();
+
+        boolean qEmpty    = th.isProductionQueueEmpty();
+        String  prefix    = qEmpty ? "" : "⏳ [BUSY] ";
+        boolean isMilCap  = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
+        String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
+
+        actions.add(new MenuAction(milPrefix + "🏇 Cavalry (30F, 20I) [TH L2]",
                 upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
 
         return actions;

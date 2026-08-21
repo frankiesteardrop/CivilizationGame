@@ -1,10 +1,10 @@
 {
   "saveVersion": "2.0",
   "slotName": "autosave",
-  "turnNumber": 3,
+  "turnNumber": 10,
   "season": "SPRING",
   "thLevel": 1,
-  "saveTime": "2026-08-19 20:30",
+  "saveTime": "2026-08-21 02:57",
   "gameData": {
     "hexes": {
       "items": [
@@ -4530,6 +4530,8 @@
             "guardSpawnTurnCounter": 2,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -38293,6 +38295,8 @@
             "guardSpawnTurnCounter": 2,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -39695,6 +39699,8 @@
             "guardSpawnTurnCounter": 0,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -42208,6 +42214,8 @@
             "guardSpawnTurnCounter": 2,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -44073,6 +44081,8 @@
             "guardSpawnTurnCounter": 2,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -50259,9 +50269,11 @@
               "tradeBonus": false
             },
             "hasTradedThisTurn": false,
-            "guardSpawnTurnCounter": 2,
+            "guardSpawnTurnCounter": 9,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -65413,7 +65425,7 @@
             "FOOD": 300
           },
           "resourceSubtype": "SHEEP",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -65450,7 +65462,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -66820,7 +66832,7 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -66858,7 +66870,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -66896,7 +66908,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -66931,7 +66943,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -66966,7 +66978,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -68267,7 +68279,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -68302,7 +68314,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -68340,7 +68352,7 @@
           },
           "resourceSubtype": "WHEAT",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -68375,7 +68387,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -68410,7 +68422,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -68665,7 +68677,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -69748,7 +69760,7 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -69785,7 +69797,7 @@
             "FOOD": 300
           },
           "resourceSubtype": "FISH",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -69823,7 +69835,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -69858,7 +69870,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -69893,7 +69905,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -69928,7 +69940,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -70110,7 +70122,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -70145,7 +70157,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71184,7 +71196,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -71219,7 +71231,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -71255,7 +71267,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71292,7 +71304,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71329,7 +71341,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71364,7 +71376,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71402,7 +71414,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71548,7 +71560,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -71583,7 +71595,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72566,7 +72578,7 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -72601,7 +72613,7 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -72639,7 +72651,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72676,7 +72688,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72711,7 +72723,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72746,7 +72758,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72781,7 +72793,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72816,7 +72828,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72853,7 +72865,7 @@
           },
           "resourceSubtype": "WHEAT",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72888,7 +72900,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -72998,7 +73010,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -73891,7 +73903,7 @@
             "FOOD": 300
           },
           "resourceSubtype": "FISH",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -73928,7 +73940,7 @@
             "FOOD": 300
           },
           "resourceSubtype": "WHEAT",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -73965,7 +73977,7 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -74003,7 +74015,7 @@
           },
           "resourceSubtype": "FISH",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74040,7 +74052,7 @@
           },
           "resourceSubtype": "RICE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74077,7 +74089,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74112,7 +74124,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74291,7 +74303,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74328,7 +74340,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -74363,7 +74375,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75223,7 +75235,7 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -75258,7 +75270,7 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -75293,7 +75305,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -75329,7 +75341,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75366,7 +75378,7 @@
           },
           "resourceSubtype": "RICE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75401,7 +75413,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75580,7 +75592,7 @@
           },
           "resourceSubtype": "CATTLE",
           "isExplored": true,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75616,8 +75628,8 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75655,7 +75667,7 @@
           },
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -75690,7 +75702,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76523,7 +76535,7 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -76558,7 +76570,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -76593,7 +76605,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -76631,7 +76643,7 @@
           },
           "resourceSubtype": "SHEEP",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76668,7 +76680,7 @@
           },
           "resourceSubtype": "CATTLE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76862,8 +76874,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "WHEAT",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76900,8 +76912,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76937,8 +76949,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -76973,7 +76985,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": false,
-          "isVisible": false,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -77799,7 +77811,7 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -77834,7 +77846,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -77869,7 +77881,7 @@
           "terrainType": "SEA",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -77905,7 +77917,7 @@
           "resources": {},
           "resourceSubtype": "NONE",
           "isExplored": true,
-          "isVisible": true,
+          "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -78085,8 +78097,8 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -78120,8 +78132,8 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -78158,8 +78170,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -78193,8 +78205,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79018,7 +79030,7 @@
           "terrainType": "SEA",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -79053,7 +79065,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -79088,7 +79100,7 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -79123,8 +79135,8 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79160,8 +79172,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "RICE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79197,8 +79209,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79234,8 +79246,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "FISH",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79269,8 +79281,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79304,8 +79316,8 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79339,8 +79351,8 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79376,8 +79388,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "WHEAT",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -79411,8 +79423,8 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80281,7 +80293,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -80316,8 +80328,8 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80351,8 +80363,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80389,8 +80401,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80424,8 +80436,8 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80461,8 +80473,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80496,8 +80508,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80533,8 +80545,8 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -80570,8 +80582,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81442,7 +81454,7 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
+          "isExplored": true,
           "isVisible": false,
           "isInsideBorder": false,
           "hasRoad": false,
@@ -81477,8 +81489,8 @@
           "terrainType": "MOUNTAIN_RANGE",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81515,8 +81527,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81552,8 +81564,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "SHEEP",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81589,8 +81601,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "FISH",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81626,8 +81638,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "FISH",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81661,8 +81673,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -81696,8 +81708,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82599,8 +82611,8 @@
           "terrainType": "SEA",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82634,8 +82646,8 @@
           "terrainType": "SEA",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82671,8 +82683,8 @@
             "FOOD": 300
           },
           "resourceSubtype": "WHEAT",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82706,8 +82718,8 @@
           "terrainType": "MEADOW",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82743,8 +82755,8 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -82780,8 +82792,8 @@
             "WOOD": 500
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -83681,8 +83693,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -83718,8 +83730,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -83756,8 +83768,8 @@
             "STONE": 400
           },
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -83791,8 +83803,8 @@
           "terrainType": "PLAINS",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -83826,8 +83838,8 @@
           "terrainType": "SEA",
           "resources": {},
           "resourceSubtype": "NONE",
-          "isExplored": false,
-          "isVisible": false,
+          "isExplored": true,
+          "isVisible": true,
           "isInsideBorder": false,
           "hasRoad": false,
           "rivers": [
@@ -84022,9 +84034,11 @@
               "tradeBonus": false
             },
             "hasTradedThisTurn": false,
-            "guardSpawnTurnCounter": 2,
+            "guardSpawnTurnCounter": 9,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -85427,6 +85441,8 @@
             "guardSpawnTurnCounter": 0,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -87937,9 +87953,11 @@
               "tradeBonus": false
             },
             "hasTradedThisTurn": false,
-            "guardSpawnTurnCounter": 2,
+            "guardSpawnTurnCounter": 9,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -89802,9 +89820,11 @@
               "tradeBonus": false
             },
             "hasTradedThisTurn": false,
-            "guardSpawnTurnCounter": 2,
+            "guardSpawnTurnCounter": 9,
             "missionOfferTurnCounter": 0,
             "displeasedMilitaryTurns": 0,
+            "neutralMilitaryTurns": 0,
+            "discovered": false,
             "baseWorkerCapacity": 0,
             "stationedWorkers": 0,
             "isDestroyed": false,
@@ -99374,7 +99394,7 @@
           "inventory": {
             "resources": {
               "FOOD": 0,
-              "WOOD": 2,
+              "WOOD": 9,
               "STONE": 0,
               "IRON": 0
             },
@@ -104297,6 +104317,8 @@
           "guardSpawnTurnCounter": 0,
           "missionOfferTurnCounter": 0,
           "displeasedMilitaryTurns": 0,
+          "neutralMilitaryTurns": 0,
+          "discovered": false,
           "baseWorkerCapacity": 0,
           "stationedWorkers": 0,
           "isDestroyed": false,
@@ -113267,6 +113289,8 @@
           "guardSpawnTurnCounter": 2,
           "missionOfferTurnCounter": 0,
           "displeasedMilitaryTurns": 0,
+          "neutralMilitaryTurns": 0,
+          "discovered": false,
           "baseWorkerCapacity": 0,
           "stationedWorkers": 0,
           "isDestroyed": false,
@@ -124226,6 +124250,8 @@
           "guardSpawnTurnCounter": 2,
           "missionOfferTurnCounter": 0,
           "displeasedMilitaryTurns": 0,
+          "neutralMilitaryTurns": 0,
+          "discovered": false,
           "baseWorkerCapacity": 0,
           "stationedWorkers": 0,
           "isDestroyed": false,
@@ -129029,6 +129055,8 @@
           "guardSpawnTurnCounter": 2,
           "missionOfferTurnCounter": 0,
           "displeasedMilitaryTurns": 0,
+          "neutralMilitaryTurns": 0,
+          "discovered": false,
           "baseWorkerCapacity": 0,
           "stationedWorkers": 0,
           "isDestroyed": false,
@@ -132689,6 +132717,8 @@
           "guardSpawnTurnCounter": 2,
           "missionOfferTurnCounter": 0,
           "displeasedMilitaryTurns": 0,
+          "neutralMilitaryTurns": 0,
+          "discovered": false,
           "baseWorkerCapacity": 0,
           "stationedWorkers": 0,
           "isDestroyed": false,
@@ -137289,11 +137319,139 @@
           "siegeDamage": 0,
           "isEnemy": false,
           "CLASS_TYPE": "WORKER"
+        },
+        {
+          "q": -18,
+          "r": 5,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 9,
+          "r": 1,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 13,
+          "r": -2,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 15,
+          "r": 0,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": -18,
+          "r": 6,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 9,
+          "r": 2,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 13,
+          "r": 0,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
+        },
+        {
+          "q": 15,
+          "r": 3,
+          "type": "SWORDSMAN",
+          "maxAP": 2,
+          "currentAP": 2,
+          "foodConsumption": 2,
+          "visionRadius": 2,
+          "isAlive": true,
+          "hp": 1,
+          "maxHp": 1,
+          "attackRange": 1,
+          "siegeDamage": 10,
+          "isEnemy": true,
+          "CLASS_TYPE": "SWORDSMAN"
         }
       ],
       "unmodifiableView": [
         {
-          "q": 3,
+          "q": 8,
           "r": -4,
           "type": "EXPLORER",
           "maxAP": 6,
@@ -137327,8 +137485,8 @@
         },
         {
           "charges": 3,
-          "q": 1,
-          "r": 1,
+          "q": 5,
+          "r": 0,
           "type": "BUILDER",
           "maxAP": 4,
           "currentAP": 3,
@@ -137380,7 +137538,7 @@
     },
     "radius": 20,
     "random": {
-      "base64State": "rO0ABXNyABBqYXZhLnV0aWwuUmFuZG9tNjKWNEvwClMDAANaABRoYXZlTmV4dE5leHRHYXVzc2lhbkQAEG5leHROZXh0R2F1c3NpYW5KAARzZWVkeHAAAAAAAAAAAAAAAKJ8W5jcRng\u003d"
+      "base64State": "rO0ABXNyABBqYXZhLnV0aWwuUmFuZG9tNjKWNEvwClMDAANaABRoYXZlTmV4dE5leHRHYXVzc2lhbkQAEG5leHROZXh0R2F1c3NpYW5KAARzZWVkeHAAAAAAAAAAAAAAAJY2CnfwPHg\u003d"
     },
     "townHall": {
       "level": 1,
@@ -137389,7 +137547,7 @@
       "inventory": {
         "resources": {
           "FOOD": 0,
-          "WOOD": 2,
+          "WOOD": 9,
           "STONE": 0,
           "IRON": 0
         },
@@ -137417,7 +137575,7 @@
       "defense": 0,
       "floodHaltTurns": 0
     },
-    "currentTurn": 3,
+    "currentTurn": 10,
     "isStarving": true,
     "bearCooldown": 0
   }
