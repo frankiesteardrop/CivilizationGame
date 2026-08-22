@@ -153,6 +153,10 @@ public class TownHall extends Building {
         this.setMaxHp(350);
         this.setDefense(30);
         this.heal(350);
+
+        // اصلاح [I5]: شلیک رویداد جهت نمایش ارتقای دفاعی در UI بدون نقض معماری MVC
+        GameEventDispatcher.fireNotification(
+                "🏰 Defensive Architecture active! TH defense: 10→30, max HP: 200→350");
     }
 
     // ─── جوایز مأموریت قبیله ساحلی ─────────────────────────────────────────────────────
