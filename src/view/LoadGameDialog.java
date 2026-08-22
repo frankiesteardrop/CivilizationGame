@@ -227,9 +227,9 @@ public class LoadGameDialog extends JDialog {
             infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
             infoPanel.add(legacyNote);
 
+            // در متد buildSlotCard این بخش را جایگزین فرمت جدید (2.0) کنید:
         } else {
-            // ── فرمت جدید (2.0) — نمایش کامل [I1] ───────────────────────────
-            // ردیف اول: Turn + Season + TH Level
+            // ── فرمت جدید (2.0) — نمایش کامل [I1, M1] ───────────────────────────
             JPanel row1 = buildMetaRow(
                     buildMetaItem("⏳", "Turn " + meta.turnNumber),
                     buildMetaItem(getSeasonEmoji(meta.season), meta.season),
@@ -238,7 +238,16 @@ public class LoadGameDialog extends JDialog {
             row1.setAlignmentX(Component.LEFT_ALIGNMENT);
             infoPanel.add(row1);
 
-            infoPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+            infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
+
+            // ردیف خلاصه وضعیت [M1]
+            JPanel rowSummary = buildMetaRow(
+                    buildMetaItem("📊", meta.gameSummary)
+            );
+            rowSummary.setAlignmentX(Component.LEFT_ALIGNMENT);
+            infoPanel.add(rowSummary);
+
+            infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
 
             // ردیف دوم: زمان ذخیره + نسخه
             JPanel row2 = buildMetaRow(

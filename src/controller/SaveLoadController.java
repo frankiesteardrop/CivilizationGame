@@ -25,10 +25,6 @@ public class SaveLoadController {
 
     // ─── DTO برای metadata هر Slot ────────────────────────────────────────────
 
-    /**
-     * اطلاعات خلاصه‌ی یک Slot ذخیره برای نمایش در PauseMenuDialog [I1].
-     * با readSlotMetadata() بدون لود کامل GameMap خوانده می‌شود.
-     */
     public static class SaveMetadata {
         public boolean isEmpty    = true;
         public String  slotName   = "";
@@ -37,21 +33,9 @@ public class SaveLoadController {
         public int     thLevel    = 1;
         public String  saveTime   = "";
         public String  saveVersion = "";
+        public String  gameSummary = ""; // اضافه شده برای رفع باگ [M1]
     }
 
-    /**
-     * Wrapper برای ذخیره metadata کنار GameMap در فایل JSON.
-     * فرمت جدید (2.0):
-     * {
-     *   "saveVersion": "2.0",
-     *   "slotName": "slot1",
-     *   "turnNumber": 42,
-     *   "season": "WINTER",
-     *   "thLevel": 2,
-     *   "saveTime": "2025-01-15 14:30",
-     *   "gameData": { ... full GameMap ... }
-     * }
-     */
     private static class SaveWrapper {
         String  saveVersion;
         String  slotName;
@@ -59,6 +43,7 @@ public class SaveLoadController {
         String  season;
         int     thLevel;
         String  saveTime;
+        String  gameSummary; // اضافه شده برای رفع باگ [M1]
         GameMap gameData;
     }
 
@@ -67,18 +52,10 @@ public class SaveLoadController {
         new File(SAVE_DIR).mkdirs();
     }
 
-    // ─── Gson Factory ─────────────────────────────────────────────────────────
-
-    /**
-     * ساخت Gson با تمام Adapterهای لازم.
-     * ترتیب ثبت: hierarchy adapters اول، سپس type adapters.
-     */
     private static Gson createGson() {
         return new GsonBuilder()
-                // C1: Adapterهای interface (registerTypeHierarchyAdapter برای subclasses)
                 .registerTypeHierarchyAdapter(TribeState.class,  new TribeStateAdapter())
                 .registerTypeHierarchyAdapter(MissionState.class, new MissionStateAdapter())
-                // Adapterهای abstract class (registerTypeAdapter برای routing)
                 .registerTypeAdapter(Building.class,          new BuildingAdapter())
                 .registerTypeAdapter(Unit.class,              new UnitAdapter())
                 .registerTypeAdapter(ProductionCommand.class,  new ProductionCommandAdapter())
@@ -87,18 +64,11 @@ public class SaveLoadController {
                 .create();
     }
 
-    // ─── Save ─────────────────────────────────────────────────────────────────
-
-    /**
-     * ذخیره بازی با metadata کامل.
-     * از atomic write استفاده می‌کند: ابتدا به .tmp می‌نویسد، سپس rename می‌کند.
-     */
     public boolean saveGame(String slot) {
         try {
             File tempFile  = new File(SAVE_DIR + slot + ".tmp");
             File finalFile = new File(SAVE_DIR + slot + ".json");
 
-            // ساخت wrapper با metadata فعلی بازی
             GameMap map = mainController.getGameMap();
             SaveWrapper wrapper = new SaveWrapper();
             wrapper.saveVersion = SAVE_VERSION;
@@ -107,13 +77,12 @@ public class SaveLoadController {
             wrapper.season      = map.getCurrentSeason().name();
             wrapper.thLevel     = map.getTownHall().getLevel();
             wrapper.saveTime    = LocalDateTime.now().format(TIME_FMT);
+            wrapper.gameSummary = buildGameSummary(map); // ساخت خلاصه وضعیت بازی [M1]
             wrapper.gameData    = map;
 
-            // نوشتن به فایل موقت
             String json = createGson().toJson(wrapper);
             Files.writeString(tempFile.toPath(), json);
 
-            // atomic rename: جایگزینی فایل اصلی
             Files.move(tempFile.toPath(), finalFile.toPath(),
                     StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
@@ -128,14 +97,22 @@ public class SaveLoadController {
         }
     }
 
-    // ─── Load ─────────────────────────────────────────────────────────────────
-
     /**
-     * لود کامل GameMap از فایل.
-     * پشتیبانی از هر دو فرمت:
-     *   - فرمت جدید (2.0): gameData درون SaveWrapper
-     *   - فرمت قدیم (1.x): کل JSON مستقیماً یک GameMap است
+     * متد کمکی برای ساخت خلاصه متنی وضعیت بازی [M1]
      */
+    private String buildGameSummary(GameMap map) {
+        long buildings = map.getHexes().stream()
+                .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed()
+                        && h.getBuilding().getType() != BuildingType.TOWN_HALL
+                        && h.getBuilding().getType() != BuildingType.TRIBE_CAMP
+                        && h.getBuilding().getType() != BuildingType.TRADING_POST)
+                .count();
+        return String.format("Buildings: %d | Military: %d | TH Lv%d | Happiness: %+d",
+                buildings, map.getMilitaryUnitCount(),
+                map.getTownHall().getLevel(),
+                map.getTownHall().getHappiness());
+    }
+
     public static GameMap loadGameMap(String slot) {
         try {
             File file = new File(SAVE_DIR + slot + ".json");
@@ -144,23 +121,17 @@ public class SaveLoadController {
             String json = Files.readString(file.toPath());
             Gson gson = createGson();
 
-            // تشخیص فرمت: اگر "gameData" وجود داشت → فرمت جدید
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             GameMap loadedMap;
             if (root.has("gameData") && !root.get("gameData").isJsonNull()) {
-                // فرمت جدید (2.0)
                 JsonElement gameDataElement = root.get("gameData");
                 loadedMap = gson.fromJson(gameDataElement, GameMap.class);
             } else {
-                // فرمت قدیم (فاز اول) — backward compatibility
                 loadedMap = gson.fromJson(json, GameMap.class);
             }
 
             if (loadedMap == null) return null;
 
-            // ─── post-load: بازسازی وابستگی‌های transient ─────────────────────
-
-            // 1. بازسازی reference مپ در ProductionCommandها
             TownHall th    = loadedMap.getTownHall();
             Hex      thHex = loadedMap.getHexAt(th.getQ(), th.getR());
             if (thHex != null) thHex.setBuilding(th);
@@ -169,7 +140,6 @@ public class SaveLoadController {
                 if (cmd != null) cmd.setContextMap(loadedMap);
             }
 
-            // 2. بازسازی استقرار کارگرها
             for (Unit unit : loadedMap.getUnits()) {
                 if (unit instanceof Worker worker) {
                     if (worker.isStationed()) {
@@ -184,18 +154,12 @@ public class SaveLoadController {
                 }
             }
 
-            // 3. C1: بازسازی TribeState و MissionGoal (که transient است)
             for (Hex hex : loadedMap.getHexes()) {
                 if (!(hex.getBuilding() instanceof TribeCamp camp)) continue;
-                // safety net: بازسازی state از primitives
                 camp.getTribe().postLoad();
-                // بازسازی MissionGoal از TribeType (چون transient است)
                 Mission m = camp.getTribe().getMission();
                 if (m != null) {
                     m.setGoal(camp.getTribe().getType().getMissionGoal());
-                    // M4: Backward compatibility — saves before this version had no 'discovered' field
-// Gson deserializes missing boolean fields as false (default).
-// If the tribe camp hex was already explored in the old save, treat it as discovered.
                     if (!camp.isDiscovered() && hex.isExplored()) {
                         camp.setDiscovered(true);
                     }
@@ -210,46 +174,36 @@ public class SaveLoadController {
         }
     }
 
-    // ─── Metadata (بدون لود کامل GameMap) ────────────────────────────────────
-
-    /**
-     * خواندن سریع metadata یک Slot بدون لود کامل GameMap [I1].
-     * فقط فیلدهای بیرونی SaveWrapper را می‌خواند.
-     *
-     * @return SaveMetadata با isEmpty=true اگر فایل وجود نداشته باشد یا خراب باشد
-     */
     public static SaveMetadata readSlotMetadata(String slot) {
         SaveMetadata meta = new SaveMetadata();
         meta.slotName = slot;
 
         try {
             File file = new File(SAVE_DIR + slot + ".json");
-            if (!file.exists()) return meta; // isEmpty = true
+            if (!file.exists()) return meta;
 
             String json = Files.readString(file.toPath());
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
 
             if (root.has("gameData")) {
-                // فرمت جدید (2.0) — metadata در سطح اول wrapper است
                 meta.saveVersion = root.has("saveVersion") ? root.get("saveVersion").getAsString() : "?";
                 meta.turnNumber  = root.has("turnNumber")  ? root.get("turnNumber").getAsInt()     : 0;
                 meta.season      = root.has("season")      ? root.get("season").getAsString()      : "?";
                 meta.thLevel     = root.has("thLevel")     ? root.get("thLevel").getAsInt()        : 1;
                 meta.saveTime    = root.has("saveTime")    ? root.get("saveTime").getAsString()    : "?";
+                meta.gameSummary = root.has("gameSummary") ? root.get("gameSummary").getAsString() : ""; // خواندن summary [M1]
                 meta.isEmpty     = false;
             } else {
-                // فرمت قدیم — metadata در دسترس نیست؛ فقط وجود فایل را تأیید می‌کنیم
                 meta.saveVersion = "1.x";
                 meta.season      = "Legacy";
                 meta.saveTime    = "Old Format";
+                meta.gameSummary = "Legacy save file";
                 meta.isEmpty     = false;
-                // سعی می‌کنیم turn را بخوانیم اگر ساختار فرمت قدیم موجود باشد
                 if (root.has("currentTurn")) {
                     meta.turnNumber = root.get("currentTurn").getAsInt();
                 }
             }
         } catch (Exception e) {
-            // فایل خراب یا ناقص → isEmpty = true باقی می‌ماند
             meta.isEmpty = true;
         }
 
@@ -267,8 +221,6 @@ public class SaveLoadController {
     }
 
     public void autosave() { saveGame("autosave"); }
-
-    // ─── TribeStateAdapter (C1) ───────────────────────────────────────────────
 
     private static class TribeStateAdapter implements JsonSerializer<TribeState>, JsonDeserializer<TribeState> {
         @Override
@@ -293,8 +245,6 @@ public class SaveLoadController {
         }
     }
 
-    // ─── MissionStateAdapter (C1) ─────────────────────────────────────────────
-
     private static class MissionStateAdapter implements JsonSerializer<MissionState>, JsonDeserializer<MissionState> {
         @Override
         public JsonElement serialize(MissionState src, Type typeOfSrc, JsonSerializationContext context) {
@@ -318,8 +268,6 @@ public class SaveLoadController {
             };
         }
     }
-
-    // ─── BuildingAdapter (C1: context به جای new Gson()) ─────────────────────
 
     private static class BuildingAdapter implements JsonSerializer<Building>, JsonDeserializer<Building> {
         @Override
@@ -351,8 +299,6 @@ public class SaveLoadController {
         }
     }
 
-    // ─── UnitAdapter (C1: context به جای new Gson()) ─────────────────────────
-
     private static class UnitAdapter implements JsonSerializer<Unit>, JsonDeserializer<Unit> {
         @Override
         public JsonElement serialize(Unit src, Type typeOfSrc, JsonSerializationContext context) {
@@ -378,8 +324,6 @@ public class SaveLoadController {
             return context.deserialize(json, clazz);
         }
     }
-
-    // ─── RandomAdapter (بدون تغییر) ──────────────────────────────────────────
 
     private static class RandomAdapter implements JsonSerializer<Random>, JsonDeserializer<Random> {
         @Override
@@ -413,8 +357,6 @@ public class SaveLoadController {
             }
         }
     }
-
-    // ─── ProductionCommandAdapter (بدون تغییر) ───────────────────────────────
 
     private static class ProductionCommandAdapter
             implements JsonSerializer<ProductionCommand>, JsonDeserializer<ProductionCommand> {

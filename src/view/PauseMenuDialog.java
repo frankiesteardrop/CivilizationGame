@@ -167,10 +167,12 @@ public class PauseMenuDialog extends JDialog {
         infoPanel.setOpaque(false);
         infoPanel.setBorder(new EmptyBorder(4, 0, 4, 0));
 
+        // در متد buildSlotCard این بخش را جایگزین کنید:
         if (meta != null && !meta.isEmpty) {
             addInfoRow(infoPanel, "⏳", "Turn " + meta.turnNumber);
             addInfoRow(infoPanel, "🌍", meta.season);
             addInfoRow(infoPanel, "🏰", "TH Level " + meta.thLevel);
+            addInfoRow(infoPanel, "📊", meta.gameSummary); // اضافه شده برای نمایش summary [M1]
             addInfoRow(infoPanel, "🕐", meta.saveTime);
         } else {
             JLabel emptyLabel = new JLabel("[ EMPTY ]", SwingConstants.CENTER);
