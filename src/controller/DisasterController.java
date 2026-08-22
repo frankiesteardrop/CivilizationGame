@@ -13,7 +13,9 @@ public class DisasterController {
     private static final int BEAR_MAX_COUNT     = 2;   // حداکثر ۲ خرس همزمان
     private static final int BEAR_COOLDOWN_TURNS = 5;  // ۵ ترن cooldown بعد از spawn
     private static final int BEAR_LAIR_RADIUS   = 3;   // شعاع ماندن از لانه
-    private static final int BEAR_DETECT_RADIUS = 5;   // شعاع تشخیص هدف
+
+    // [I1] Fix: شعاع تشخیص هدف از 5 به 3 کاهش یافت تا با داکیومنت فاز دوم مطابقت داشته باشد.
+    private static final int BEAR_DETECT_RADIUS = 3;
 
     public DisasterController(GameMap map) {
         this.map    = map;

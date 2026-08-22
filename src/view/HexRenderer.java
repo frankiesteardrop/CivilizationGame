@@ -24,6 +24,8 @@ import java.util.List;
  * 9. Disaster Overlays
  * 10. Fog of War
  * 11. Unexplored (solid black)
+ * 12. Hover glow
+ * 13. Hex Info Overlay
  */
 public class HexRenderer {
 
@@ -180,6 +182,87 @@ public class HexRenderer {
             g2d.setColor(UIConfig.HEX_HOVER);
             drawHexAt(g2d, pt.x, pt.y, true);
         }
+
+        // ── Pass 14: Hex Info Overlay ─────────────────────────────────────────
+        // [I2] Fix: رسم منوی شناور اطلاعات هکس در بالاترین لایه
+        if (hovered != null) {
+            drawHexInfoOverlay(g2d, panel, hovered);
+        }
+    }
+
+    // ─── [I2] Hex Info Overlay ────────────────────────────────────────────────
+
+    private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
+        if (hex == null || !hex.isExplored()) return;
+
+        String terrainInfo = switch (hex.getTerrainType()) {
+            case PLAINS         -> "Plains — 1 AP";
+            case FOREST         -> "Forest — 2 AP";
+            case MOUNTAIN       -> "Mountain — 3 AP | Can build Mine";
+            case MOUNTAIN_RANGE -> "Mountain Range — ✕ IMPASSABLE";
+            case MEADOW         -> "Meadow — 1 AP";
+            case SEA            -> "Sea — requires Seafaring tech";
+        };
+
+        String resourceInfo = buildResourceString(hex);
+        String borderInfo   = hex.isInsideBorder() ? "In Territory" : "Outside Territory";
+        String roadInfo     = hex.hasRoad() ? " | 🛣 Road" : "";
+
+        String line1 = terrainInfo + roadInfo;
+        String line2 = resourceInfo.isEmpty() ? borderInfo : resourceInfo + " | " + borderInfo;
+
+        drawOverlayBox(g2d, panel, line1, line2);
+    }
+
+    private String buildResourceString(Hex hex) {
+        List<String> res = new ArrayList<>();
+        if (hex.hasResource(ResourceType.FOOD)) {
+            String sub = hex.getResourceSubtype() != ResourceSubtype.NONE
+                    ? " (" + hex.getResourceSubtype().getDisplayName() + ")" : "";
+            res.add("🍔 Food" + sub);
+        }
+        if (hex.hasResource(ResourceType.WOOD))  res.add("🪵 Wood");
+        if (hex.hasResource(ResourceType.STONE)) res.add("🪨 Stone");
+        if (hex.hasResource(ResourceType.IRON))  res.add("⚙️ Iron");
+
+        return String.join(", ", res);
+    }
+
+    private void drawOverlayBox(Graphics2D g2d, GamePanel panel, String line1, String line2) {
+        g2d.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 13));
+        FontMetrics fm = g2d.getFontMetrics();
+
+        int w1 = fm.stringWidth(line1);
+        int w2 = fm.stringWidth(line2);
+        int boxW = Math.max(w1, w2) + 30;
+        int boxH = 60;
+
+        // Position: Bottom Left (جلوگیری از تداخل با منوها)
+        int x = 20;
+        int y = panel.getHeight() - boxH - 20;
+
+        // Shadow
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRoundRect(x + 4, y + 4, boxW, boxH, 12, 12);
+
+        // Background
+        g2d.setColor(new Color(25, 28, 35, 230)); // Dark semi-transparent
+        g2d.fillRoundRect(x, y, boxW, boxH, 12, 12);
+
+        // Border (Accent glow)
+        g2d.setColor(new Color(65, 165, 255, 180));
+        g2d.setStroke(new BasicStroke(1.5f));
+        g2d.drawRoundRect(x, y, boxW, boxH, 12, 12);
+        g2d.setStroke(new BasicStroke(1f));
+
+        // Text Line 1 (Terrain details)
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(line1, x + 15, y + 25);
+
+        // Text Line 2 (Resources & Border status)
+        g2d.setColor(new Color(180, 190, 200));
+        g2d.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 12));
+        g2d.drawString(line2, x + 15, y + 45);
     }
 
     // ─── Pass 1: Terrain Base ─────────────────────────────────────────────────
