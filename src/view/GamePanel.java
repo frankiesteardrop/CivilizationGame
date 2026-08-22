@@ -99,7 +99,7 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
-            // سیل - بالا آمدن آب
+            // سیل - بالا آمدن آب و امواج متحرک
             if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
                 floodAlpha += 0.02f;
                 if (floodAlpha > 0.6f) floodAlpha = 0.6f;
@@ -130,7 +130,6 @@ public class GamePanel extends JPanel implements GameEventListener {
         });
         animationTimer.start();
 
-        // I4 (گام ۳): باز کردن Pause Menu با کلید Escape
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(
                 KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0), "openPauseMenu");
         getActionMap().put("openPauseMenu", new AbstractAction() {
@@ -183,7 +182,6 @@ public class GamePanel extends JPanel implements GameEventListener {
                     2f + particleRandom.nextFloat() * 3f,
                     0.55f + particleRandom.nextFloat() * 0.45f);
         } else {
-            // [I6] Fix: سرعت، ضخامت و وضوح باران پاییزی برای شبیه‌سازی طوفان و باد افزایش یافت
             return new SeasonParticle(startX, startY,
                     -4.0f - particleRandom.nextFloat() * 3.0f,
                     12.0f + particleRandom.nextFloat() * 6.0f,
@@ -205,12 +203,10 @@ public class GamePanel extends JPanel implements GameEventListener {
                 g2d.fillOval((int) p.x - sz / 2, (int) p.y - sz / 2, sz, sz);
             }
         } else if (season == Season.AUTUMN) {
-            // [I6] Fix: رسم داینامیک با ضخامت متغیر و شبیه‌سازی Motion Blur برای باد پاییزی
             for (SeasonParticle p : seasonParticles) {
                 g2d.setStroke(new BasicStroke(p.size, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g2d.setColor(new Color(0.7f, 0.85f, 0.95f, Math.min(1f, p.alpha)));
                 int x1 = (int) p.x, y1 = (int) p.y;
-                // محاسبه طول دم باران بر اساس سرعت آن
                 int x2 = (int)(p.x - p.speedX * 1.5f);
                 int y2 = (int)(p.y - p.speedY * 1.5f);
                 g2d.drawLine(x1, y1, x2, y2);

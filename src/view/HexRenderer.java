@@ -5,7 +5,6 @@ import model.*;
 
 import java.awt.*;
 import java.awt.geom.*;
-import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
 
