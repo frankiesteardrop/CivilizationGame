@@ -42,6 +42,8 @@ public class TownHall extends Building {
         this.productionQueue = new LinkedList<>();
         this.happiness       = 0;
 
+        // [I4] Fix: مقدار اولیه دفاع تالار شهر طبق داکیومنت فاز دوم باید 10 باشد
+        this.setDefense(10);
         this.maxHp = 200;
         this.hp    = 200;
 
