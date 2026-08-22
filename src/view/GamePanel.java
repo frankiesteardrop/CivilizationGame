@@ -35,8 +35,13 @@ public class GamePanel extends JPanel implements GameEventListener {
     private int shakeDuration = 0;
     private int shakeX = 0, shakeY = 0;
 
+    // [I7] Fix: متغیرهای مربوط به گرافیک بلایای طبیعی
+    private List<Hex> earthquakeHexes = new ArrayList<>();
+    private int       earthquakeTimer = 0;
+
     private List<Hex> floodedHexes    = new ArrayList<>();
     private float     floodAlpha      = 0f;
+
     private List<Hex> bearAttackHexes = new ArrayList<>();
     private float     bearAlpha       = 0f;
     private int       bearFlashTimer  = 0;
@@ -78,6 +83,7 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (animatingUnit != null) { updateAnimation();    needsRepaint = true; }
             if (selectedUnit  != null) { updatePulseEffect();  needsRepaint = true; }
 
+            // زلزله - لرزش صفحه
             if (shakeDuration > 0) {
                 shakeX = (int)((Math.random() - 0.5) * 15);
                 shakeY = (int)((Math.random() - 0.5) * 15);
@@ -86,9 +92,20 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
+            // [I7] Fix: زلزله - تایمر ترک‌های زمین
+            if (earthquakeTimer > 0) {
+                earthquakeTimer--;
+                if (earthquakeTimer == 0) earthquakeHexes.clear();
+                needsRepaint = true;
+            }
+
+            // سیل - بالا آمدن آب
             if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
                 floodAlpha += 0.02f;
                 if (floodAlpha > 0.6f) floodAlpha = 0.6f;
+                needsRepaint = true;
+            } else if (!floodedHexes.isEmpty()) {
+                // برای رندر امواج متحرک سیل، همیشه نیاز به ری‌پینت داریم
                 needsRepaint = true;
             }
 
@@ -124,11 +141,6 @@ public class GamePanel extends JPanel implements GameEventListener {
         });
     }
 
-    /**
-     * باز کردن Pause Menu.
-     * public است تا HUDPanel هم بتواند آن را فراخوانی کند.
-     * I3: isAnimating() و mainController.isProcessingTurn() پاس می‌شوند.
-     */
     public void openPauseMenu() {
         JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
         boolean locked = isAnimating() || mainController.isProcessingTurn();
@@ -280,22 +292,12 @@ public class GamePanel extends JPanel implements GameEventListener {
         popup.show(this, p.x, p.y);
     }
 
-    /**
-     * M4: اصلاح بررسی کشف‌شدن قبیله.
-     *
-     * قبلاً: campHex.isExplored() — ساختمان‌ها هم می‌توانستند این را true کنند.
-     * حالا: camp.isDiscovered() — فقط یونیت‌ها می‌توانند این را true کنند
-     * (در updateFogOfWar() مرحله ۴).
-     *
-     * نتیجه: بازیکن باید فیزیکاً یونیتی به کمپ نزدیک کند تا بتواند با قبیله تعامل داشته باشد.
-     */
     public void onTribeInteractionTriggered(Hex campHex) {
         if (campHex == null || !(campHex.getBuilding() instanceof TribeCamp)) return;
         if (campHex.getBuilding().isDestroyed()) return;
 
         TribeCamp camp = (TribeCamp) campHex.getBuilding();
 
-        // M4: بررسی discovered flag (نه isExplored) طبق spec
         if (!camp.isDiscovered()) {
             GameEventDispatcher.fireNotification(
                     "⚠️ This tribe has not been discovered yet. Send a unit to explore the area.");
@@ -314,7 +316,12 @@ public class GamePanel extends JPanel implements GameEventListener {
         SwingUtilities.invokeLater(() -> {
             if (center == null || !center.isVisible()) return;
             switch (type) {
-                case "EARTHQUAKE"  -> shakeDuration = 30;
+                // [I7] Fix: ست کردن هکس‌های زلزله و شروع تایمر رسم ترک‌های زمین
+                case "EARTHQUAKE"  -> {
+                    shakeDuration = 30;
+                    earthquakeHexes = new ArrayList<>(affected);
+                    earthquakeTimer = 80;
+                }
                 case "FLOOD"       -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
                 case "BEAR_ATTACK" -> {
                     bearAttackHexes = new ArrayList<>(affected);
@@ -377,6 +384,10 @@ public class GamePanel extends JPanel implements GameEventListener {
     public float     getFloodAlpha()     { return floodAlpha; }
     public List<Hex> getBearAttackHexes(){ return bearAttackHexes; }
     public float     getBearAlpha()      { return bearAlpha; }
+
+    // [I7] Fix: Getters برای دسترسی رندرر به هکس‌های زلزله‌زده
+    public List<Hex> getEarthquakeHexes(){ return earthquakeHexes; }
+    public int       getEarthquakeTimer(){ return earthquakeTimer; }
 
     public void startAnimation(Unit unit, Hex targetHex,
                                int startX, int startY, int targetX, int targetY) {
