@@ -19,7 +19,9 @@ public class EnemyState implements TribeState {
         if (currentCount > 0 && currentCount % 3 == 0) {
             int maxGuards = (tribe.getType() == TribeType.WARRIOR) ? 5 : 3;
             long currentGuards = map.getUnits().stream()
-                    .filter(u -> u.isAlive() && u.getType() == UnitType.SWORDSMAN
+                    .filter(u -> u.isAlive()
+                            && u.getType() == UnitType.SWORDSMAN
+                            && u.isEnemy() // اصلاح [I1]: فیلتر کردن نیروهای خودی بازیکن
                             && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
                     .count();
 
