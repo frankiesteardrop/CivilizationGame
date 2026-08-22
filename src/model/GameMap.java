@@ -248,21 +248,9 @@ public class GameMap {
 
     public void incrementTurn() { currentTurn++; }
 
-    /**
-     * اصلاح M4: updateFogOfWar حالا دو مرحله جداگانه دارد:
-     *
-     * مرحله ۱ (موجود): ساختمان‌ها و یونیت‌ها hex‌ها را visible/explored می‌کنند.
-     * مرحله ۲ (جدید): فقط یونیت‌ها (نه ساختمان‌ها) TribeCamp را discovered می‌کنند.
-     *
-     * دلیل جداسازی: spec می‌گوید «کشف شدن قبیله» نیاز به یونیت دارد، نه ساختمان.
-     * ساختمان می‌تواند hex را visible کند (می‌توان کمپ را دید) اما نمی‌تواند
-     * قبیله را «کشف‌شده» کند (نمی‌توان با آن تعامل کرد).
-     */
     public void updateFogOfWar() {
-        // ─── مرحله ۱: reset تمام hexها ───────────────────────────────────────
         for (Hex hex : hexes.getAll()) hex.setVisible(false);
 
-        // ─── مرحله ۲: ساختمان‌ها → visible + explored ────────────────────────
         for (Hex hex : hexes.getAll()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed()) {
@@ -271,13 +259,11 @@ public class GameMap {
                             other.getQ(), other.getR()) <= b.getVisionRadius()) {
                         other.setVisible(true);
                         other.setExplored(true);
-                        // M4: ساختمان‌ها TribeCamp را discovered نمی‌کنند
                     }
                 }
             }
         }
 
-        // ─── مرحله ۳: یونیت‌ها → visible + (Explorer) explored ───────────────
         for (Unit unit : units.getAll()) {
             if (!unit.isAlive()) continue;
             boolean isExplorer = (unit instanceof Explorer);
@@ -290,19 +276,16 @@ public class GameMap {
             }
         }
 
-        // ─── مرحله ۴ (M4): یونیت‌ها → TribeCamp.discovered ──────────────────
-        // فقط هنگامی که یک یونیت (هر نوعی — نه ساختمان) کمپ را ببیند،
-        // قبیله «کشف‌شده» محسوب می‌شود و پنل تعامل باز می‌شود.
         for (Hex hex : hexes.getAll()) {
             if (!(hex.getBuilding() instanceof TribeCamp camp)) continue;
-            if (camp.isDiscovered()) continue; // already discovered — skip expensive loop
+            if (camp.isDiscovered()) continue;
 
             for (Unit unit : units.getAll()) {
                 if (!unit.isAlive()) continue;
                 if (getHexDistance(unit.getQ(), unit.getR(),
                         hex.getQ(), hex.getR()) <= unit.getVisionRadius()) {
                     camp.setDiscovered(true);
-                    break; // one unit is enough
+                    break;
                 }
             }
         }
@@ -310,11 +293,23 @@ public class GameMap {
 
     public void expandBorderAt(int centerQ, int centerR) {
         Hex centerHex = getHexAt(centerQ, centerR);
-        if (centerHex != null && centerHex.isExplored()) centerHex.setInsideBorder(true);
         if (centerHex == null) return;
+
+        // [M5] Fix: جلوگیری از گسترش مرز روی آب و رشته‌کوه (هکس مرکزی)
+        if (centerHex.isExplored()
+                && centerHex.getTerrainType() != TerrainType.SEA
+                && centerHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+            centerHex.setInsideBorder(true);
+        }
+
         for (int i = 0; i < 6; i++) {
             Hex neighbor = getNeighbor(centerHex, i);
-            if (neighbor != null && neighbor.isExplored()) neighbor.setInsideBorder(true);
+            // [M5] Fix: جلوگیری از گسترش مرز روی آب و رشته‌کوه برای هکس‌های مجاور
+            if (neighbor != null && neighbor.isExplored()
+                    && neighbor.getTerrainType() != TerrainType.SEA
+                    && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                neighbor.setInsideBorder(true);
+            }
         }
     }
 

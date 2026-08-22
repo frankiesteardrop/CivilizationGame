@@ -157,6 +157,10 @@ public class EconomyController implements GameEventListener {
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
+                    // [M4] Fix: فایر کردن Notification برای اطلاع‌رسانی تخریب ساختمان به دلیل عدم پرداخت
+                    GameEventDispatcher.fireNotification(
+                            "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
+                    );
                 }
             } else {
                 b.resetFailedUpkeep();
