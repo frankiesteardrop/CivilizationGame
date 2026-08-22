@@ -19,11 +19,15 @@ public class TradeController implements GameEventListener {
                 && ((TribeCamp) h.getBuilding()).getTribe().isAllied() && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COMMERCIAL);
     }
 
-    public boolean tradeWithBazaar(Bazaar bazaar, int level, ResourceType give, ResourceType get) {
+    // [M1] Fix: حذف پارامتر level از ورودی متد و خواندن آن مستقیماً از شیء Bazaar
+    public boolean tradeWithBazaar(Bazaar bazaar, ResourceType give, ResourceType get) {
         if (bazaar.hasTraded()) return false;
-        int amountToGive = (level == 1) ? 10 : (level == 2) ? 100 : 500;
 
-        TradeStrategy strategy = new BazaarTradeStrategy(level);
+        // استعلام سطح بازار از خود شیء (رعایت اصول MVC و Single Source of Truth)
+        int currentLevel = bazaar.getLevel();
+        int amountToGive = (currentLevel == 1) ? 10 : (currentLevel == 2) ? 100 : 500;
+
+        TradeStrategy strategy = new BazaarTradeStrategy(currentLevel);
         return executeTrade(give, amountToGive, get, strategy, () -> bazaar.setTraded(true));
     }
 
