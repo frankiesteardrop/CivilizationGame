@@ -20,9 +20,11 @@ public class DisasterController {
     }
 
     public void checkAndTriggerDisasters() {
+        // مستقل از وقوع یا عدم وقوع بلایای طبیعی، تایمر خرس باید کم شود
         map.decrementBearCooldown();
 
-        if (random.nextDouble() > 0.05) return;
+        // اصلاح [I4]: اعمال دقیق و ریاضیاتی احتمال ۵٪ (۹۵٪ مواقع بدون بلا)
+        if (random.nextDouble() >= 0.05) return;
 
         boolean isAutumn   = map.getCurrentSeason() == Season.AUTUMN;
         int     maxDisaster = isAutumn ? 3 : 2;
@@ -120,8 +122,8 @@ public class DisasterController {
 
     private void moveBearTowardTarget(Unit bear, Unit target,
                                       int lairQ, int lairR) {
-        Hex   bestHex  = null;
-        int   bestDist = Integer.MAX_VALUE;
+        Hex  bestHex  = null;
+        int  bestDist = Integer.MAX_VALUE;
         int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{-1,1},{0,1}};
 
         for (int[] dir : dirs) {
@@ -161,7 +163,7 @@ public class DisasterController {
                 .collect(Collectors.toList());
         if (landHexes.isEmpty()) return;
 
-        Hex       center       = landHexes.get(random.nextInt(landHexes.size()));
+        Hex        center        = landHexes.get(random.nextInt(landHexes.size()));
         List<Hex> affectedHexes = new ArrayList<>();
 
         for (Hex h : map.getHexes()) {
@@ -208,10 +210,9 @@ public class DisasterController {
 
         if (candidates.isEmpty()) return;
 
-        Hex       center       = candidates.get(random.nextInt(candidates.size()));
+        Hex        center        = candidates.get(random.nextInt(candidates.size()));
         List<Hex> affectedHexes = new ArrayList<>();
 
-        // [M3] Fix: تعریف متغیرها برای شمارش خسارات
         int roadsDestroyed = 0;
         int farmsDestroyed = 0;
 
@@ -230,7 +231,6 @@ public class DisasterController {
                     }
                 }
 
-                // [M3] Fix: شمارش جاده‌های تخریب شده
                 if (h.hasRoad()) {
                     h.setRoad(false);
                     roadsDestroyed++;
@@ -240,7 +240,7 @@ public class DisasterController {
                 if (b != null && !b.isDestroyed()) {
                     if (b.getType() == BuildingType.FARM) {
                         b.takeFloodDamage(9999);
-                        farmsDestroyed++; // [M3] Fix: شمارش مزارع تخریب شده
+                        farmsDestroyed++;
                     } else {
                         b.takeFloodDamage(30);
                     }
@@ -255,7 +255,6 @@ public class DisasterController {
                     "⚠️ A Flood struck a distant region in the Autumn rains!");
         }
 
-        // [M3] Fix: شلیک نوتیفیکیشن اختصاصی در صورت تخریب زیرساخت‌ها
         if (roadsDestroyed > 0 || farmsDestroyed > 0) {
             GameEventDispatcher.fireNotification(
                     String.format("🌊 Flood destroyed %d road(s) and %d farm(s)!",
