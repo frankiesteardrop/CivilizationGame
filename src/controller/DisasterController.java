@@ -9,31 +9,17 @@ public class DisasterController {
     private final GameMap map;
     private final Random  random;
 
-    // Bear AI constants
-    private static final int BEAR_MAX_COUNT     = 2;   // حداکثر ۲ خرس همزمان
-    private static final int BEAR_COOLDOWN_TURNS = 5;  // ۵ ترن cooldown بعد از spawn
-    private static final int BEAR_LAIR_RADIUS   = 3;   // شعاع ماندن از لانه
-
-    // [I1] Fix: شعاع تشخیص هدف از 5 به 3 کاهش یافت تا با داکیومنت فاز دوم مطابقت داشته باشد.
+    private static final int BEAR_MAX_COUNT     = 2;
+    private static final int BEAR_COOLDOWN_TURNS = 5;
+    private static final int BEAR_LAIR_RADIUS   = 3;
     private static final int BEAR_DETECT_RADIUS = 3;
 
     public DisasterController(GameMap map) {
         this.map    = map;
-        // اصلاح کلیدی گام اول: جایگزینی new Random() با شیء مرکزی
         this.random = map.getRandom();
     }
 
-    // ─── Per-Turn Entry Points ────────────────────────────────────────────────
-
-    /**
-     * بررسی و trigger کردن بلایای طبیعی.
-     * ۵٪ شانس در ابتدای هر ترن.
-     *
-     * F-33: Bear Attack فقط اگر cooldown == 0 باشد trigger می‌شود.
-     * Cooldown در GameMap ذخیره می‌شود (DisasterController stateless است).
-     */
     public void checkAndTriggerDisasters() {
-        // کاهش cooldown خرس در هر ترن
         map.decrementBearCooldown();
 
         if (random.nextDouble() > 0.05) return;
@@ -45,7 +31,6 @@ public class DisasterController {
         if (disasterType == 0) {
             triggerEarthquake();
         } else if (disasterType == 1) {
-            // Bear attack فقط اگر cooldown تمام شده و سقف ۲ خرس پر نشده باشد
             long currentBears = map.getUnits().stream()
                     .filter(u -> u.isAlive() && u.getType() == UnitType.BEAR)
                     .count();
@@ -57,18 +42,6 @@ public class DisasterController {
         }
     }
 
-    /**
-     * F-33: پردازش AI خرس‌های موجود در نقشه — فراخوانی از TurnController.
-     *
-     * رفتار طبق spec:
-     * 1. اول Civilian (Worker/Builder/Explorer/BorderExpander) را هدف می‌گیرد
-     * 2. اگر Civilian نبود، Military را هدف می‌گیرد
-     * 3. هر ترن ۱ هکس به سمت هدف حرکت می‌کند (AP=2، مصرف ۱ برای حرکت)
-     * 4. اگر مجاور هدف است، ۳۵ آسیب می‌زند (AP دوم مصرف می‌شود)
-     * 5. در شعاع BEAR_LAIR_RADIUS از نزدیک‌ترین جنگل می‌ماند
-     *
-     * نکته: AP خرس‌ها قبلاً در TurnController.forceEndTurn() reset شده است.
-     */
     public void processBearAI() {
         List<Unit> bears = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.getType() == UnitType.BEAR)
@@ -80,46 +53,37 @@ public class DisasterController {
             processSingleBearAI(bear);
         }
 
-        // حذف یونیت‌هایی که آسیب bear کشت (از جمله خود bear اگر مرده)
         map.removeDeadUnits();
     }
-
-    // ─── Bear AI ─────────────────────────────────────────────────────────────
 
     private void processSingleBearAI(Unit bear) {
         if (!bear.isAlive() || bear.getCurrentAP() <= 0) return;
 
-        // پیدا کردن لانه (نزدیک‌ترین هکس جنگل)
         Hex lairHex = findNearestForest(bear.getQ(), bear.getR());
         int lairQ   = (lairHex != null) ? lairHex.getQ() : bear.getQ();
         int lairR   = (lairHex != null) ? lairHex.getR() : bear.getR();
 
-        // پیدا کردن هدف
         Unit target = findBearTarget(bear, lairQ, lairR);
         if (target == null) return;
 
         int distToTarget = map.getHexDistance(bear.getQ(), bear.getR(),
                 target.getQ(), target.getR());
 
-        // اگر مجاور نیست و AP داریم، حرکت کن
         if (distToTarget > 1 && bear.getCurrentAP() >= 1) {
             moveBearTowardTarget(bear, target, lairQ, lairR);
-            // به‌روزرسانی فاصله بعد از حرکت
             distToTarget = map.getHexDistance(bear.getQ(), bear.getR(),
                     target.getQ(), target.getR());
         }
 
-        // اگر الان مجاور است و AP داریم، حمله کن
         if (distToTarget <= 1 && bear.getCurrentAP() >= 1) {
             bear.consumeAP(1);
-            target.takeDamage(35); // قدرت ۳۵ طبق spec
+            target.takeDamage(35);
 
             if (!target.isAlive()) {
                 GameEventDispatcher.fireNotification(
                         "🐻 A bear killed a unit! Stay vigilant.");
             }
 
-            // انیمیشن: flash در hex خرس اگر visible باشد
             Hex bearHex = map.getHexAt(bear.getQ(), bear.getR());
             if (bearHex != null && bearHex.isVisible()) {
                 GameEventDispatcher.fireNotification(
@@ -128,12 +92,7 @@ public class DisasterController {
         }
     }
 
-    /**
-     * پیدا کردن هدف برای خرس.
-     * اولویت: Civilian در شعاع DETECT → Military در شعاع DETECT → null
-     */
     private Unit findBearTarget(Unit bear, int lairQ, int lairR) {
-        // اول: نزدیک‌ترین Civilian در شعاع از لانه
         Optional<Unit> civilian = map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && (u.getType() == UnitType.WORKER
@@ -147,7 +106,6 @@ public class DisasterController {
 
         if (civilian.isPresent()) return civilian.get();
 
-        // بعد: نزدیک‌ترین Military در شعاع از لانه
         return map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && (u.getType() == UnitType.SWORDSMAN
@@ -160,10 +118,6 @@ public class DisasterController {
                 .orElse(null);
     }
 
-    /**
-     * حرکت یک هکس به سمت هدف، در محدوده BEAR_LAIR_RADIUS از لانه.
-     * بهترین هکس مجاور که به هدف نزدیک‌تر می‌کند و در محدوده لانه است.
-     */
     private void moveBearTowardTarget(Unit bear, Unit target,
                                       int lairQ, int lairR) {
         Hex   bestHex  = null;
@@ -178,7 +132,6 @@ public class DisasterController {
             if (neighbor.getTerrainType() == TerrainType.SEA) continue;
             if (neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
 
-            // در محدوده lair radius بماند
             if (map.getHexDistance(lairQ, lairR, nq, nr) > BEAR_LAIR_RADIUS) continue;
 
             int distToTarget = map.getHexDistance(nq, nr,
@@ -190,7 +143,6 @@ public class DisasterController {
         }
 
         if (bestHex != null) {
-            // moveTo مصرف AP می‌کند
             bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
         }
     }
@@ -202,8 +154,6 @@ public class DisasterController {
                         map.getHexDistance(q, r, h.getQ(), h.getR())))
                 .orElse(null);
     }
-
-    // ─── Disaster Triggers ───────────────────────────────────────────────────
 
     private void triggerEarthquake() {
         List<Hex> landHexes = map.getHexes().stream()
@@ -219,14 +169,12 @@ public class DisasterController {
                     h.getQ(), h.getR()) <= 2) {
                 affectedHexes.add(h);
 
-                // آسیب به یونیت‌ها: -10 HP
                 for (Unit u : map.getUnits()) {
                     if (u.isAlive() && u.getQ() == h.getQ() && u.getR() == h.getR()) {
                         u.takeDamage(10);
                     }
                 }
 
-                // آسیب به TownHall: -50 HP تا حداقل 1
                 Building b = h.getBuilding();
                 if (b != null && !b.isDestroyed() && b instanceof TownHall) {
                     int dmg = Math.min(50, b.getHp() - 1);
@@ -242,7 +190,6 @@ public class DisasterController {
     }
 
     private void triggerFlood() {
-        // سیل فقط در پاییز (طبق spec)
         if (map.getCurrentSeason() != Season.AUTUMN) return;
 
         List<Hex> candidates = map.getHexes().stream()
@@ -264,6 +211,10 @@ public class DisasterController {
         Hex       center       = candidates.get(random.nextInt(candidates.size()));
         List<Hex> affectedHexes = new ArrayList<>();
 
+        // [M3] Fix: تعریف متغیرها برای شمارش خسارات
+        int roadsDestroyed = 0;
+        int farmsDestroyed = 0;
+
         for (Hex h : map.getHexes()) {
             if (map.getHexDistance(center.getQ(), center.getR(),
                     h.getQ(), h.getR()) <= 1) {
@@ -272,7 +223,6 @@ public class DisasterController {
 
                 affectedHexes.add(h);
 
-                // آسیب به یونیت‌ها: -20 HP + AP → 0
                 for (Unit u : map.getUnits()) {
                     if (u.isAlive() && u.getQ() == h.getQ() && u.getR() == h.getR()) {
                         u.takeDamage(20);
@@ -280,15 +230,18 @@ public class DisasterController {
                     }
                 }
 
-                h.setRoad(false); // جاده تخریب می‌شود
+                // [M3] Fix: شمارش جاده‌های تخریب شده
+                if (h.hasRoad()) {
+                    h.setRoad(false);
+                    roadsDestroyed++;
+                }
 
                 Building b = h.getBuilding();
                 if (b != null && !b.isDestroyed()) {
                     if (b.getType() == BuildingType.FARM) {
-                        // مزرعه کاملاً نابود می‌شود
                         b.takeFloodDamage(9999);
+                        farmsDestroyed++; // [M3] Fix: شمارش مزارع تخریب شده
                     } else {
-                        // سایر ساختمان‌ها: -30 HP + توقف تولید تا ترن بعد
                         b.takeFloodDamage(30);
                     }
                 }
@@ -296,9 +249,17 @@ public class DisasterController {
         }
 
         GameEventDispatcher.fireDisasterTriggered("FLOOD", center, affectedHexes);
+
         if (!center.isVisible()) {
             GameEventDispatcher.fireNotification(
                     "⚠️ A Flood struck a distant region in the Autumn rains!");
+        }
+
+        // [M3] Fix: شلیک نوتیفیکیشن اختصاصی در صورت تخریب زیرساخت‌ها
+        if (roadsDestroyed > 0 || farmsDestroyed > 0) {
+            GameEventDispatcher.fireNotification(
+                    String.format("🌊 Flood destroyed %d road(s) and %d farm(s)!",
+                            roadsDestroyed, farmsDestroyed));
         }
     }
 
@@ -313,7 +274,6 @@ public class DisasterController {
                 .filter(u -> u.isAlive() && u.getType() == UnitType.BEAR)
                 .count();
 
-        // تعداد خرس جدید: ۱ یا ۲ (در محدوده سقف کلی ۲)
         int newBears = (int) Math.min(
                 1 + random.nextInt(2),
                 BEAR_MAX_COUNT - currentBears);
@@ -321,15 +281,12 @@ public class DisasterController {
         if (newBears <= 0) return;
 
         for (int i = 0; i < newBears; i++) {
-            // F-39: حالا می‌توان از UnitFactory استفاده کرد
             map.addUnit(UnitFactory.createUnit(UnitType.BEAR,
                     forestHex.getQ(), forestHex.getR()));
         }
 
-        // F-33: تنظیم cooldown در GameMap (نه در این object که stateless است)
         map.setBearCooldown(BEAR_COOLDOWN_TURNS);
 
-        // هکس‌های جنگلی در شعاع ۳ برای انیمیشن flash قهوه‌ای
         List<Hex> affectedHexes = map.getHexes().stream()
                 .filter(h -> h.getTerrainType() == TerrainType.FOREST
                         && map.getHexDistance(forestHex.getQ(), forestHex.getR(),

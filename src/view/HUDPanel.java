@@ -17,7 +17,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
     private final GamePanel gamePanel;
     private final JPanel infoContainer;
     private final JButton endTurnBtn;
-    private final JButton pauseBtn; // I4: دکمه Pause جدید
+    private final JButton pauseBtn;
 
     private final HUDCard foodCard;
     private final HUDCard woodCard;
@@ -49,7 +49,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         infoContainer.setOpaque(false);
         add(infoContainer, BorderLayout.CENTER);
 
-        // I4: ساخت هر دو دکمه و قرار دادن آن‌ها کنار هم در EAST
         endTurnBtn = buildEndTurnButton();
         pauseBtn   = buildPauseButton();
 
@@ -90,12 +89,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         updateHUD();
     }
 
-    // ─── I4: دکمه Pause ───────────────────────────────────────────────────────
-
-    /**
-     * ساخت دکمه ⏸ PAUSE که Pause Menu را باز می‌کند.
-     * این دکمه همیشه فعال است — فقط دکمه‌های Save داخل Pause Menu قفل می‌شوند [I3].
-     */
     private JButton buildPauseButton() {
         JButton btn = new JButton("⏸  PAUSE  [ESC]");
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -114,12 +107,9 @@ public class HUDPanel extends JPanel implements GameEventListener {
             @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(62, 72, 98)); }
             @Override public void mouseExited(MouseEvent e)  { btn.setBackground(new Color(45, 52, 70)); }
         });
-        // I4: باز کردن Pause Menu از طریق GamePanel (که Escape key binding هم دارد)
         btn.addActionListener(e -> gamePanel.openPauseMenu());
         return btn;
     }
-
-    // ─── End Turn Button ──────────────────────────────────────────────────────
 
     private JButton buildEndTurnButton() {
         JButton btn = new JButton("END TURN");
@@ -152,8 +142,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
     }
 
-    // ─── Event Listeners ─────────────────────────────────────────────────────
-
     @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
     @Override public void onUnitKilled(Unit unit)                                          { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
@@ -181,15 +169,12 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
     @Override
     public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
-        // هیچ کاری نمی‌کند — نمایش alert به عهده onNotification است
     }
 
     @Override
     public void onNotification(String message) {
         SwingUtilities.invokeLater(() -> showDisasterNotification(message));
     }
-
-    // ─── HUD Update ──────────────────────────────────────────────────────────
 
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
@@ -214,7 +199,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
         ironCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.IRON),  maxIron,  netIron));
 
-        // ─── Queue ───────────────────────────────────────────────────────────
         ProductionCommand currentTask = map.getTownHall().getProductionQueue().peek();
         if (currentTask != null) {
             if (isStarving && currentTask.isPopulationTask()) {
@@ -227,7 +211,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
             queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
         }
 
-        // ─── Units ───────────────────────────────────────────────────────────
         long milCount   = map.getMilitaryUnitCount();
         int  milCap     = map.getMilitaryUnitCap();
         long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
@@ -243,20 +226,18 @@ public class HUDPanel extends JPanel implements GameEventListener {
                         + "</span>";
         popCard.updateValue(unitText);
 
-        // ─── Happiness ───────────────────────────────────────────────────────
         int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
         happinessCard.updateValue(formatHappinessText(happiness));
 
-        // ─── Season ──────────────────────────────────────────────────────────
         seasonCard.updateValue(formatSeasonText(map.getCurrentSeason()));
 
-        // ─── Turn ────────────────────────────────────────────────────────────
-        turnCard.updateValue(String.valueOf(map.getCurrentTurn()));
+        // [M2] Fix: محاسبه و نمایش وضعیت ترن درون فصلی به فرمت Turn (X/10)
+        int turn = map.getCurrentTurn();
+        int turnInSeason = ((turn - 1) % 10) + 1;
+        turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + turnInSeason + "/10)</span>");
 
         starvationAlertCard.setVisible(isStarving);
     }
-
-    // ─── Format Helpers ──────────────────────────────────────────────────────
 
     private String formatHappinessText(int happiness) {
         String sign = happiness > 0 ? "+" : "";
@@ -288,10 +269,7 @@ public class HUDPanel extends JPanel implements GameEventListener {
                 + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
     }
 
-    // ─── End Turn Handler ─────────────────────────────────────────────────────
-
     private void handleEndTurn() {
-        // I3: جلوگیری از End Turn در حین Animation یا پردازش ترن
         if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
 
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
@@ -303,8 +281,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
             mainController.getTurnController().forceEndTurn();
         }
     }
-
-    // ─── Notification Dialogs ────────────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
@@ -391,8 +367,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         closeTimer.setRepeats(false);
         closeTimer.start();
     }
-
-    // ─── HUDCard Inner Class ─────────────────────────────────────────────────
 
     private static class HUDCard extends JPanel {
         private final JLabel label;
