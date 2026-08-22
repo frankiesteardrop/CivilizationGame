@@ -183,11 +183,12 @@ public class GamePanel extends JPanel implements GameEventListener {
                     2f + particleRandom.nextFloat() * 3f,
                     0.55f + particleRandom.nextFloat() * 0.45f);
         } else {
+            // [I6] Fix: سرعت، ضخامت و وضوح باران پاییزی برای شبیه‌سازی طوفان و باد افزایش یافت
             return new SeasonParticle(startX, startY,
-                    -2.5f - particleRandom.nextFloat() * 1.5f,
-                    7f + particleRandom.nextFloat() * 5f,
-                    1f,
-                    0.25f + particleRandom.nextFloat() * 0.3f);
+                    -4.0f - particleRandom.nextFloat() * 3.0f,
+                    12.0f + particleRandom.nextFloat() * 6.0f,
+                    1.5f + particleRandom.nextFloat() * 2.0f,
+                    0.4f + particleRandom.nextFloat() * 0.4f);
         }
     }
 
@@ -204,11 +205,14 @@ public class GamePanel extends JPanel implements GameEventListener {
                 g2d.fillOval((int) p.x - sz / 2, (int) p.y - sz / 2, sz, sz);
             }
         } else if (season == Season.AUTUMN) {
-            g2d.setStroke(new BasicStroke(1f));
+            // [I6] Fix: رسم داینامیک با ضخامت متغیر و شبیه‌سازی Motion Blur برای باد پاییزی
             for (SeasonParticle p : seasonParticles) {
-                g2d.setColor(new Color(0.55f, 0.72f, 0.90f, Math.min(1f, p.alpha)));
+                g2d.setStroke(new BasicStroke(p.size, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2d.setColor(new Color(0.7f, 0.85f, 0.95f, Math.min(1f, p.alpha)));
                 int x1 = (int) p.x, y1 = (int) p.y;
-                int x2 = (int)(p.x - 5), y2 = (int)(p.y - 12);
+                // محاسبه طول دم باران بر اساس سرعت آن
+                int x2 = (int)(p.x - p.speedX * 1.5f);
+                int y2 = (int)(p.y - p.speedY * 1.5f);
                 g2d.drawLine(x1, y1, x2, y2);
             }
             g2d.setStroke(new BasicStroke(1f));
