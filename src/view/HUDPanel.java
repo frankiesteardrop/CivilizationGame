@@ -231,7 +231,16 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         seasonCard.updateValue(formatSeasonText(map.getCurrentSeason()));
 
-        // [M2] Fix: محاسبه و نمایش وضعیت ترن درون فصلی به فرمت Turn (X/10)
+        // اصلاح [M2]: ایجاد Tooltip زیبا و حرفه‌ای برای کارت فصل با استفاده از HTML
+        String seasonEffect = switch (map.getCurrentSeason()) {
+            case SPRING -> "<html><div style='padding:4px;'><b style='color:#a8e063;'>🌸 Spring Effect</b><br/>All Farms & Stables +1 Food/turn</div></html>";
+            case SUMMER -> "<html><div style='padding:4px;'><b style='color:#f9d423;'>☀️ Summer Effect</b><br/>No seasonal effects</div></html>";
+            case AUTUMN -> "<html><div style='padding:4px;'><b style='color:#e67e22;'>🍂 Autumn Effect</b><br/>Water movement +1 AP | Flood risk active</div></html>";
+            case WINTER -> "<html><div style='padding:4px;'><b style='color:#a8d8ea;'>❄️ Winter Effect</b><br/>All Farms -1 Food | All land movement +1 AP</div></html>";
+        };
+        seasonCard.setToolTipText(seasonEffect);
+
+        // محاسبه و نمایش وضعیت ترن درون فصلی به فرمت Turn (X/10)
         int turn = map.getCurrentTurn();
         int turnInSeason = ((turn - 1) % 10) + 1;
         turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + turnInSeason + "/10)</span>");
