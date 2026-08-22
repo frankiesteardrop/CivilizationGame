@@ -41,7 +41,7 @@ public class GameInputHandler extends MouseAdapter {
                 panel.repaint();
             } else if (SwingUtilities.isRightMouseButton(e)) {
 
-                // اصلاح گام اول: جلوگیری از صدور دستور به نیروهای دشمن
+                // جلوگیری از صدور دستور به نیروهای دشمن
                 Unit currentSelected = panel.getSelectedUnit();
                 if (currentSelected != null && currentSelected.isEnemy()) {
                     GameEventDispatcher.fireNotification("⛔ You cannot command enemy units!");
@@ -116,7 +116,6 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
-            // [C1] Fix: اضافه شدن هندلینگ راست‌کلیک برای اصطبل
             if (bType == BuildingType.STABLE) {
                 if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);
@@ -125,8 +124,16 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
+            // [M1] Fix: هندلینگ راست کلیک روی بازار جهت نمایش منوی اختصاصی ارتقا و تبادل
+            if (bType == BuildingType.BAZAAR) {
+                if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
+                    panel.setSelectedUnit(null);
+                    panel.showContextMenu(e.getPoint(), mainController.getBazaarMenuActions((Bazaar) clickedHex.getBuilding()));
+                    return;
+                }
+            }
+
             if (bType == BuildingType.TRIBE_CAMP) {
-                // پاکسازی MVC: هندلر دیگه مستقیماً منطق دشمنی رو چک نمی‌کنه!
                 if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isHostile(clickedHex)) {
                     panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
                     return;
@@ -146,7 +153,6 @@ public class GameInputHandler extends MouseAdapter {
                 return;
             }
 
-            // پاکسازی MVC: تمام محاسبات فاصله و تصرف به کنترلر واگذار شد
             boolean hasEnemy = mainController.isHostile(clickedHex);
             boolean hexIsCapturable = mainController.isCapturable(selectedUnit, clickedHex);
 

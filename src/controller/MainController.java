@@ -130,12 +130,10 @@ public class MainController {
                 upgradeController.canTrainUnit("SWORDSMAN"), () -> upgradeController.trainUnit("SWORDSMAN")));
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
-        // [C1] Fix: Cavalry از اینجا حذف شد و به متد getStableMenuActions منتقل شد.
 
         return actions;
     }
 
-    // [C1] Fix: متد جدید برای هندل کردن منوی اختصاصی اصطبل
     public List<MenuAction> getStableMenuActions() {
         List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
@@ -148,6 +146,52 @@ public class MainController {
         actions.add(new MenuAction(milPrefix + "🏇 Cavalry (30F, 20I) [TH L2]",
                 upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
 
+        return actions;
+    }
+
+    // ─── [M1] Fix: متد تولید اکشن‌های اختصاصی بازار و ارتقای آن ─────────────────
+    public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
+        List<MenuAction> actions = new ArrayList<>();
+        int level = bazaar.getLevel();
+
+        // طبق داکیومنت، مبادلات بر اساس سطح بازار مشخص می‌شود: 10، 100، 500
+        int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
+        String prefix = bazaar.hasTraded() ? "🚫 [Traded] " : "💱 ";
+
+        if (bazaar.canUpgrade()) {
+            actions.add(new MenuAction("⬆️ Upgrade Bazaar to Level " + (level + 1), true, () -> {
+                bazaar.upgrade();
+                GameEventDispatcher.fireNotification("Bazaar upgraded to Level " + bazaar.getLevel() + "!");
+            }));
+        }
+
+        if (bazaar.hasTraded()) {
+            actions.add(new MenuAction(prefix + "Already traded this turn", false, null));
+            return actions;
+        }
+
+        ResourceType[] types = {ResourceType.FOOD, ResourceType.WOOD, ResourceType.STONE, ResourceType.IRON};
+        String[] icons = {"🍔", "🪵", "🪨", "⚙️"};
+        Inventory inv = gameMap.getTownHall().getInventory();
+
+        for (int i = 0; i < types.length; i++) {
+            for (int j = 0; j < types.length; j++) {
+                if (i == j) continue;
+                ResourceType give = types[i];
+                ResourceType get = types[j];
+                String giveLabel = icons[i] + " " + give.name();
+                String getLabel = icons[j] + " " + get.name();
+                boolean canAfford = inv.hasEnough(give, amount);
+
+                actions.add(new MenuAction(String.format("%s Trade %d %s ➔ %s", prefix, amount, giveLabel, getLabel), canAfford, () -> {
+                    if (tradeController.tradeWithBazaar(bazaar, give, get)) {
+                        GameEventDispatcher.fireNotification("Trade successful!");
+                    } else {
+                        GameEventDispatcher.fireNotification("Trade failed. Storage full or resources missing.");
+                    }
+                }));
+            }
+        }
         return actions;
     }
 
