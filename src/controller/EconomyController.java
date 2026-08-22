@@ -52,7 +52,10 @@ public class EconomyController implements GameEventListener {
 
         if (isStarving) {
             for (Unit unit : map.getUnits()) {
-                if (unit.isAlive()) unit.consumeAP(1);
+                // [I3] Fix: خرس‌ها حیوانات وحشی هستند و از انبار بازیکن تغذیه نمی‌کنند، پس نباید به دلیل قحطی بازیکن، AP از دست بدهند.
+                if (unit.isAlive() && unit.getType() != UnitType.BEAR) {
+                    unit.consumeAP(1);
+                }
             }
         }
         GameEventDispatcher.fireStarvationChanged(isStarving);
