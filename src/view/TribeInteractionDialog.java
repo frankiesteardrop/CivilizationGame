@@ -22,13 +22,13 @@ public class TribeInteractionDialog extends JDialog {
     private static final Color ACCENT_RED   = new Color(231, 76, 60);
     private static final Color ACCENT_GOLD  = new Color(241, 196, 15);
     private static final Color ACCENT_PURP  = new Color(155, 89, 182);
-    private static final Color ACCENT_TEAL  = new Color(26, 188, 156); // I9: رنگ دکمه Rewards
+    private static final Color ACCENT_TEAL  = new Color(26, 188, 156);
     private static final Color TEXT_MAIN    = new Color(236, 240, 241);
     private static final Color TEXT_DIM     = new Color(127, 140, 141);
     private static final Color BTN_DISABLED = new Color(60, 65, 75);
 
-    private final TribeCamp       camp;
-    private final Tribe           tribe;
+    private final TribeCamp         camp;
+    private final Tribe             tribe;
     private final TribeController tribeController;
     private final MainController  mainController;
     private final Runnable        onClose;
@@ -139,13 +139,18 @@ public class TribeInteractionDialog extends JDialog {
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         // ── ۲. تجارت ─────────────────────────────────────────────────────────
-        boolean canTrade = tribe.canTrade() && !camp.hasTraded();
+        // اصلاح [I3]: جلوگیری از فعال شدن دکمه تجارت برای قبیله جنگجو و تنظیم دلیل غیرفعال بودن
+        boolean canTrade = tribe.canTrade() && !camp.hasTraded() && tribe.getType() != TribeType.WARRIOR;
+
+        String tradeDisabledReason = tribe.getType() == TribeType.WARRIOR
+                ? "Warrior tribe does not engage in commerce"
+                : (!tribe.canTrade() ? "Requires Friendly status (≥20 relation)" : "Already traded this turn");
+
         actionsPanel.add(buildActionButton(
                 "💱  Trade Resources",
                 "Exchange resources at " + getTribeTradeRateLabel(),
                 canTrade,
-                !tribe.canTrade() ? "Requires Friendly status (≥20 relation)"
-                        : "Already traded this turn",
+                tradeDisabledReason,
                 ACCENT_BLUE,
                 this::showTradeDialog));
 
@@ -187,7 +192,6 @@ public class TribeInteractionDialog extends JDialog {
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         // ── ۵. درخواست اتحاد ─────────────────────────────────────────────────
-        // I10: getAllianceDisabledReason() حالا cooldown را هم چک می‌کند
         boolean canAllianceState = tribe.canFormAlliance();
         String  allianceReason   = getAllianceDisabledReason();
         actionsPanel.add(buildActionButton(
@@ -224,11 +228,11 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۸. I9: مشاهده پاداش قبیله — همیشه فعال پس از کشف ────────────────
+        // ── ۸. مشاهده پاداش قبیله ────────────────
         actionsPanel.add(buildActionButton(
                 "⭐  View Tribe Rewards",
                 "See what bonuses become available at Friendly and Allied status",
-                true,   // همیشه فعال است (spec: «همیشه پس از کشف قبیله فعال است»)
+                true,
                 null,
                 ACCENT_TEAL,
                 this::showRewardsDialog));
@@ -261,15 +265,8 @@ public class TribeInteractionDialog extends JDialog {
         return panel;
     }
 
-    // ─── I11: Gift Dialog با JSpinner ────────────────────────────────────────
+    // ─── Gift Dialog ────────────────────────────────────────
 
-    /**
-     * I11: اصلاح dialog هدیه — بازیکن مقدار دلخواه انتخاب می‌کند.
-     *
-     * قبلاً فقط مقادیر ثابت (۱۰ یا ۵) قابل ارسال بود.
-     * حالا JSpinner برای ورود مقدار دلخواه اضافه شده است.
-     * نرخ gain بر اساس spec به‌صورت proportional محاسبه می‌شود.
-     */
     private void showGiftDialog() {
         JDialog giftDlg = createSubDialog("🎁 Send Gift to " + tribe.getType().getDisplayName());
         giftDlg.setSize(440, 320);
@@ -282,14 +279,12 @@ public class TribeInteractionDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(6, 4, 6, 4);
 
-        // ── اطلاعات نرخ gain ──────────────────────────────────────────────────
         JLabel rateInfo = makeLabel(
                 "Rate: 10 Food/Wood → +2 | 10 Stone → +3 | 5 Iron → +3",
                 TEXT_DIM, Font.PLAIN, 11);
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 3;
         content.add(rateInfo, gbc);
 
-        // ── انتخاب نوع منبع ───────────────────────────────────────────────────
         gbc.gridy = 1; gbc.gridwidth = 1;
         content.add(makeLabel("Resource:", TEXT_DIM, Font.PLAIN, 12), gbc);
 
@@ -302,7 +297,6 @@ public class TribeInteractionDialog extends JDialog {
         gbc.gridx = 1; gbc.gridwidth = 2;
         content.add(resBox, gbc);
 
-        // ── ورود مقدار هدیه ──────────────────────────────────────────────────
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
         content.add(makeLabel("Amount:", TEXT_DIM, Font.PLAIN, 12), gbc);
 
@@ -312,12 +306,10 @@ public class TribeInteractionDialog extends JDialog {
         gbc.gridx = 1; gbc.gridwidth = 2;
         content.add(amountSpinner, gbc);
 
-        // ── پیش‌نمایش gain ────────────────────────────────────────────────────
         JLabel preview = makeLabel("Relation gain: +2", ACCENT_GREEN, Font.BOLD, 13);
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 3;
         content.add(preview, gbc);
 
-        // ── به‌روزرسانی پیش‌نمایش هنگام تغییر ──────────────────────────────
         Runnable updatePreview = () -> {
             ResourceType rt  = resTypes[resBox.getSelectedIndex()];
             int amt          = (int) amountSpinner.getValue();
@@ -348,7 +340,6 @@ public class TribeInteractionDialog extends JDialog {
         amountSpinner.addChangeListener(e -> updatePreview.run());
         updatePreview.run();
 
-        // ── دکمه تأیید ───────────────────────────────────────────────────────
         JButton confirmBtn = buildSubButton("✅  Send Gift", true);
         gbc.gridy = 4;
         content.add(confirmBtn, gbc);
@@ -356,7 +347,6 @@ public class TribeInteractionDialog extends JDialog {
         confirmBtn.addActionListener(e -> {
             ResourceType rt  = resTypes[resBox.getSelectedIndex()];
             int          amt = (int) amountSpinner.getValue();
-            // I11: sendGift حالا amount می‌گیرد
             if (tribeController.sendGift(tribe, rt, amt)) {
                 giftDlg.dispose();
                 rebuildAndRefresh();
@@ -506,13 +496,8 @@ public class TribeInteractionDialog extends JDialog {
         finalizeSubDialog(dlg, content);
     }
 
-    // ─── I9: Rewards Dialog — همیشه فعال پس از کشف قبیله ───────────────────
+    // ─── Rewards Dialog ───────────────────
 
-    /**
-     * I9: نمایش پاداش‌های دوستانه و متحد برای هر نوع قبیله.
-     * spec: «همیشه پس از کشف قبیله فعال است و توضیح می‌دهد که اگر رابطه به سطح
-     * دوستانه یا متحد برسد، بازیکن چه مزایایی دریافت می‌کند.»
-     */
     private void showRewardsDialog() {
         JDialog dlg = createSubDialog("⭐ Tribe Rewards — " + tribe.getType().getDisplayName());
         dlg.setSize(460, 420);
@@ -544,9 +529,6 @@ public class TribeInteractionDialog extends JDialog {
         finalizeSubDialog(dlg, content);
     }
 
-    /**
-     * I9: توضیح کامل پاداش‌های هر نوع قبیله برای سطوح دوستانه و متحد.
-     */
     private String getTribeRewardDescription() {
         String currentStatus = tribe.getState().getName();
         int    currentRel    = tribe.getRelationship();
@@ -793,17 +775,10 @@ public class TribeInteractionDialog extends JDialog {
         };
     }
 
-    /**
-     * I10: اضافه شدن چک cooldown مأموریت شکست‌خورده.
-     *
-     * طبق spec: «هیچ مأموریت فعال شکست‌خوردهای از آن قبیله در ۵ Turn اخیر نداشته باشد.»
-     * missionCooldown > 0 یعنی مأموریت در ۵ ترن اخیر شکست خورده است.
-     */
     private String getAllianceDisabledReason() {
         if (!tribe.canFormAlliance())
             return "Requires ≥70 relation (current: " + tribe.getRelationship() + ")";
 
-        // I10: چک cooldown شکست مأموریت
         if (tribe.getMissionCooldown() > 0)
             return "A mission failed recently — wait " + tribe.getMissionCooldown()
                     + " more turn(s) before requesting alliance";
