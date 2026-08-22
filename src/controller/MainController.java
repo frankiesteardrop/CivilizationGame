@@ -149,12 +149,10 @@ public class MainController {
         return actions;
     }
 
-    // ─── [M1] Fix: متد تولید اکشن‌های اختصاصی بازار و ارتقای آن ─────────────────
     public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
         List<MenuAction> actions = new ArrayList<>();
         int level = bazaar.getLevel();
 
-        // طبق داکیومنت، مبادلات بر اساس سطح بازار مشخص می‌شود: 10، 100، 500
         int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
         String prefix = bazaar.hasTraded() ? "🚫 [Traded] " : "💱 ";
 
@@ -220,7 +218,10 @@ public class MainController {
                 actions.add(createBuildAction(builder, targetHex, BuildingType.STABLE,      "🐄 Stable"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine"));
-                actions.add(createBuildAction(builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement"));
+
+                // [N2] Fix: اضافه شدن هشدار واضح برای جریمه Happiness به لیبل Settlement
+                actions.add(createBuildAction(builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)"));
+
                 boolean hasDockDiscount = gameMap.getTownHall().getDiscountedDocks() > 0;
                 String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
                 actions.add(createBuildAction(builder, targetHex, BuildingType.DOCK, dockLabel));

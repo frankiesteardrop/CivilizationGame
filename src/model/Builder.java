@@ -13,11 +13,12 @@ public class Builder extends Unit {
     public void useCharge() {
         if (charges > 0) {
             charges--;
-
             GameEventDispatcher.fireUnitStateChanged(this);
         }
 
+        // [N1] Fix: شلیک Notification پیش از حذف Builder به دلیل اتمام شارژ
         if (charges == 0 && this.isAlive()) {
+            GameEventDispatcher.fireNotification("🔨 Builder has exhausted all charges!");
             this.kill();
         }
     }
