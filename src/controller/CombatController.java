@@ -83,11 +83,10 @@ public class CombatController {
                 if (b.isDestroyed()) {
                     GameEventDispatcher.fireBuildingDestroyed(targetHex);
                     if (b instanceof TribeCamp camp) {
-                        GameEventDispatcher.fireNotification(
-                                "⛺ " + camp.getTribe().getType().getDisplayName() + " tribe defeated!");
+                        // هکس به مرزهای بازیکن اضافه می‌شود
                         targetHex.setInsideBorder(true);
-                        map.getTownHall().getInventory().addResource(ResourceType.FOOD, 50);
-                        map.getTownHall().getInventory().addResource(ResourceType.WOOD, 50);
+                        // غنیمت اختصاصی قبیله اعمال می‌شود (رعایت OCP و SRP)
+                        camp.getTribe().getType().grantLoot(map, targetHex);
                     }
                     for (Unit u : map.getUnits()) {
                         if (u instanceof Worker && ((Worker) u).getStationedBuilding() == b) {

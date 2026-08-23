@@ -2,6 +2,7 @@ package model;
 
 import model.mission.MissionGoal;
 import model.trade.TradeStrategy;
+import java.util.function.BiConsumer;
 
 public enum TribeType {
 
@@ -20,6 +21,10 @@ public enum TribeType {
                     inv.addResource(ResourceType.FOOD, 30);
                     tribe.addRelationship(15);
                 }
+            },
+            (map, hex) -> {
+                map.getTownHall().getInventory().addResource(ResourceType.FOOD, 40);
+                GameEventDispatcher.fireNotification("⛺ Farmer tribe defeated! Looted: 40 Food.");
             }),
 
     WARRIOR(70, "Warrior", "جنگجو",
@@ -37,6 +42,10 @@ public enum TribeType {
                     }
                     tribe.addRelationship(20);
                 }
+            },
+            (map, hex) -> {
+                map.getTownHall().getInventory().addResource(ResourceType.IRON, 30);
+                GameEventDispatcher.fireNotification("⛺ Warrior tribe defeated! Looted: 30 Iron.");
             }),
 
     MOUNTAIN(50, "Mountain", "کوهستانی",
@@ -54,6 +63,11 @@ public enum TribeType {
                     inv.addResource(ResourceType.STONE, 20);
                     tribe.addRelationship(15);
                 }
+            },
+            (map, hex) -> {
+                map.getTownHall().getInventory().addResource(ResourceType.STONE, 25);
+                map.getTownHall().getInventory().addResource(ResourceType.IRON, 15);
+                GameEventDispatcher.fireNotification("⛺ Mountain tribe defeated! Looted: 25 Stone, 15 Iron.");
             }),
 
     COMMERCIAL(50, "Commercial", "تجاری",
@@ -65,6 +79,13 @@ public enum TribeType {
                     tribe.setTradeBonus(true);
                     tribe.addRelationship(20);
                 }
+            },
+            (map, hex) -> {
+                map.getTownHall().getInventory().addResource(ResourceType.FOOD, 15);
+                map.getTownHall().getInventory().addResource(ResourceType.WOOD, 15);
+                map.getTownHall().getInventory().addResource(ResourceType.STONE, 15);
+                map.getTownHall().getInventory().addResource(ResourceType.IRON, 15);
+                GameEventDispatcher.fireNotification("⛺ Commercial tribe defeated! Looted: Mixed resources.");
             }),
 
     COASTAL(50, "Coastal", "ساحلی",
@@ -76,6 +97,11 @@ public enum TribeType {
                     map.getTownHall().getInventory().addResource(ResourceType.FOOD, 30);
                     map.getTownHall().addDiscountedDock();
                 }
+            },
+            (map, hex) -> {
+                map.getTownHall().getInventory().addResource(ResourceType.FOOD, 25);
+                map.getTownHall().getInventory().addResource(ResourceType.WOOD, 25);
+                GameEventDispatcher.fireNotification("⛺ Coastal tribe defeated! Looted: 25 Food, 25 Wood.");
             });
 
     private final int maxHp;
@@ -83,17 +109,25 @@ public enum TribeType {
     private final String persianName;
     private final TradeStrategy tradeStrategy;
     private final MissionGoal missionGoal;
+    private final BiConsumer<GameMap, Hex> lootStrategy;
 
-    TribeType(int maxHp, String displayName, String persianName, TradeStrategy tradeStrategy, MissionGoal missionGoal) {
+    TribeType(int maxHp, String displayName, String persianName, TradeStrategy tradeStrategy, MissionGoal missionGoal, BiConsumer<GameMap, Hex> lootStrategy) {
         this.maxHp = maxHp;
         this.displayName = displayName;
         this.persianName = persianName;
         this.tradeStrategy = tradeStrategy;
         this.missionGoal = missionGoal;
+        this.lootStrategy = lootStrategy;
     }
 
     public int getMaxHp() { return maxHp; }
     public String getDisplayName() { return displayName; }
     public TradeStrategy getTradeStrategy() { return tradeStrategy; }
     public MissionGoal getMissionGoal() { return missionGoal; }
+
+    public void grantLoot(GameMap map, Hex campHex) {
+        if (lootStrategy != null) {
+            lootStrategy.accept(map, campHex);
+        }
+    }
 }
