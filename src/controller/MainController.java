@@ -134,19 +134,19 @@ public class MainController {
         return actions;
     }
 
+    // اصلاح باگ [B1]: جایگزینی کامل متد برای اضافه کردن دلیل غیرفعال بودن و اصلاح پیشوندها
     public List<MenuAction> getStableMenuActions() {
-        List<MenuAction> actions = new ArrayList<>();
         TownHall th = gameMap.getTownHall();
+        boolean qEmpty   = th.isProductionQueueEmpty();
+        boolean isMilCap = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
+        String  prefix   = (isMilCap ? "⚔️ [CAP] " : "") + (!qEmpty ? "⏳ [BUSY] " : "");
 
-        boolean qEmpty    = th.isProductionQueueEmpty();
-        String  prefix    = qEmpty ? "" : "⏳ [BUSY] ";
-        boolean isMilCap  = gameMap.getMilitaryUnitCount() >= gameMap.getMilitaryUnitCap();
-        String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
-
-        actions.add(new MenuAction(milPrefix + "🏇 Cavalry (30F, 20I) [TH L2]",
-                upgradeController.canTrainUnit("CAVALRY"), () -> upgradeController.trainUnit("CAVALRY")));
-
-        return actions;
+        return List.of(new MenuAction(
+                prefix + "🏇 Train Cavalry (30F, 20I) [TH L2 + Stable]",
+                upgradeController.canTrainUnit("CAVALRY"),
+                "Requires TH Level 2 + active Stable + unit cap not full + resources",
+                () -> upgradeController.trainUnit("CAVALRY")
+        ));
     }
 
     public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
