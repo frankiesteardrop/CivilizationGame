@@ -55,18 +55,14 @@ public class CombatController {
 
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // ─── Siege Attack ─────────────────────────────────────────────────────
         if (isSiegeAttack) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
 
             int dir = getDirection(sourceHex, targetHex);
             if (dir >= 0 && targetHasWall) {
-                // M5: اعمال آسیب به هر دو طرف دیوار به طور همزمان
                 targetHex.damageWall((dir + 3) % 6, siegeDmg);
                 sourceHex.damageWall(dir, siegeDmg);
 
-                // M5: اگر هر یک از دو طرف destroyed شد، هر دو را clear کن
-                // این از inconsistency جلوگیری می‌کند (یک طرف destroyed، طرف دیگر هنوز HP دارد)
                 if (!targetHex.hasWall((dir + 3) % 6) || !sourceHex.hasWall(dir)) {
                     targetHex.setWall((dir + 3) % 6, false, 0);
                     sourceHex.setWall(dir, false, 0);
@@ -81,18 +77,13 @@ public class CombatController {
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
                 if (b.isDestroyed()) {
+                    // شلیک رویداد — کارگرها توسط EconomyController نجات داده می‌شوند
                     GameEventDispatcher.fireBuildingDestroyed(targetHex);
                     if (b instanceof TribeCamp camp) {
-                        // هکس به مرزهای بازیکن اضافه می‌شود
                         targetHex.setInsideBorder(true);
-                        // غنیمت اختصاصی قبیله اعمال می‌شود (رعایت OCP و SRP)
                         camp.getTribe().getType().grantLoot(map, targetHex);
                     }
-                    for (Unit u : map.getUnits()) {
-                        if (u instanceof Worker && ((Worker) u).getStationedBuilding() == b) {
-                            ((Worker) u).eject(map);
-                        }
-                    }
+                    // اصلاح گام ۴: حلقه تکراری خروج کارگران از اینجا پاک شد
                 }
             }
 
@@ -101,7 +92,6 @@ public class CombatController {
             return siegeDmg;
         }
 
-        // ─── Unit Combat (Dice) ───────────────────────────────────────────────
         int attackerDiceCount = (dist == 2) ? 1
                 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
 

@@ -20,10 +20,8 @@ public class DisasterController {
     }
 
     public void checkAndTriggerDisasters() {
-        // مستقل از وقوع یا عدم وقوع بلایای طبیعی، تایمر خرس باید کم شود
         map.decrementBearCooldown();
 
-        // اصلاح [I4]: اعمال دقیق و ریاضیاتی احتمال ۵٪ (۹۵٪ مواقع بدون بلا)
         if (random.nextDouble() >= 0.05) return;
 
         boolean isAutumn   = map.getCurrentSeason() == Season.AUTUMN;
@@ -243,6 +241,11 @@ public class DisasterController {
                         farmsDestroyed++;
                     } else {
                         b.takeFloodDamage(30);
+                    }
+
+                    // اصلاح گام ۴: شلیک رویداد تخریب در صورت نابودی مزرعه توسط سیل جهت فرار کارگران
+                    if (b.isDestroyed()) {
+                        GameEventDispatcher.fireBuildingDestroyed(h);
                     }
                 }
             }

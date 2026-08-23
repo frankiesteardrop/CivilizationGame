@@ -20,10 +20,9 @@ public class EconomyController implements GameEventListener {
                         == TribeType.COASTAL);
     }
 
-    // اصلاح گام ۳: محاسبه پویا و در لحظه رضایت عمومی جهت جلوگیری از تورم (Inflation)
     public int getEffectiveHappiness(GameMap map) {
         TownHall th = map.getTownHall();
-        int baseHappiness = th.getHappiness(); // رضایت انباشته از رویدادهای لحظه‌ای (مثل ساخت شهرک)
+        int baseHappiness = th.getHappiness();
 
         int monumentBonus = 0;
         for (Hex hex : map.getHexes()) {
@@ -43,7 +42,6 @@ public class EconomyController implements GameEventListener {
 
         int garrisonBonus = hasMilitaryInTH ? 1 : 0;
 
-        // ترکیب رضایت پایه با پاداش‌های دائمی
         return baseHappiness + monumentBonus + garrisonBonus;
     }
 
@@ -55,7 +53,6 @@ public class EconomyController implements GameEventListener {
 
         if (isStarving) {
             for (Unit unit : map.getUnits()) {
-                // [I3] Fix: خرس‌ها حیوانات وحشی هستند و از انبار بازیکن تغذیه نمی‌کنند
                 if (unit.isAlive() && unit.getType() != UnitType.BEAR) {
                     unit.consumeAP(1);
                 }
@@ -65,7 +62,6 @@ public class EconomyController implements GameEventListener {
     }
 
     public boolean processEndTurn(GameMap map) {
-        // اصلاح گام ۳: متد مخرب applyPerTurnHappiness حذف شد تا رضایت تصاعدی بالا نرود
         produceResources(map);
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
@@ -156,7 +152,7 @@ public class EconomyController implements GameEventListener {
             if (!inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount())) {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
-                    ejectWorkersFromHex(map, hex);
+                    // اصلاح گام ۴: جلوگیری از تکرار کد، فقط شلیک رویداد کافی است
                     GameEventDispatcher.fireBuildingDestroyed(hex);
                     GameEventDispatcher.fireNotification(
                             "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
@@ -299,6 +295,12 @@ public class EconomyController implements GameEventListener {
         return Math.max(0, production);
     }
 
+    // اصلاح گام ۴: استفاده از رویداد متمرکز برای نجات کارگران از زیر آوار
+    @Override
+    public void onBuildingDestroyed(Hex hex) {
+        ejectWorkersFromHex(mainController.getGameMap(), hex);
+    }
+
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit u, int oQ, int oR, int nQ, int nR) {}
     @Override public void onUnitKilled(Unit unit) {}
@@ -306,7 +308,6 @@ public class EconomyController implements GameEventListener {
     @Override public void onStarvationChanged(boolean isStarving) {}
     @Override public void onUnitStateChanged(Unit unit) {}
     @Override public void onBuildingConstructed(Hex hex) {}
-    @Override public void onBuildingDestroyed(Hex hex) {}
     @Override public void onBorderExpanded(int centerQ, int centerR) {}
     @Override public void onDisasterTriggered(String t, Hex c, java.util.List<Hex> a) {}
     @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}

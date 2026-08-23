@@ -34,20 +34,6 @@ public class BuildController {
                         && (hex.getResourceSubtype() == ResourceSubtype.WHEAT
                         || hex.getResourceSubtype() == ResourceSubtype.RICE));
 
-        /**
-         * N1: اصلاح شرط terrain برای اصطبل.
-         *
-         * spec: «اصطبل نظامی فقط روی هکس‌های دشت یا هکس‌هایی که منبع اسب دارند ساخته شود.»
-         *
-         * قبلاً: PLAINS && (CATTLE || SHEEP) — محدودیت بیشتر از spec بود.
-         * این یعنی بازیکن فقط روی hex دشتی که گاو یا گوسفند داشته باشد می‌توانست اصطبل بسازد.
-         *
-         * اکنون: PLAINS terrain کافی است.
-         * دلیل: «منبع اسب» به عنوان ResourceSubtype جداگانه در بازی وجود ندارد.
-         * spec اجازه می‌دهد روی هر hex دشت (TerrainType.PLAINS) اصطبل ساخته شود.
-         * بازیکن برای تولید Cavalry نیاز به اصطبل دارد و محدود کردن به CATTLE/SHEEP
-         * دسترسی به یونیت مهم Cavalry را بیش از حد سخت می‌کرد.
-         */
         terrainRequirements.put(BuildingType.STABLE,
                 (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
 
@@ -158,9 +144,6 @@ public class BuildController {
         GameEventDispatcher.fireNotification("🛣️ Road successfully constructed!");
     }
 
-    /**
-     * I5 (گام ۵): اصلاح کامل canBuildWall.
-     */
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (dir < 0 || dir > 5) return false;
@@ -236,16 +219,7 @@ public class BuildController {
         builder.consumeAP(1);
 
         if (type.equals("BUILDING")) {
-            Building b = hex.getBuilding();
-
-            gameMap.getUnits().stream()
-                    .filter(u -> u instanceof Worker)
-                    .map(u -> (Worker) u)
-                    .filter(w -> w.isStationed()
-                            && w.getQ() == hex.getQ()
-                            && w.getR() == hex.getR())
-                    .forEach(w -> w.eject(gameMap));
-
+            // اصلاح گام ۴: حلقه تکراری خروج کارگران پاک شد، شلیک رویداد تخریب کار را انجام می‌دهد
             hex.setBuilding(null);
             GameEventDispatcher.fireBuildingDestroyed(hex);
 
