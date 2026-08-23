@@ -20,17 +20,16 @@ public class EconomyController implements GameEventListener {
                         == TribeType.COASTAL);
     }
 
+    // اصلاح گام ۳: محاسبه پویا و در لحظه رضایت عمومی جهت جلوگیری از تورم (Inflation)
     public int getEffectiveHappiness(GameMap map) {
-        return map.getTownHall().getHappiness();
-    }
-
-    private void applyPerTurnHappiness(GameMap map) {
         TownHall th = map.getTownHall();
+        int baseHappiness = th.getHappiness(); // رضایت انباشته از رویدادهای لحظه‌ای (مثل ساخت شهرک)
 
+        int monumentBonus = 0;
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b != null && !b.isDestroyed() && b.getType() == BuildingType.MONUMENT) {
-                th.addHappiness(2);
+                monumentBonus += 2;
             }
         }
 
@@ -41,7 +40,11 @@ public class EconomyController implements GameEventListener {
                         && (u.getType() == UnitType.SWORDSMAN
                         || u.getType() == UnitType.ARCHER
                         || u.getType() == UnitType.CAVALRY));
-        if (hasMilitaryInTH) th.addHappiness(1);
+
+        int garrisonBonus = hasMilitaryInTH ? 1 : 0;
+
+        // ترکیب رضایت پایه با پاداش‌های دائمی
+        return baseHappiness + monumentBonus + garrisonBonus;
     }
 
     @Override
@@ -52,7 +55,7 @@ public class EconomyController implements GameEventListener {
 
         if (isStarving) {
             for (Unit unit : map.getUnits()) {
-                // [I3] Fix: خرس‌ها حیوانات وحشی هستند و از انبار بازیکن تغذیه نمی‌کنند، پس نباید به دلیل قحطی بازیکن، AP از دست بدهند.
+                // [I3] Fix: خرس‌ها حیوانات وحشی هستند و از انبار بازیکن تغذیه نمی‌کنند
                 if (unit.isAlive() && unit.getType() != UnitType.BEAR) {
                     unit.consumeAP(1);
                 }
@@ -62,7 +65,7 @@ public class EconomyController implements GameEventListener {
     }
 
     public boolean processEndTurn(GameMap map) {
-        applyPerTurnHappiness(map);
+        // اصلاح گام ۳: متد مخرب applyPerTurnHappiness حذف شد تا رضایت تصاعدی بالا نرود
         produceResources(map);
         processUpkeep(map);
         boolean isStarving = processFoodConsumption(map);
@@ -108,7 +111,6 @@ public class EconomyController implements GameEventListener {
                 continue;
             }
 
-            // اصلاح کلیدی گام دوم: استفاده از متد کمکی استخراج شده (DRY Principle)
             int production = calculateBuildingGrossProduction(b, hex, map, townHall, season, happiness, coastalAllied);
 
             if (production <= 0) continue;
@@ -126,7 +128,6 @@ public class EconomyController implements GameEventListener {
             if (!targetExtractionHex.hasResource(targetRes))
                 ejectWorkersFromHex(map, hex);
 
-            // محاسبه Farm Synergy
             if (b.getType() == BuildingType.FARM) {
                 for (int i = 0; i < 6; i++) {
                     Hex neighbor = map.getNeighbor(hex, i);
@@ -157,7 +158,6 @@ public class EconomyController implements GameEventListener {
                 if (b.isDestroyed()) {
                     ejectWorkersFromHex(map, hex);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
-                    // [M4] Fix: فایر کردن Notification برای اطلاع‌رسانی تخریب ساختمان به دلیل عدم پرداخت
                     GameEventDispatcher.fireNotification(
                             "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
                     );
@@ -229,7 +229,6 @@ public class EconomyController implements GameEventListener {
                 }
 
                 if (hasResourceForNet) {
-                    // اصلاح کلیدی گام دوم: استفاده از متد کمکی استخراج شده (DRY Principle)
                     int prod = calculateBuildingGrossProduction(b, h, map, townHall, season, happiness, coastalAllied);
                     grossProduction += prod;
                 }
@@ -261,22 +260,16 @@ public class EconomyController implements GameEventListener {
         return Math.min(grossProduction, availableSpace) - grossConsumption;
     }
 
-    /**
-     * متد کمکی استخراج شده جهت رعایت اصل DRY (Don't Repeat Yourself).
-     * تمام منطق مربوط به محاسبه مجاورت، تأثیر فصول، و رضایت در اینجا تجمیع شده است.
-     */
     private int calculateBuildingGrossProduction(Building b, Hex hex, GameMap map, TownHall townHall, Season season, int happiness, boolean coastalAllied) {
         int production = b.calculateProduction(townHall);
         ResourceType targetRes = b.getType().getProducedResource();
 
-        // تأثیرات فصل (Season Effects)
         if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
             production += 1;
         } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
             production -= 1;
         }
 
-        // پاداش مجاورت (Adjacency Bonus)
         if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
             boolean nearSea = false;
             for (int i = 0; i < 6; i++) {
@@ -296,19 +289,16 @@ public class EconomyController implements GameEventListener {
             if (mCount >= 2) production += 1;
         }
 
-        // تأثیر اتحاد قبیله ساحلی
         if (b.getType() == BuildingType.DOCK && coastalAllied) {
             production += 2;
         }
 
-        // تأثیر سطح رضایت (Happiness Penalty/Bonus)
         if (happiness <= -3) production -= b.getStationedWorkers();
         if (happiness >= 3)  production += production / 10;
 
         return Math.max(0, production);
     }
 
-    // מתد های خالی اینترفیس
     @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit u, int oQ, int oR, int nQ, int nR) {}
     @Override public void onUnitKilled(Unit unit) {}
