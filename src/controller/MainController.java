@@ -19,7 +19,6 @@ public class MainController {
     private final TribeController    tribeController;
     private final SaveLoadController saveLoadController;
 
-    // I3: flag برای اطلاع‌رسانی به Pause Menu که Save در این لحظه مجاز نیست
     private boolean processingTurn = false;
 
     public MainController(GameMap gameMap) {
@@ -38,7 +37,6 @@ public class MainController {
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
-    // ─── Getters ──────────────────────────────────────────────────────────────
     public GameMap            getGameMap()             { return gameMap; }
     public TurnController     getTurnController()      { return turnController; }
     public UnitController     getUnitController()      { return unitController; }
@@ -49,7 +47,6 @@ public class MainController {
     public TribeController    getTribeController()     { return tribeController; }
     public SaveLoadController getSaveLoadController()  { return saveLoadController; }
 
-    // I3: getter/setter برای processing flag
     public boolean isProcessingTurn()             { return processingTurn; }
     public void    setProcessingTurn(boolean val) { this.processingTurn = val; }
 
@@ -103,9 +100,11 @@ public class MainController {
                 upgradeController.canUnlockTech("IRON_MINE"),
                 () -> upgradeController.unlockTech("IRON_MINE")));
 
+        // [B4] Fix: تصحیح متن لیبل و دلیل غیرفعال بودن مطابق استاندارد UI
         actions.add(new MenuAction(th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools"
-                : String.format(prefix + "🔧 Steel Tools (%dI)", GameConfig.TECH_STEEL_TOOLS_IRON),
+                : String.format(prefix + "🔧 Steel Tools (%dI) [Requires Iron Mine tech]", GameConfig.TECH_STEEL_TOOLS_IRON),
                 upgradeController.canUnlockTech("PROF_TOOLS"),
+                "Requires TH Lv2 + Iron Mine tech + " + GameConfig.TECH_STEEL_TOOLS_IRON + " Iron",
                 () -> upgradeController.unlockTech("PROF_TOOLS")));
 
         actions.add(new MenuAction(th.isSeafaringUnlocked() ? "✅ ⛵ Tech: Seafaring"
@@ -132,8 +131,6 @@ public class MainController {
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
 
-        // سواره‌نظام (Cavalry) طبق اصول فاز دوم اینجا قرار نمی‌گیرد.
-
         return actions;
     }
 
@@ -151,14 +148,12 @@ public class MainController {
         ));
     }
 
-    // اصلاح باگ [B2]: متد بازار کاملاً بازنویسی شد تا از دیالوگ کاستوم گرافیکی استفاده کند
     public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
         List<MenuAction> actions = new ArrayList<>();
         boolean traded = bazaar.hasTraded();
         int     level  = bazaar.getLevel();
         Inventory inv  = gameMap.getTownHall().getInventory();
 
-        // ── گزینه تجارت با سطح فعلی ─────────────────────────────────────────
         actions.add(new MenuAction(
                 "⚖️ Trade (Level " + level + ")",
                 !traded,
@@ -166,7 +161,6 @@ public class MainController {
                 () -> showBazaarTradeDialog(bazaar)
         ));
 
-        // ── گزینه ارتقاء بازار ───────────────────────────────────────────────
         if (bazaar.canUpgrade()) {
             int stoneCost = (level == 1) ? 30 : 60;
             boolean canUpg = inv.hasEnough(ResourceType.STONE, stoneCost);
@@ -189,7 +183,6 @@ public class MainController {
         return actions;
     }
 
-    // اصلاح باگ [B2]: متد گرافیکی اختصاصی برای پنجره تبادل منابع بازار
     private void showBazaarTradeDialog(Bazaar bazaar) {
         int level = bazaar.getLevel();
         int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
@@ -288,7 +281,6 @@ public class MainController {
                 actions.add(createBuildAction(builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine"));
                 actions.add(createBuildAction(builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine"));
 
-                // [N2] Fix: اضافه شدن هشدار واضح برای جریمه Happiness به لیبل Settlement
                 actions.add(createBuildAction(builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)"));
 
                 boolean hasDockDiscount = gameMap.getTownHall().getDiscountedDocks() > 0;

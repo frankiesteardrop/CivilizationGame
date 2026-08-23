@@ -59,7 +59,7 @@ public class UpgradeController {
 
         techStrategies.put("PROF_TOOLS", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) {
-                // [C2] Fix: Added th.isIronMineUnlocked() to enforce tech tree progression
+                // [B4] Fix: Added th.isIronMineUnlocked() to enforce tech tree progression
                 return th.getLevel() >= 2
                         && th.isIronMineUnlocked()
                         && !th.isSteelToolsUnlocked()
