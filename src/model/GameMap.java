@@ -295,7 +295,6 @@ public class GameMap {
         Hex centerHex = getHexAt(centerQ, centerR);
         if (centerHex == null) return;
 
-        // [M5] Fix: جلوگیری از گسترش مرز روی آب و رشته‌کوه (هکس مرکزی)
         if (centerHex.isExplored()
                 && centerHex.getTerrainType() != TerrainType.SEA
                 && centerHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
@@ -304,7 +303,6 @@ public class GameMap {
 
         for (int i = 0; i < 6; i++) {
             Hex neighbor = getNeighbor(centerHex, i);
-            // [M5] Fix: جلوگیری از گسترش مرز روی آب و رشته‌کوه برای هکس‌های مجاور
             if (neighbor != null && neighbor.isExplored()
                     && neighbor.getTerrainType() != TerrainType.SEA
                     && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
@@ -346,12 +344,21 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
+    // اصلاح گام ۵: محاسبه سقف ارتش بر اساس سطح Town Hall و تعداد شهرک‌های ساخته شده
     public int getMilitaryUnitCap() {
-        return switch (townHall.getLevel()) {
+        int baseCap = switch (townHall.getLevel()) {
             case 1  -> GameConfig.UNIT_CAP_TH_LEVEL_1;
             case 2  -> GameConfig.UNIT_CAP_TH_LEVEL_2;
             default -> GameConfig.UNIT_CAP_TH_LEVEL_3;
         };
+
+        int settlementBonus = (int) hexes.stream()
+                .filter(h -> h.getBuilding() != null
+                        && h.getBuilding().getType() == BuildingType.SETTLEMENT
+                        && !h.getBuilding().isDestroyed())
+                .count() * 5; // هر شهرک ۵ واحد به سقف ارتش اضافه می‌کند
+
+        return baseCap + settlementBonus;
     }
 
     public long getMilitaryUnitCount() {
@@ -391,8 +398,6 @@ public class GameMap {
     public void       setStarving(boolean s) { this.isStarving = s; }
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
     public Random     getRandom()      { return random; }
-
-    // ─── متدهای کمکی برای TribeController و GameMap ─────────────────────────
 
     public Hex getHexOfBuilding(Building building) {
         for (Hex h : hexes.getAll()) {

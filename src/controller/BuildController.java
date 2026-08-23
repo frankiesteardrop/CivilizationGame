@@ -45,9 +45,11 @@ public class BuildController {
                 (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
                         && hex.hasResource(ResourceType.IRON));
 
+        // اصلاح گام ۵: جلوگیری از ساخت شهرک روی معادن سنگ
         terrainRequirements.put(BuildingType.SETTLEMENT,
                 (hex, map) -> !hex.hasResource(ResourceType.WOOD)
                         && !hex.hasResource(ResourceType.IRON)
+                        && !hex.hasResource(ResourceType.STONE)
                         && !hex.hasResource(ResourceType.FOOD));
 
         terrainRequirements.put(BuildingType.MONUMENT,
@@ -219,7 +221,6 @@ public class BuildController {
         builder.consumeAP(1);
 
         if (type.equals("BUILDING")) {
-            // اصلاح گام ۴: حلقه تکراری خروج کارگران پاک شد، شلیک رویداد تخریب کار را انجام می‌دهد
             hex.setBuilding(null);
             GameEventDispatcher.fireBuildingDestroyed(hex);
 

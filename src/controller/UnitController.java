@@ -15,7 +15,6 @@ public class UnitController {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
 
-        // رشته‌کوه: مطلقاً غیرقابل عبور
         if (targetHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         int dq = targetHex.getQ() - unit.getQ();
@@ -25,17 +24,14 @@ public class UnitController {
         boolean isNeighbor = (Math.max(Math.max(Math.abs(dq), Math.abs(dr)), Math.abs(ds)) == 1);
         if (!isNeighbor) return false;
 
-        // ─── دریا: نیاز به Seafaring ──────────────────────────────────────────
         if (targetHex.getTerrainType() == TerrainType.SEA) {
             if (map == null) return false;
             if (!map.getTownHall().isSeafaringUnlocked()) return false;
             return unit.getCurrentAP() >= 1;
         }
 
-        // ─── F-21: بررسی ظرفیت هکس مقصد برای یونیت‌های نظامی ────────────────
         if (map != null && !hasCapacityForUnit(unit, targetHex, map)) return false;
 
-        // ─── محاسبه هزینه برای terrain‌های خشکی ─────────────────────────────
         int cost;
         if (map != null) {
             Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
@@ -56,7 +52,6 @@ public class UnitController {
         if (unit == null || targetHex == null || map == null) return;
         if (!canMove(unit, targetHex, map)) return;
 
-        // ورود به دریا: تمام AP مصرف می‌شود (طبق spec)
         if (targetHex.getTerrainType() == TerrainType.SEA) {
             unit.moveTo(targetHex.getQ(), targetHex.getR(), unit.getCurrentAP());
             map.updateFogOfWar();
@@ -75,16 +70,12 @@ public class UnitController {
         map.updateFogOfWar();
     }
 
-    /**
-     * F-21: بررسی ظرفیت هکس مقصد برای یونیت نظامی.
-     * طبق spec: حداکثر ۲ Swordsman، ۲ Archer، ۱ Cavalry در هر hex.
-     */
     private boolean hasCapacityForUnit(Unit unit, Hex targetHex, GameMap map) {
         UnitType type = unit.getType();
         if (type != UnitType.SWORDSMAN
                 && type != UnitType.ARCHER
                 && type != UnitType.CAVALRY) {
-            return true; // غیرنظامی محدودیت ندارد
+            return true;
         }
 
         int tq = targetHex.getQ();
@@ -108,13 +99,6 @@ public class UnitController {
         };
     }
 
-    /**
-     * محاسبه هزینه کامل حرکت.
-     * ۱. هزینه پایه terrain
-     * ۲. Road bonus: هر دو hex جاده → cost = 1
-     * ۳. River penalty: لبه رودخانه‌دار بدون پل → +2 AP
-     * ۴. جریمه فصلی (زمستان +1 خشکی، پاییز +1 دریا)
-     */
     private int calculateMoveCost(Hex fromHex, Hex toHex, int dq, int dr, Season season) {
         int cost = toHex.getTerrainType().getMovementCost();
 
@@ -155,8 +139,6 @@ public class UnitController {
         return -1;
     }
 
-    // ─── Worker ───────────────────────────────────────────────────────────────
-
     public boolean canStation(Worker worker, Hex hex) {
         if (worker == null || !worker.isAlive() || worker.isStationed()) return false;
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
@@ -167,7 +149,9 @@ public class UnitController {
                 || building.getType() == BuildingType.TOWN_HALL) return false;
 
         ResourceType res = building.getType().getProducedResource();
-        if (res != ResourceType.NONE && !hex.hasResource(res)) return false;
+
+        // اصلاح گام ۵: استثنا کردن Dock از بررسی منبع روی خود هکس (زیرا از هکس مجاور تغذیه می‌کند)
+        if (res != ResourceType.NONE && building.getType() != BuildingType.DOCK && !hex.hasResource(res)) return false;
 
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
@@ -185,8 +169,6 @@ public class UnitController {
         return worker != null && worker.isAlive() && worker.isStationed();
     }
 
-    // ─── BorderExpander ───────────────────────────────────────────────────────
-
     public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
         if (!expander.canExpand(map)) return false;
         int q = expander.getQ();
@@ -198,8 +180,6 @@ public class UnitController {
         GameEventDispatcher.fireBorderExpanded(q, r);
         return true;
     }
-
-    // ─── Selection ────────────────────────────────────────────────────────────
 
     public Unit selectUnitAt(Hex hex, GameMap map) {
         java.util.List<Unit> unitsOnHex = map.getUnits().stream()
