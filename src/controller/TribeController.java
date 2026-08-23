@@ -42,9 +42,6 @@ public class TribeController implements GameEventListener {
         }
     }
 
-    /**
-     * I6 (گام ۵): اصلاح انتخاب بهترین hex برای قبیله ساحلی.
-     */
     private Hex findBestHexForTribe(TribeType type, List<Hex> candidates, List<Hex> occupied) {
         if (type == TribeType.COASTAL) {
             for (Hex h : candidates) {
@@ -91,8 +88,6 @@ public class TribeController implements GameEventListener {
         return true;
     }
 
-    // ─── اجرای ترن قبیله با استفاده از State Pattern ───────────────────────
-
     public void processTribesTurn() {
         for (Hex hex : map.getHexes()) {
             if (hex.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
@@ -118,6 +113,92 @@ public class TribeController implements GameEventListener {
         for (Runnable action : deferredActions) {
             action.run();
         }
+
+        // اجرای هوش مصنوعی گاردهای قبیله پس از تولید و تصمیمات وضعیت‌ها
+        processTribeGuardsAI();
+    }
+
+    // ─── هوش مصنوعی گاردهای قبیله (اضافه شده در گام ۲) ──────────────────────────
+
+    private void processTribeGuardsAI() {
+        // پیدا کردن تمامی نیروهایی که متعلق به قبایل/بربرها هستند
+        List<Unit> guards = map.getUnits().stream()
+                .filter(u -> u.isAlive() && u.isEnemy())
+                .collect(Collectors.toList());
+
+        if (guards.isEmpty()) return;
+
+        UnitController uc = new UnitController();
+        CombatController cc = new CombatController(map);
+
+        for (Unit guard : guards) {
+            while (guard.getCurrentAP() > 0 && guard.isAlive()) {
+                // جستجوی نزدیک‌ترین هدف (نیروی بازیکن) در شعاع ۵ هکسی
+                Unit target = findClosestPlayerUnit(guard, 5);
+                if (target == null) break; // دشمنی نزدیک نیست، توقف حرکت
+
+                int dist = map.getHexDistance(guard.getQ(), guard.getR(), target.getQ(), target.getR());
+
+                if (dist <= guard.getAttackRange()) {
+                    // هدف در برد است -> حمله
+                    Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
+                    Hex targetHex = map.getHexAt(target.getQ(), target.getR());
+
+                    boolean targetHasWall = false;
+                    for (int i = 0; i < 6; i++) {
+                        if (map.getNeighbor(sourceHex, i) == targetHex) {
+                            targetHasWall = sourceHex.hasWall(i);
+                            break;
+                        }
+                    }
+
+                    List<Unit> attackers = Collections.singletonList(guard);
+                    cc.executeAttack(attackers, sourceHex, targetHex, false, false, targetHasWall);
+                    map.removeDeadUnits();
+
+                    if (!target.isAlive()) {
+                        GameEventDispatcher.fireNotification("⚠️ A Tribe Guard has defeated your unit!");
+                    }
+                } else {
+                    // هدف دور است -> حرکت به سمت هدف
+                    Hex nextHex = getNextHexTowards(guard, target, uc);
+                    if (nextHex != null) {
+                        uc.executeMove(guard, nextHex, map);
+                    } else {
+                        break; // مسیر مسدود است
+                    }
+                }
+            }
+        }
+    }
+
+    private Unit findClosestPlayerUnit(Unit guard, int radius) {
+        return map.getUnits().stream()
+                // فقط به یونیت‌های بازیکن (isEnemy = false) و غیر خرس حمله می‌کند
+                .filter(u -> u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR)
+                .filter(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR()) <= radius)
+                .min(Comparator.comparingInt(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR())))
+                .orElse(null);
+    }
+
+    private Hex getNextHexTowards(Unit guard, Unit target, UnitController uc) {
+        Hex bestHex = null;
+        int minTargetDist = map.getHexDistance(guard.getQ(), guard.getR(), target.getQ(), target.getR());
+
+        Hex currentHex = map.getHexAt(guard.getQ(), guard.getR());
+        if (currentHex == null) return null;
+
+        for (int i = 0; i < 6; i++) {
+            Hex neighbor = map.getNeighbor(currentHex, i);
+            if (neighbor != null && uc.canMove(guard, neighbor, map)) {
+                int dist = map.getHexDistance(neighbor.getQ(), neighbor.getR(), target.getQ(), target.getR());
+                if (dist < minTargetDist) {
+                    minTargetDist = dist;
+                    bestHex = neighbor;
+                }
+            }
+        }
+        return bestHex;
     }
 
     // ─── تعاملات و دیپلماسی ─────────────────────────────────────────────────
@@ -150,19 +231,9 @@ public class TribeController implements GameEventListener {
         return m.getState().deliver(m, camp, map);
     }
 
-    /**
-     * I10: اصلاح formAlliance — افزودن چک cooldown مأموریت شکست‌خورده.
-     *
-     * طبق spec: «فقط زمانی فعال است که... هیچ مأموریت فعال شکست‌خوردهای از آن قبیله
-     * در ۵ Turn اخیر نداشته باشد.»
-     *
-     * missionCooldown بعد از هر شکست مأموریت به ۵ set می‌شود و هر ترن یک واحد کم می‌شود.
-     * پس missionCooldown > 0 دقیقاً معادل «شکست مأموریت در ۵ ترن اخیر» است.
-     */
     public boolean formAlliance(Tribe targetTribe) {
         if (!targetTribe.canFormAlliance()) return false;
 
-        // I10: بررسی شرط عدم شکست مأموریت در ۵ ترن اخیر
         if (targetTribe.getMissionCooldown() > 0) return false;
 
         boolean hasFarmer = false, hasMountain = false, hasWarrior = false;
@@ -187,37 +258,22 @@ public class TribeController implements GameEventListener {
         return true;
     }
 
-    /**
-     * I11: اصلاح sendGift — پذیرش مقدار دلخواه از بازیکن با محاسبه proportional relation gain.
-     *
-     * طبق spec:
-     *   هر ۱۰ واحد غذا یا چوب → +۲ رابطه
-     *   هر ۱۰ واحد سنگ → +۳ رابطه
-     *   هر ۵ واحد آهن → +۳ رابطه
-     *   مقدار رابطه هیچ‌وقت از ۱۰۰ بیشتر نمی‌شود (addRelationship این را handle می‌کند).
-     *
-     * @param amount مقدار منبع انتخاب‌شده توسط بازیکن
-     */
     public boolean sendGift(Tribe tribe, ResourceType resourceType, int amount) {
         if (!tribe.canReceiveGift()) return false;
         if (amount <= 0) return false;
 
-        // حداقل واحد معنادار برای هدیه
         int unitSize = (resourceType == ResourceType.IRON) ? 5 : 10;
         if (amount < unitSize) return false;
 
-        // بررسی موجودی قبل از برداشت
         if (!map.getTownHall().getInventory().hasEnough(resourceType, amount)) return false;
 
-        // I11: محاسبه proportional relation gain طبق spec
         int relationGain;
         if (resourceType == ResourceType.IRON) {
-            relationGain = (amount / 5) * 3;   // هر ۵ آهن → +۳
+            relationGain = (amount / 5) * 3;
         } else if (resourceType == ResourceType.STONE) {
-            relationGain = (amount / 10) * 3;  // هر ۱۰ سنگ → +۳
+            relationGain = (amount / 10) * 3;
         } else {
-            // FOOD و WOOD
-            relationGain = (amount / 10) * 2;  // هر ۱۰ واحد → +۲
+            relationGain = (amount / 10) * 2;
         }
 
         if (relationGain <= 0) return false;
