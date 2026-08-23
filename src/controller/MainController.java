@@ -2,6 +2,7 @@ package controller;
 
 import model.*;
 import javax.swing.*;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -131,10 +132,11 @@ public class MainController {
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
                 upgradeController.canTrainUnit("ARCHER"), () -> upgradeController.trainUnit("ARCHER")));
 
+        // سواره‌نظام (Cavalry) طبق اصول فاز دوم اینجا قرار نمی‌گیرد.
+
         return actions;
     }
 
-    // اصلاح باگ [B1]: جایگزینی کامل متد برای اضافه کردن دلیل غیرفعال بودن و اصلاح پیشوندها
     public List<MenuAction> getStableMenuActions() {
         TownHall th = gameMap.getTownHall();
         boolean qEmpty   = th.isProductionQueueEmpty();
@@ -149,48 +151,115 @@ public class MainController {
         ));
     }
 
+    // اصلاح باگ [B2]: متد بازار کاملاً بازنویسی شد تا از دیالوگ کاستوم گرافیکی استفاده کند
     public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
         List<MenuAction> actions = new ArrayList<>();
-        int level = bazaar.getLevel();
+        boolean traded = bazaar.hasTraded();
+        int     level  = bazaar.getLevel();
+        Inventory inv  = gameMap.getTownHall().getInventory();
 
-        int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
-        String prefix = bazaar.hasTraded() ? "🚫 [Traded] " : "💱 ";
+        // ── گزینه تجارت با سطح فعلی ─────────────────────────────────────────
+        actions.add(new MenuAction(
+                "⚖️ Trade (Level " + level + ")",
+                !traded,
+                "Already traded this turn",
+                () -> showBazaarTradeDialog(bazaar)
+        ));
 
+        // ── گزینه ارتقاء بازار ───────────────────────────────────────────────
         if (bazaar.canUpgrade()) {
-            actions.add(new MenuAction("⬆️ Upgrade Bazaar to Level " + (level + 1), true, () -> {
-                bazaar.upgrade();
-                GameEventDispatcher.fireNotification("Bazaar upgraded to Level " + bazaar.getLevel() + "!");
-            }));
+            int stoneCost = (level == 1) ? 30 : 60;
+            boolean canUpg = inv.hasEnough(ResourceType.STONE, stoneCost);
+            actions.add(new MenuAction(
+                    "⬆️ Upgrade Bazaar → Level " + (level + 1) + " (" + stoneCost + " Stone)",
+                    canUpg,
+                    "Need " + stoneCost + " Stone to upgrade",
+                    () -> {
+                        if (inv.consumeResource(ResourceType.STONE, stoneCost)) {
+                            bazaar.upgrade();
+                            GameEventDispatcher.fireNotification(
+                                    "⚖️ Bazaar upgraded to Level " + bazaar.getLevel() + "!");
+                        }
+                    }
+            ));
+        } else {
+            actions.add(new MenuAction("✅ Bazaar is at Max Level (3)", false, null));
         }
 
-        if (bazaar.hasTraded()) {
-            actions.add(new MenuAction(prefix + "Already traded this turn", false, null));
-            return actions;
-        }
+        return actions;
+    }
+
+    // اصلاح باگ [B2]: متد گرافیکی اختصاصی برای پنجره تبادل منابع بازار
+    private void showBazaarTradeDialog(Bazaar bazaar) {
+        int level = bazaar.getLevel();
+        int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
+
+        JDialog tradeDlg = new JDialog((JFrame) null, "⚖️ Bazaar Trade (Level " + level + ")", true);
+        tradeDlg.setSize(400, 320);
+        tradeDlg.setLocationRelativeTo(null);
+        tradeDlg.getContentPane().setBackground(new Color(25, 28, 35));
+
+        JPanel content = new JPanel(new GridBagLayout());
+        content.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 10, 8, 10);
+
+        JLabel info = new JLabel("Trade Amount: " + amount + " units", SwingConstants.CENTER);
+        info.setForeground(new Color(241, 196, 15));
+        info.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        content.add(info, gbc);
 
         ResourceType[] types = {ResourceType.FOOD, ResourceType.WOOD, ResourceType.STONE, ResourceType.IRON};
-        String[] icons = {"🍔", "🪵", "🪨", "⚙️"};
-        Inventory inv = gameMap.getTownHall().getInventory();
+        String[] labels = {"🍔 Food", "🪵 Wood", "🪨 Stone", "⚙️ Iron"};
 
-        for (int i = 0; i < types.length; i++) {
-            for (int j = 0; j < types.length; j++) {
-                if (i == j) continue;
-                ResourceType give = types[i];
-                ResourceType get = types[j];
-                String giveLabel = icons[i] + " " + give.name();
-                String getLabel = icons[j] + " " + get.name();
-                boolean canAfford = inv.hasEnough(give, amount);
+        gbc.gridy = 1; gbc.gridwidth = 1;
+        JLabel giveLbl = new JLabel("Give:");
+        giveLbl.setForeground(Color.LIGHT_GRAY);
+        content.add(giveLbl, gbc);
 
-                actions.add(new MenuAction(String.format("%s Trade %d %s ➔ %s", prefix, amount, giveLabel, getLabel), canAfford, () -> {
-                    if (tradeController.tradeWithBazaar(bazaar, give, get)) {
-                        GameEventDispatcher.fireNotification("Trade successful!");
-                    } else {
-                        GameEventDispatcher.fireNotification("Trade failed. Storage full or resources missing.");
-                    }
-                }));
+        JComboBox<String> giveBox = new JComboBox<>(labels);
+        giveBox.setBackground(new Color(35, 39, 48));
+        giveBox.setForeground(Color.WHITE);
+        gbc.gridx = 1;
+        content.add(giveBox, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 2;
+        JLabel getLbl = new JLabel("Receive:");
+        getLbl.setForeground(Color.LIGHT_GRAY);
+        content.add(getLbl, gbc);
+
+        JComboBox<String> getBox = new JComboBox<>(labels);
+        getBox.setBackground(new Color(35, 39, 48));
+        getBox.setForeground(Color.WHITE);
+        gbc.gridx = 1;
+        content.add(getBox, gbc);
+
+        JButton confirmBtn = new JButton("✅ Confirm Trade");
+        confirmBtn.setBackground(new Color(52, 152, 219));
+        confirmBtn.setForeground(Color.WHITE);
+        confirmBtn.setFocusPainted(false);
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        content.add(confirmBtn, gbc);
+
+        confirmBtn.addActionListener(e -> {
+            ResourceType give = types[giveBox.getSelectedIndex()];
+            ResourceType get = types[getBox.getSelectedIndex()];
+            if (give == get) {
+                GameEventDispatcher.fireNotification("⚠️ Cannot trade a resource for itself!");
+                return;
             }
-        }
-        return actions;
+            if (tradeController.tradeWithBazaar(bazaar, give, get)) {
+                GameEventDispatcher.fireNotification("✅ Trade successful!");
+                tradeDlg.dispose();
+            } else {
+                GameEventDispatcher.fireNotification("❌ Trade failed. Check storage capacity and resources.");
+            }
+        });
+
+        tradeDlg.add(content);
+        tradeDlg.setVisible(true);
     }
 
     public List<MenuAction> getUnitMenuActions(Unit selectedUnit, Hex targetHex) {
