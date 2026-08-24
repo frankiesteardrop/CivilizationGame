@@ -33,7 +33,7 @@ public class SaveLoadController {
         public int     thLevel    = 1;
         public String  saveTime   = "";
         public String  saveVersion = "";
-        public String  gameSummary = ""; // اضافه شده برای رفع باگ [M1]
+        public String  gameSummary = "";
     }
 
     private static class SaveWrapper {
@@ -43,7 +43,7 @@ public class SaveLoadController {
         String  season;
         int     thLevel;
         String  saveTime;
-        String  gameSummary; // اضافه شده برای رفع باگ [M1]
+        String  gameSummary;
         GameMap gameData;
     }
 
@@ -77,7 +77,7 @@ public class SaveLoadController {
             wrapper.season      = map.getCurrentSeason().name();
             wrapper.thLevel     = map.getTownHall().getLevel();
             wrapper.saveTime    = LocalDateTime.now().format(TIME_FMT);
-            wrapper.gameSummary = buildGameSummary(map); // ساخت خلاصه وضعیت بازی [M1]
+            wrapper.gameSummary = buildGameSummary(map);
             wrapper.gameData    = map;
 
             String json = createGson().toJson(wrapper);
@@ -97,9 +97,6 @@ public class SaveLoadController {
         }
     }
 
-    /**
-     * متد کمکی برای ساخت خلاصه متنی وضعیت بازی [M1]
-     */
     private String buildGameSummary(GameMap map) {
         long buildings = map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed()
@@ -191,7 +188,7 @@ public class SaveLoadController {
                 meta.season      = root.has("season")      ? root.get("season").getAsString()      : "?";
                 meta.thLevel     = root.has("thLevel")     ? root.get("thLevel").getAsInt()        : 1;
                 meta.saveTime    = root.has("saveTime")    ? root.get("saveTime").getAsString()    : "?";
-                meta.gameSummary = root.has("gameSummary") ? root.get("gameSummary").getAsString() : ""; // خواندن summary [M1]
+                meta.gameSummary = root.has("gameSummary") ? root.get("gameSummary").getAsString() : "";
                 meta.isEmpty     = false;
             } else {
                 meta.saveVersion = "1.x";
@@ -281,6 +278,8 @@ public class SaveLoadController {
                 throws JsonParseException {
             JsonObject obj = json.getAsJsonObject();
             BuildingType type = BuildingType.valueOf(obj.get("CLASS_TYPE").getAsString());
+
+            // اصلاح ارور کامپایل: اضافه شدن OUTPOST به سوییچ تا تمام مقادیر Enum پوشش داده شوند
             Class<? extends Building> clazz = switch (type) {
                 case TOWN_HALL    -> TownHall.class;
                 case LUMBER_MILL  -> LumberMill.class;
@@ -294,6 +293,7 @@ public class SaveLoadController {
                 case BAZAAR       -> Bazaar.class;
                 case TRADING_POST -> TradingPost.class;
                 case TRIBE_CAMP   -> TribeCamp.class;
+                case OUTPOST      -> Outpost.class;
             };
             return context.deserialize(json, clazz);
         }

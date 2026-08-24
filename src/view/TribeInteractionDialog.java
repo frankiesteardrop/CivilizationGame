@@ -4,8 +4,6 @@ import controller.MainController;
 import controller.TribeController;
 import model.*;
 import model.mission.Mission;
-import model.state.mission.ActiveMissionState;
-import model.state.mission.CompletedFailedState;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -390,9 +388,8 @@ public class TribeInteractionDialog extends JDialog {
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 3;
         content.add(preview, gbc);
 
-        JButton confirmBtn = buildSubButton("✅ Confirm Trade", true); // Move creation up
+        JButton confirmBtn = buildSubButton("✅ Confirm Trade", true);
 
-        // اصلاح گام هشتم: اضافه شدن منطق کنترل سقف انبار برای Trade قبیله
         Runnable updatePreview = () -> {
             int amt = (int) amountSpinner.getValue();
             ResourceType getRes = allRes[getBox.getSelectedIndex()];
@@ -537,6 +534,8 @@ public class TribeInteractionDialog extends JDialog {
         finalizeSubDialog(dlg, content);
     }
 
+    // ─── MVC CLEANUP: دریافت اطلاعات از مدل به جای هاردکد کردن ───
+
     private String getTribeRewardDescription() {
         String currentStatus = tribe.getState().getName();
         int    currentRel    = tribe.getRelationship();
@@ -550,39 +549,8 @@ public class TribeInteractionDialog extends JDialog {
             default           -> "";
         };
 
-        String friendlyReward = switch (tribe.getType()) {
-            case FARMER     -> "• Trade: Give any resource → receive Food at 75% rate\n"
-                    + "• Missions: Pay resources to receive Food bonuses\n"
-                    + "• Cannot ally simultaneously with Mountain Tribe";
-            case WARRIOR    -> "• Military missions: Defeat enemies near camp for rewards\n"
-                    + "• Bonus combat strength near Warrior camp\n"
-                    + "• ⚠ Allying Warrior blocks ALL other tribe alliances";
-            case MOUNTAIN   -> "• Trade: Give any resource → receive Stone or Iron at 75% rate\n"
-                    + "• Missions: Pay resources to receive Stone bonuses\n"
-                    + "• Cannot ally simultaneously with Farmer Tribe";
-            case COMMERCIAL -> "• Trade: Give any resource → receive any resource at 80% rate\n"
-                    + "• Best trade rates of all tribe types\n"
-                    + "• Road mission bonus: +10% trade rate";
-            case COASTAL    -> "• Trade: Give any resource → receive Food at 75% rate\n"
-                    + "• Dock missions: Coastal development bonuses\n"
-                    + "• Discount on building future Dock structures";
-        };
-
-        String alliedReward = switch (tribe.getType()) {
-            case FARMER     -> "• Passive: +5 Food added to storage each turn\n"
-                    + "• All Friendly bonuses remain active";
-            case WARRIOR    -> "• Passive: Military unit support (3 Swordsmen on alliance)\n"
-                    + "• Increased combat effectiveness near Warrior camp\n"
-                    + "• Note: Blocks alliance with all other tribes";
-            case MOUNTAIN   -> "• Passive: +5 Stone added to storage each turn\n"
-                    + "• All Friendly bonuses remain active";
-            case COMMERCIAL -> "• Passive: +3 Wood added to storage each turn\n"
-                    + "• Trade bonus: +10% rate (if road mission completed)\n"
-                    + "• All Friendly bonuses remain active";
-            case COASTAL    -> "• Passive: +3 Food added to storage each turn\n"
-                    + "• Discounted Dock construction cost\n"
-                    + "• All Friendly bonuses remain active";
-        };
+        String friendlyReward = tribe.getType().getFriendlyRewardDescription();
+        String alliedReward   = tribe.getType().getAlliedRewardDescription();
 
         String allianceRequirement =
                 "• Requires: ≥70 relation\n"
@@ -601,6 +569,28 @@ public class TribeInteractionDialog extends JDialog {
                 currentStatus, currentRel, statusNote,
                 friendlyReward, alliedReward, allianceRequirement
         );
+    }
+
+    private String getMissionDescription() {
+        Mission m = tribe.getMission();
+        if (m == null) {
+            return "No mission available at the moment.\n\n"
+                    + "Keep a Friendly relationship and check back later.\n"
+                    + "New missions appear every 5 turns when you are Friendly.";
+        }
+
+        String stateStr = m.getState().getDisplayName();
+        String turnsStr = (stateStr.equals("Active") || stateStr.equals("Ready to Deliver"))
+                ? m.getTurnsRemaining() + " turns remaining" : "N/A";
+
+        String base = m.getGoal().getDescription();
+
+        if (tribe.getType() == TribeType.WARRIOR
+                && (stateStr.equals("Active") || stateStr.equals("Ready to Deliver"))) {
+            base += "\n\nProgress: " + m.getProgress() + "/2 kills";
+        }
+
+        return String.format("Status: [%s]\nTime Left: %s\n\n%s", stateStr, turnsStr, base);
     }
 
     private void tryFormAlliance() {
@@ -801,45 +791,5 @@ public class TribeInteractionDialog extends JDialog {
                 return "Mountain and Farmer tribes cannot be allied simultaneously";
         }
         return null;
-    }
-
-    private String getMissionDescription() {
-        Mission m = tribe.getMission();
-        if (m == null) {
-            return "No mission available at the moment.\n\n"
-                    + "Keep a Friendly relationship and check back later.\n"
-                    + "New missions appear every 5 turns when you are Friendly.";
-        }
-
-        String stateStr = m.getState().getDisplayName();
-        String turnsStr = (stateStr.equals("Active") || stateStr.equals("Ready to Deliver"))
-                ? m.getTurnsRemaining() + " turns remaining" : "N/A";
-
-        String base = switch (tribe.getType()) {
-            case FARMER     -> "Mission: Build Food Storage\n──────────────────────\n"
-                    + "Requirement: Pay 20 Wood + 10 Stone to the tribe.\n"
-                    + "Reward: 30 Food + 15 relation\nDeadline: 5 turns";
-            case COMMERCIAL -> "Mission: Connect Trade Route\n──────────────────────\n"
-                    + "Requirement: Build a continuous road from one of your buildings\n"
-                    + "to a hex adjacent to this camp.\n"
-                    + "Reward: +10% trade rate + 20 relation\nDeadline: 10 turns";
-            case WARRIOR    -> "Mission: Military Aid\n──────────────────────\n"
-                    + "Requirement: Defeat 2 enemy or barbarian units\n"
-                    + "within 5 hexes of this camp.\n"
-                    + "Reward: 3 Swordsmen + 20 relation\nDeadline: 8 turns";
-            case MOUNTAIN   -> "Mission: Mining Tools\n──────────────────────\n"
-                    + "Requirement: Pay 15 Wood + 10 Iron to the tribe.\n"
-                    + "Reward: 20 Stone + 15 relation\nDeadline: 6 turns";
-            case COASTAL    -> "Mission: Coastal Development\n──────────────────────\n"
-                    + "Requirement: Build a Dock within 4 hexes of this camp.\n"
-                    + "Reward: 30 Food + discounted Dock cost\nDeadline: 10 turns";
-        };
-
-        if (tribe.getType() == TribeType.WARRIOR
-                && (stateStr.equals("Active") || stateStr.equals("Ready to Deliver"))) {
-            base += "\n\nProgress: " + m.getProgress() + "/2 kills";
-        }
-
-        return String.format("Status: [%s]\nTime Left: %s\n\n%s", stateStr, turnsStr, base);
     }
 }
