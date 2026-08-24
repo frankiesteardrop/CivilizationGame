@@ -97,13 +97,12 @@ public abstract class ProductionCommand {
 
             contextMap.addUnit(UnitFactory.createUnit(unitType, tq, tr));
 
-            // M3: Notification هنگام رسیدن به سقف یونیت نظامی + کاهش Happiness
+            // اصلاح منطق جریمه سقف ارتش: فقط و دقیقاً در لحظه رسیدن به سقف اعمال شود
             if (unitType == UnitType.SWORDSMAN
                     || unitType == UnitType.ARCHER
                     || unitType == UnitType.CAVALRY) {
-                if (contextMap.getMilitaryUnitCount() >= contextMap.getMilitaryUnitCap()) {
+                if (contextMap.getMilitaryUnitCount() == contextMap.getMilitaryUnitCap()) {
                     th.addHappiness(-1);
-                    // M3: اطلاع‌رسانی واضح به بازیکن طبق spec
                     GameEventDispatcher.fireNotification(
                             "⚔️ Military Unit Cap reached! (Cap: "
                                     + contextMap.getMilitaryUnitCap() + ") -1 Happiness.");

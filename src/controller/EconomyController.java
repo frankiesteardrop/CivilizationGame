@@ -152,7 +152,6 @@ public class EconomyController implements GameEventListener {
             if (!inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount())) {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
-                    // اصلاح گام ۴: جلوگیری از تکرار کد، فقط شلیک رویداد کافی است
                     GameEventDispatcher.fireBuildingDestroyed(hex);
                     GameEventDispatcher.fireNotification(
                             "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
@@ -260,6 +259,12 @@ public class EconomyController implements GameEventListener {
         int production = b.calculateProduction(townHall);
         ResourceType targetRes = b.getType().getProducedResource();
 
+        // 1. اعمال دقیق ضریب تکنولوژی ابزارآلات فولادی (به صورت متمرکز در کنترلر)
+        if ((b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)
+                && townHall.isProfessionalToolsUnlocked()) {
+            production = (int) Math.floor(production * 1.5);
+        }
+
         if (season == Season.SPRING && (b.getType() == BuildingType.FARM || b.getType() == BuildingType.STABLE)) {
             production += 1;
         } else if (season == Season.WINTER && b.getType() == BuildingType.FARM) {
@@ -282,7 +287,8 @@ public class EconomyController implements GameEventListener {
                 Hex n = map.getNeighbor(hex, i);
                 if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
             }
-            if (mCount >= 2) production += 1;
+            // 2. اصلاح باگ مجاورت معدن عمیق (از +1 به +10 طبق داک)
+            if (mCount >= 2) production += 10;
         }
 
         if (b.getType() == BuildingType.DOCK && coastalAllied) {
@@ -295,7 +301,6 @@ public class EconomyController implements GameEventListener {
         return Math.max(0, production);
     }
 
-    // اصلاح گام ۴: استفاده از رویداد متمرکز برای نجات کارگران از زیر آوار
     @Override
     public void onBuildingDestroyed(Hex hex) {
         ejectWorkersFromHex(mainController.getGameMap(), hex);
