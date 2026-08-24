@@ -14,7 +14,12 @@ public class TradeController implements TurnListener {
         GameEventDispatcher.addListener(this);
     }
 
-    private boolean isCommercialAllied() {
+    public Inventory getPlayerInventory() {
+        return map.getTownHall().getInventory();
+    }
+
+    // تغییر به public برای استفاده در محاسبات زنده لایه View
+    public boolean isCommercialAllied() {
         return map.getHexes().stream().anyMatch(h -> h.getBuilding() instanceof TribeCamp && !h.getBuilding().isDestroyed()
                 && ((TribeCamp) h.getBuilding()).getTribe().isAllied() && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COMMERCIAL);
     }

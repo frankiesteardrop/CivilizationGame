@@ -62,8 +62,6 @@ public class TribeInteractionDialog extends JDialog {
         setContentPane(root);
     }
 
-    // ─── Header ──────────────────────────────────────────────────────────────
-
     private JPanel buildHeader() {
         JPanel panel = new JPanel(new BorderLayout(12, 8));
         panel.setBackground(BG_CARD);
@@ -119,15 +117,12 @@ public class TribeInteractionDialog extends JDialog {
         return bar;
     }
 
-    // ─── Actions Panel ────────────────────────────────────────────────────────
-
     private JScrollPane buildScrollableActions() {
         JPanel actionsPanel = new JPanel();
         actionsPanel.setLayout(new BoxLayout(actionsPanel, BoxLayout.Y_AXIS));
         actionsPanel.setBackground(BG_DARK);
         actionsPanel.setBorder(new EmptyBorder(12, 16, 12, 16));
 
-        // ── ۱. ارسال هدیه ─────────────────────────────────────────────────────
         actionsPanel.add(buildActionButton(
                 "🎁  Send Gift",
                 "Send resources to improve relations",
@@ -138,10 +133,7 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۲. تجارت ─────────────────────────────────────────────────────────
-        // اصلاح [I3]: جلوگیری از فعال شدن دکمه تجارت برای قبیله جنگجو و تنظیم دلیل غیرفعال بودن
         boolean canTrade = tribe.canTrade() && !camp.hasTraded() && tribe.getType() != TribeType.WARRIOR;
-
         String tradeDisabledReason = tribe.getType() == TribeType.WARRIOR
                 ? "Warrior tribe does not engage in commerce"
                 : (!tribe.canTrade() ? "Requires Friendly status (≥20 relation)" : "Already traded this turn");
@@ -156,7 +148,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۳. مأموریت ───────────────────────────────────────────────────────
         actionsPanel.add(buildActionButton(
                 "📜  Mission Board",
                 "View or Accept tribe missions",
@@ -167,7 +158,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۴. تحویل مأموریت ─────────────────────────────────────────────────
         boolean canDeliver = tribe.getMission() != null
                 && tribe.getMission().getState().canDeliver();
         actionsPanel.add(buildActionButton(
@@ -191,7 +181,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۵. درخواست اتحاد ─────────────────────────────────────────────────
         boolean canAllianceState = tribe.canFormAlliance();
         String  allianceReason   = getAllianceDisabledReason();
         actionsPanel.add(buildActionButton(
@@ -205,7 +194,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۶. اعلام جنگ ─────────────────────────────────────────────────────
         boolean canWar = tribe.getState().canDeclareWar();
         actionsPanel.add(buildActionButton(
                 "⚔️  Declare War",
@@ -217,7 +205,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۷. درخواست صلح ───────────────────────────────────────────────────
         actionsPanel.add(buildActionButton(
                 "🕊️  Request Peace",
                 "End war (costs 30 Food + 30 Wood + 30 Iron)",
@@ -228,7 +215,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ── ۸. مشاهده پاداش قبیله ────────────────
         actionsPanel.add(buildActionButton(
                 "⭐  View Tribe Rewards",
                 "See what bonuses become available at Friendly and Allied status",
@@ -246,8 +232,6 @@ public class TribeInteractionDialog extends JDialog {
         return scroll;
     }
 
-    // ─── Footer ──────────────────────────────────────────────────────────────
-
     private JPanel buildFooter() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
         panel.setBackground(BG_CARD);
@@ -264,8 +248,6 @@ public class TribeInteractionDialog extends JDialog {
         panel.add(closeBtn);
         return panel;
     }
-
-    // ─── Gift Dialog ────────────────────────────────────────
 
     private void showGiftDialog() {
         JDialog giftDlg = createSubDialog("🎁 Send Gift to " + tribe.getType().getDisplayName());
@@ -359,8 +341,6 @@ public class TribeInteractionDialog extends JDialog {
         finalizeSubDialog(giftDlg, content);
     }
 
-    // ─── Trade Dialog ─────────────────────────────────────────────────────────
-
     private void showTradeDialog() {
         JDialog tradeDlg = createSubDialog("💱 Trade with " + tribe.getType().getDisplayName());
         JPanel content = new JPanel(new GridBagLayout());
@@ -410,19 +390,51 @@ public class TribeInteractionDialog extends JDialog {
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 3;
         content.add(preview, gbc);
 
+        JButton confirmBtn = buildSubButton("✅ Confirm Trade", true); // Move creation up
+
+        // اصلاح گام هشتم: اضافه شدن منطق کنترل سقف انبار برای Trade قبیله
         Runnable updatePreview = () -> {
             int amt = (int) amountSpinner.getValue();
             ResourceType getRes = allRes[getBox.getSelectedIndex()];
+            ResourceType giveRes = allRes[giveBox.getSelectedIndex()];
+
+            if (giveRes == getRes) {
+                preview.setText("⚠️ Cannot trade same resource!");
+                preview.setForeground(ACCENT_RED);
+                confirmBtn.setEnabled(false);
+                return;
+            }
+
+            Inventory inv = mainController.getGameMap().getTownHall().getInventory();
+            boolean hasEnoughGive = inv.hasEnough(giveRes, amt);
+
             int recv = tribe.getType().getTradeStrategy()
                     .calculateReceivedAmount(amt, getRes, tribe.hasTradeBonus());
-            preview.setText("You receive: ~" + recv + " "
-                    + resEmoji[getBox.getSelectedIndex()].split(" ")[1]);
+
+            int currentGet = inv.getResourceAmount(getRes);
+            int capGet = inv.getCapacity(getRes);
+            boolean hasCapacity = (currentGet + recv <= capGet);
+
+            if (!hasEnoughGive) {
+                preview.setText("⚠️ Not enough " + giveRes.name() + "!");
+                preview.setForeground(ACCENT_RED);
+                confirmBtn.setEnabled(false);
+            } else if (!hasCapacity) {
+                preview.setText("⚠️ Storage full! Cannot hold " + recv + " " + getRes.name());
+                preview.setForeground(ACCENT_RED);
+                confirmBtn.setEnabled(false);
+            } else {
+                preview.setText("You receive: ~" + recv + " " + resEmoji[getBox.getSelectedIndex()].split(" ")[1]);
+                preview.setForeground(ACCENT_GREEN);
+                confirmBtn.setEnabled(true);
+            }
         };
+
         amountSpinner.addChangeListener(e -> updatePreview.run());
         getBox.addActionListener(e -> updatePreview.run());
+        giveBox.addActionListener(e -> updatePreview.run());
         updatePreview.run();
 
-        JButton confirmBtn = buildSubButton("✅ Confirm Trade", true);
         gbc.gridy = 5; content.add(confirmBtn, gbc);
 
         confirmBtn.addActionListener(e -> {
@@ -433,15 +445,13 @@ public class TribeInteractionDialog extends JDialog {
                 tradeDlg.dispose();
                 rebuildAndRefresh();
             } else {
-                preview.setText("⚠️ Not enough resources!");
+                preview.setText("⚠️ Not enough resources or storage!");
                 preview.setForeground(ACCENT_RED);
             }
         });
 
         finalizeSubDialog(tradeDlg, content);
     }
-
-    // ─── Mission Dialog ───────────────────────────────────────────────────────
 
     private void showMissionInfo() {
         JDialog dlg = createSubDialog("📜 Mission Board — " + tribe.getType().getDisplayName());
@@ -495,8 +505,6 @@ public class TribeInteractionDialog extends JDialog {
 
         finalizeSubDialog(dlg, content);
     }
-
-    // ─── Rewards Dialog ───────────────────
 
     private void showRewardsDialog() {
         JDialog dlg = createSubDialog("⭐ Tribe Rewards — " + tribe.getType().getDisplayName());
@@ -595,8 +603,6 @@ public class TribeInteractionDialog extends JDialog {
         );
     }
 
-    // ─── Alliance Actions ─────────────────────────────────────────────────────
-
     private void tryFormAlliance() {
         if (tribeController.formAlliance(tribe)) {
             JOptionPane.showMessageDialog(this,
@@ -638,8 +644,6 @@ public class TribeInteractionDialog extends JDialog {
                     "Cannot Request Peace", JOptionPane.WARNING_MESSAGE);
         }
     }
-
-    // ─── UI Builder Helpers ───────────────────────────────────────────────────
 
     private JButton buildActionButton(String label, String description,
                                       boolean enabled, String disabledReason,
@@ -733,8 +737,6 @@ public class TribeInteractionDialog extends JDialog {
         }
         if (onClose != null) onClose.run();
     }
-
-    // ─── Label/Text Helpers ───────────────────────────────────────────────────
 
     private String getTribeEmoji() {
         return switch (tribe.getType()) {

@@ -3,7 +3,9 @@ package view;
 import controller.TradeController;
 import model.Bazaar;
 import model.GameEventDispatcher;
+import model.Inventory;
 import model.ResourceType;
+import model.trade.BazaarTradeStrategy;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,7 +14,7 @@ public class BazaarTradeDialog extends JDialog {
 
     public BazaarTradeDialog(JFrame parent, Bazaar bazaar, TradeController tradeController) {
         super(parent, "⚖️ Bazaar Trade (Level " + bazaar.getLevel() + ")", true);
-        setSize(400, 320);
+        setSize(400, 350);
         setLocationRelativeTo(parent);
         getContentPane().setBackground(new Color(25, 28, 35));
 
@@ -56,20 +58,63 @@ public class BazaarTradeDialog extends JDialog {
         gbc.gridx = 1;
         content.add(getBox, gbc);
 
+        // لیبل پیش‌نمایش و هشدار زنده
+        JLabel preview = new JLabel("You receive: ~", SwingConstants.CENTER);
+        preview.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        content.add(preview, gbc);
+
         JButton confirmBtn = new JButton("✅ Confirm Trade");
         confirmBtn.setBackground(new Color(52, 152, 219));
         confirmBtn.setForeground(Color.WHITE);
         confirmBtn.setFocusPainted(false);
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        gbc.gridy = 4;
         content.add(confirmBtn, gbc);
+
+        // اعتبارسنجی زنده (Live Validation)
+        Runnable updatePreview = () -> {
+            ResourceType give = types[giveBox.getSelectedIndex()];
+            ResourceType get = types[getBox.getSelectedIndex()];
+
+            if (give == get) {
+                preview.setText("⚠️ Cannot trade a resource for itself!");
+                preview.setForeground(new Color(231, 76, 60));
+                confirmBtn.setEnabled(false);
+                return;
+            }
+
+            Inventory inv = tradeController.getPlayerInventory();
+            boolean hasEnoughGive = inv.hasEnough(give, amount);
+
+            int recv = new BazaarTradeStrategy(bazaar.getLevel())
+                    .calculateReceivedAmount(amount, get, tradeController.isCommercialAllied());
+
+            int currentGet = inv.getResourceAmount(get);
+            int capGet = inv.getCapacity(get);
+            boolean hasCapacity = (currentGet + recv <= capGet);
+
+            if (!hasEnoughGive) {
+                preview.setText("⚠️ Not enough " + give.name() + " to trade!");
+                preview.setForeground(new Color(231, 76, 60));
+                confirmBtn.setEnabled(false);
+            } else if (!hasCapacity) {
+                preview.setText("⚠️ Storage full! Need space for " + recv + " " + get.name());
+                preview.setForeground(new Color(231, 76, 60));
+                confirmBtn.setEnabled(false);
+            } else {
+                preview.setText("You will receive: " + recv + " " + get.name() + " ✅");
+                preview.setForeground(new Color(46, 204, 113));
+                confirmBtn.setEnabled(true);
+            }
+        };
+
+        giveBox.addActionListener(e -> updatePreview.run());
+        getBox.addActionListener(e -> updatePreview.run());
+        updatePreview.run();
 
         confirmBtn.addActionListener(e -> {
             ResourceType give = types[giveBox.getSelectedIndex()];
             ResourceType get = types[getBox.getSelectedIndex()];
-            if (give == get) {
-                GameEventDispatcher.fireNotification("⚠️ Cannot trade a resource for itself!");
-                return;
-            }
             if (tradeController.tradeWithBazaar(bazaar, give, get)) {
                 GameEventDispatcher.fireNotification("✅ Trade successful!");
                 this.dispose();
