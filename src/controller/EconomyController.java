@@ -155,6 +155,7 @@ public class EconomyController implements TurnListener, BuildingListener {
             if (!inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount())) {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
+                    hex.setBuilding(null); // اصلاح حیاتی: حذف مرجع ساختمان از روی هکس
                     GameEventDispatcher.fireBuildingDestroyed(hex);
                     GameEventDispatcher.fireNotification(
                             "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
@@ -289,7 +290,7 @@ public class EconomyController implements TurnListener, BuildingListener {
                 Hex n = map.getNeighbor(hex, i);
                 if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
             }
-            if (mCount >= 2) production += 10;
+            if (mCount >= 2) production += 1; // اصلاح حیاتی: پاداش مجاورت کوهستان به +1 تغییر یافت
         }
 
         if (b.getType() == BuildingType.DOCK && coastalAllied) {

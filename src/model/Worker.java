@@ -26,13 +26,11 @@ public class Worker extends Unit {
         return true;
     }
 
-    // ─── متد جدید برای سیستم Save/Load (رعایت کپسوله‌سازی و حذف Reflection) ───
     public void restoreStation(Building building) {
         this.isStationed = true;
         this.stationedBuilding = building;
     }
 
-    // رفع باگ 18: اورلود کردن متد eject برای دریافت مپ و خروج از هکسِ در حال تخریب
     public void eject(GameMap map) {
         if (!isStationed || stationedBuilding == null) return;
 
@@ -40,22 +38,24 @@ public class Worker extends Unit {
         this.isStationed = false;
         this.stationedBuilding = null;
 
-        // فرار از آوار: پیدا کردن نزدیک‌ترین هکس خالی و معتبر (نه دریا، نه کوهستان)
         if (map != null) {
             Hex currentHex = map.getHexAt(this.q, this.r);
-            if (currentHex != null && (currentHex.getBuilding() == null || currentHex.getBuilding().isDestroyed())) {
-                boolean relocated = false;
-                for (int i = 0; i < 6; i++) {
-                    Hex n = map.getNeighbor(currentHex, i);
-                    if (n != null && n.getTerrainType() != TerrainType.SEA && n.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
-                        boolean hasUnit = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == n.getQ() && u.getR() == n.getR());
-                        if (!hasUnit) {
-                            this.q = n.getQ();
-                            this.r = n.getR();
-                            relocated = true;
-                            break;
-                        }
-                    }
+
+            // بررسی تداخل: آیا هکس فعلی توسط یونیت دیگری اشغال شده یا غیرقابل عبور است؟
+            boolean isOccupied = map.getUnits().stream()
+                    .anyMatch(u -> u.isAlive() && u != this && u.getQ() == this.q && u.getR() == this.r);
+
+            if (isOccupied || currentHex == null || currentHex.getTerrainType() == TerrainType.SEA || currentHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) {
+                // جستجوی گسترده تا شعاع 3 هکس برای پیدا کردن محل امن
+                Hex safeHex = map.findNearbyEmptyHex(this.q, this.r, 3);
+
+                if (safeHex != null) {
+                    this.q = safeHex.getQ();
+                    this.r = safeHex.getR();
+                } else {
+                    // اگر هیچ جای خالی در شعاع 3 نباشد، کارگر از بین می‌رود (جلوگیری از باگ تداخل)
+                    this.kill();
+                    return;
                 }
             }
         }
@@ -64,7 +64,7 @@ public class Worker extends Unit {
     }
 
     public void eject() {
-        eject(null); // سازگاری به عقب برای جاهایی که نیازی به تغییر موقعیت ندارند
+        eject(null);
     }
 
     @Override
