@@ -19,9 +19,12 @@ public class CombatController {
         DamageHandler swordsman = new SwordsmanDamageHandler();
         DamageHandler archer    = new ArcherDamageHandler();
         DamageHandler cavalry   = new CavalryDamageHandler();
+        DamageHandler civilian  = new CivilianDamageHandler(); // اضافه شدن هندلر غیرنظامیان
 
+        // اتصال زنجیره مسئولیت: شمشیرزن -> کماندار -> سواره‌نظام -> غیرنظامیان
         swordsman.setNext(archer);
         archer.setNext(cavalry);
+        cavalry.setNext(civilian);
         this.damageChain = swordsman;
     }
 
@@ -96,7 +99,6 @@ public class CombatController {
                         GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
                         camp.getTribe().getType().grantLoot(map, targetHex);
                     } else {
-                        // اصلاح حیاتی: برای سایر ساختمان‌ها که تخریب شده‌اند، ارجاعشان را از هکس پاک می‌کنیم تا Ghost Building ایجاد نشود.
                         targetHex.setBuilding(null);
                     }
 
@@ -142,7 +144,12 @@ public class CombatController {
                             && (isTargetAnimal ? u.getType() == UnitType.BEAR
                             : (u.getType() == UnitType.SWORDSMAN
                             || u.getType() == UnitType.ARCHER
-                            || u.getType() == UnitType.CAVALRY)))
+                            || u.getType() == UnitType.CAVALRY
+                            // اصلاح حیاتی: غیرنظامیان به عنوان مدافع اضافه شدند تا از آسیب مصون نمانند
+                            || u.getType() == UnitType.WORKER
+                            || u.getType() == UnitType.BUILDER
+                            || u.getType() == UnitType.EXPLORER
+                            || u.getType() == UnitType.BORDER_EXPANDER)))
                     .collect(Collectors.toList());
 
             if (isTargetAnimal) {
