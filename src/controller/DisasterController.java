@@ -65,7 +65,6 @@ public class DisasterController {
 
         Unit target = findBearTarget(bear, lairQ, lairR);
 
-        // اصلاح گام سوم: اگر هدفی نیست، به سمت لانه برگرد و حذف شو
         if (target == null) {
             retreatBear(bear, lairQ, lairR);
             return;
@@ -82,22 +81,48 @@ public class DisasterController {
 
         if (distToTarget <= 1 && bear.getCurrentAP() >= 1) {
             bear.consumeAP(1);
-            target.takeDamage(35);
 
-            if (!target.isAlive()) {
-                GameEventDispatcher.fireNotification(
-                        "🐻 A bear killed a unit! Stay vigilant.");
-            }
+            // اصلاح گام ششم: تفکیک حمله به نیروی نظامی (با تاس) و غیرنظامی (آسیب مستقیم)
+            boolean isMilitaryTarget = (target.getType() == UnitType.SWORDSMAN ||
+                    target.getType() == UnitType.ARCHER ||
+                    target.getType() == UnitType.CAVALRY);
 
-            Hex bearHex = map.getHexAt(bear.getQ(), bear.getR());
-            if (bearHex != null && bearHex.isVisible()) {
-                GameEventDispatcher.fireNotification(
-                        "🐻 Bear attack! A unit took 35 damage.");
+            if (isMilitaryTarget) {
+                int bearDie = random.nextInt(6) + 1;
+                int defDie1 = random.nextInt(6) + 1;
+                int defDie2 = random.nextInt(6) + 1;
+                int maxDefDie = Math.max(defDie1, defDie2);
+
+                List<Integer> atkList = Collections.singletonList(bearDie);
+                List<Integer> defList = Arrays.asList(defDie1, defDie2);
+                defList.sort(Collections.reverseOrder());
+
+                if (bearDie > maxDefDie) {
+                    // خرس برنده شد
+                    int dmg = bear.getType().getBaseDamage();
+                    target.takeDamage(dmg);
+                    GameEventDispatcher.fireCombatTriggered(atkList, defList, 0, dmg);
+
+                    if (!target.isAlive()) {
+                        GameEventDispatcher.fireNotification("🐻 A bear overpowered your military unit! (Dice: " + bearDie + " vs " + maxDefDie + ")");
+                    } else {
+                        GameEventDispatcher.fireNotification("🐻 Bear attack! Military unit took " + dmg + " damage. (Dice: " + bearDie + " vs " + maxDefDie + ")");
+                    }
+                } else {
+                    // مدافع مساوی کرد یا برد (تساوی به نفع بازیکن است)
+                    bear.kill();
+                    GameEventDispatcher.fireCombatTriggered(atkList, defList, bear.getMaxHp(), 0);
+                    GameEventDispatcher.fireNotification("⚔️ Military unit successfully defended against the bear! (Dice: " + maxDefDie + " vs " + bearDie + ")");
+                }
+            } else {
+                // حمله به غیرنظامی (بدون تاس دفاعی)
+                int dmg = bear.getType().getBaseDamage();
+                target.takeDamage(dmg);
+                GameEventDispatcher.fireNotification("🐻 A wild bear attacked a defenseless civilian! Took " + dmg + " damage.");
             }
         }
     }
 
-    // اصلاح گام سوم: منطق بازگشت خرس به لانه و حذف از نقشه
     private void retreatBear(Unit bear, int lairQ, int lairR) {
         int dist = map.getHexDistance(bear.getQ(), bear.getR(), lairQ, lairR);
         if (dist == 0) {
@@ -110,7 +135,7 @@ public class DisasterController {
 
         int bestDist = Integer.MAX_VALUE;
         Hex bestHex = null;
-        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{-1,1},{0,1}};
+        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{0,-1},{0,1}}; // اصلاح شد برای مسیرهای شش ضلعی
 
         for (int[] dir : dirs) {
             int nq = bear.getQ() + dir[0];
