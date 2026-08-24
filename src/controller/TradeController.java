@@ -5,7 +5,7 @@ import model.trade.BazaarTradeStrategy;
 import model.trade.TradeStrategy;
 import model.trade.TradingPostTradeStrategy;
 
-public class TradeController implements GameEventListener {
+public class TradeController implements TurnListener {
 
     private final GameMap map;
 
@@ -19,11 +19,9 @@ public class TradeController implements GameEventListener {
                 && ((TribeCamp) h.getBuilding()).getTribe().isAllied() && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COMMERCIAL);
     }
 
-    // [M1] Fix: حذف پارامتر level از ورودی متد و خواندن آن مستقیماً از شیء Bazaar
     public boolean tradeWithBazaar(Bazaar bazaar, ResourceType give, ResourceType get) {
         if (bazaar.hasTraded()) return false;
 
-        // استعلام سطح بازار از خود شیء (رعایت اصول MVC و Single Source of Truth)
         int currentLevel = bazaar.getLevel();
         int amountToGive = (currentLevel == 1) ? 10 : (currentLevel == 2) ? 100 : 500;
 
@@ -66,17 +64,6 @@ public class TradeController implements GameEventListener {
         }
     }
 
-    // متدهای خالی اینترفیس
-    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {}
-    @Override public void onUnitKilled(Unit unit) {}
-    @Override public void onProductionCompleted(String itemName) {}
-    @Override public void onStarvationChanged(boolean isStarving) {}
-    @Override public void onUnitStateChanged(Unit unit) {}
-    @Override public void onBuildingConstructed(Hex hex) {}
-    @Override public void onBuildingDestroyed(Hex hex) {}
-    @Override public void onBorderExpanded(int centerQ, int centerR) {}
-    @Override public void onDisasterTriggered(String type, Hex center, java.util.List<Hex> affected) {}
-    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int a, int d) {}
-    @Override public void onNotification(String message) {}
+    @Override
+    public void onStarvationChanged(boolean isStarving) {}
 }

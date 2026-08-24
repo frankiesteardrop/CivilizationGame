@@ -2,7 +2,6 @@ package view;
 
 import controller.MainController;
 import model.*;
-import model.GameEventListener;
 import model.ProductionCommand;
 
 import javax.swing.*;
@@ -11,7 +10,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
-public class HUDPanel extends JPanel implements GameEventListener {
+public class HUDPanel extends JPanel implements ResourceListener, UnitListener, ProductionListener, TurnListener, BuildingListener, MapListener, NotificationListener {
 
     private final MainController mainController;
     private final GamePanel gamePanel;
@@ -142,40 +141,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         }
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onUnitKilled(Unit unit)                                          { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onProductionCompleted(String itemName)                           { SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); }); }
-    @Override public void onTurnEnded(int newTurn)                                         { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-
-    @Override
-    public void onStarvationChanged(boolean starving) {
-        SwingUtilities.invokeLater(() -> {
-            boolean wasStarving = this.isStarving;
-            this.isStarving = starving;
-            updateHUD();
-            if (starving && !wasStarving && !starvationAlertShown) {
-                starvationAlertShown = true;
-                showStarvationAlert();
-            }
-            if (!starving) starvationAlertShown = false;
-        });
-    }
-
-    @Override public void onUnitStateChanged(Unit unit)       { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBuildingConstructed(Hex hex)      { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBuildingDestroyed(Hex hex)        { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBorderExpanded(int centerQ, int centerR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-
-    @Override
-    public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
-    }
-
-    @Override
-    public void onNotification(String message) {
-        SwingUtilities.invokeLater(() -> showDisasterNotification(message));
-    }
-
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
             resetEndTurnButton();
@@ -231,7 +196,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
 
         seasonCard.updateValue(formatSeasonText(map.getCurrentSeason()));
 
-        // اصلاح [M2]: ایجاد Tooltip زیبا و حرفه‌ای برای کارت فصل با استفاده از HTML
         String seasonEffect = switch (map.getCurrentSeason()) {
             case SPRING -> "<html><div style='padding:4px;'><b style='color:#a8e063;'>🌸 Spring Effect</b><br/>All Farms & Stables +1 Food/turn</div></html>";
             case SUMMER -> "<html><div style='padding:4px;'><b style='color:#f9d423;'>☀️ Summer Effect</b><br/>No seasonal effects</div></html>";
@@ -240,7 +204,6 @@ public class HUDPanel extends JPanel implements GameEventListener {
         };
         seasonCard.setToolTipText(seasonEffect);
 
-        // محاسبه و نمایش وضعیت ترن درون فصلی به فرمت Turn (X/10)
         int turn = map.getCurrentTurn();
         int turnInSeason = ((turn - 1) % 10) + 1;
         turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + turnInSeason + "/10)</span>");
@@ -401,5 +364,37 @@ public class HUDPanel extends JPanel implements GameEventListener {
                     + "<span style='" + titleStyle + "'>" + title + ":</span> " + valueText
                     + "</body></html>");
         }
+    }
+
+    // ─── Override Methods ────────────────────────────────────────────────────
+
+    @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
+    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
+    @Override public void onUnitKilled(Unit unit)                                          { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
+    @Override public void onUnitStateChanged(Unit unit)       { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onProductionCompleted(String itemName)                           { SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); }); }
+    @Override public void onTurnEnded(int newTurn)                                         { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+
+    @Override
+    public void onStarvationChanged(boolean starving) {
+        SwingUtilities.invokeLater(() -> {
+            boolean wasStarving = this.isStarving;
+            this.isStarving = starving;
+            updateHUD();
+            if (starving && !wasStarving && !starvationAlertShown) {
+                starvationAlertShown = true;
+                showStarvationAlert();
+            }
+            if (!starving) starvationAlertShown = false;
+        });
+    }
+
+    @Override public void onBuildingConstructed(Hex hex)      { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onBuildingDestroyed(Hex hex)        { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
+    @Override public void onBorderExpanded(int centerQ, int centerR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+
+    @Override
+    public void onNotification(String message) {
+        SwingUtilities.invokeLater(() -> showDisasterNotification(message));
     }
 }

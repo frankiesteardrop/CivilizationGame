@@ -4,7 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn." />
+    <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/model/BuildingListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/CombatListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/DisasterListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/MapListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/NotificationListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/ProductionListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/ResourceListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/TurnListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/UnitListener.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/EconomyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/EconomyController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TribeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TribeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameEventListener.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

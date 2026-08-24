@@ -2,7 +2,7 @@ package controller;
 
 import model.*;
 
-public class EconomyController implements GameEventListener {
+public class EconomyController implements TurnListener, BuildingListener {
 
     private final MainController mainController;
 
@@ -60,6 +60,9 @@ public class EconomyController implements GameEventListener {
         }
         GameEventDispatcher.fireStarvationChanged(isStarving);
     }
+
+    @Override
+    public void onStarvationChanged(boolean isStarving) {}
 
     public boolean processEndTurn(GameMap map) {
         produceResources(map);
@@ -259,7 +262,6 @@ public class EconomyController implements GameEventListener {
         int production = b.calculateProduction(townHall);
         ResourceType targetRes = b.getType().getProducedResource();
 
-        // 1. اعمال دقیق ضریب تکنولوژی ابزارآلات فولادی (به صورت متمرکز در کنترلر)
         if ((b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE)
                 && townHall.isProfessionalToolsUnlocked()) {
             production = (int) Math.floor(production * 1.5);
@@ -287,7 +289,6 @@ public class EconomyController implements GameEventListener {
                 Hex n = map.getNeighbor(hex, i);
                 if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
             }
-            // 2. اصلاح باگ مجاورت معدن عمیق (از +1 به +10 طبق داک)
             if (mCount >= 2) production += 10;
         }
 
@@ -306,15 +307,6 @@ public class EconomyController implements GameEventListener {
         ejectWorkersFromHex(mainController.getGameMap(), hex);
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
-    @Override public void onUnitMoved(Unit u, int oQ, int oR, int nQ, int nR) {}
-    @Override public void onUnitKilled(Unit unit) {}
-    @Override public void onProductionCompleted(String itemName) {}
-    @Override public void onStarvationChanged(boolean isStarving) {}
-    @Override public void onUnitStateChanged(Unit unit) {}
-    @Override public void onBuildingConstructed(Hex hex) {}
-    @Override public void onBorderExpanded(int centerQ, int centerR) {}
-    @Override public void onDisasterTriggered(String t, Hex c, java.util.List<Hex> a) {}
-    @Override public void onCombatTriggered(java.util.List<Integer> atk, java.util.List<Integer> def, int aDmg, int dDmg) {}
-    @Override public void onNotification(String message) {}
+    @Override
+    public void onBuildingConstructed(Hex hex) {}
 }

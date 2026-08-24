@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class GamePanel extends JPanel implements GameEventListener {
+public class GamePanel extends JPanel implements UnitListener, TurnListener, BuildingListener, MapListener, DisasterListener, CombatListener {
 
     private final MainController mainController;
 
@@ -35,7 +35,6 @@ public class GamePanel extends JPanel implements GameEventListener {
     private int shakeDuration = 0;
     private int shakeX = 0, shakeY = 0;
 
-    // [I7] Fix: متغیرهای مربوط به گرافیک بلایای طبیعی
     private List<Hex> earthquakeHexes = new ArrayList<>();
     private int       earthquakeTimer = 0;
 
@@ -83,7 +82,6 @@ public class GamePanel extends JPanel implements GameEventListener {
             if (animatingUnit != null) { updateAnimation();    needsRepaint = true; }
             if (selectedUnit  != null) { updatePulseEffect();  needsRepaint = true; }
 
-            // زلزله - لرزش صفحه
             if (shakeDuration > 0) {
                 shakeX = (int)((Math.random() - 0.5) * 15);
                 shakeY = (int)((Math.random() - 0.5) * 15);
@@ -92,20 +90,17 @@ public class GamePanel extends JPanel implements GameEventListener {
                 needsRepaint = true;
             }
 
-            // [I7] Fix: زلزله - تایمر ترک‌های زمین
             if (earthquakeTimer > 0) {
                 earthquakeTimer--;
                 if (earthquakeTimer == 0) earthquakeHexes.clear();
                 needsRepaint = true;
             }
 
-            // سیل - بالا آمدن آب و امواج متحرک
             if (!floodedHexes.isEmpty() && floodAlpha < 0.6f) {
                 floodAlpha += 0.02f;
                 if (floodAlpha > 0.6f) floodAlpha = 0.6f;
                 needsRepaint = true;
             } else if (!floodedHexes.isEmpty()) {
-                // برای رندر امواج متحرک سیل، همیشه نیاز به ری‌پینت داریم
                 needsRepaint = true;
             }
 
@@ -311,34 +306,6 @@ public class GamePanel extends JPanel implements GameEventListener {
         repaint();
     }
 
-    @Override
-    public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
-        SwingUtilities.invokeLater(() -> {
-            if (center == null || !center.isVisible()) return;
-            switch (type) {
-                // [I7] Fix: ست کردن هکس‌های زلزله و شروع تایمر رسم ترک‌های زمین
-                case "EARTHQUAKE"  -> {
-                    shakeDuration = 30;
-                    earthquakeHexes = new ArrayList<>(affected);
-                    earthquakeTimer = 80;
-                }
-                case "FLOOD"       -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
-                case "BEAR_ATTACK" -> {
-                    bearAttackHexes = new ArrayList<>(affected);
-                    bearAlpha = 0f;
-                    bearFlashTimer = 40;
-                }
-            }
-        });
-    }
-
-    @Override
-    public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
-        SwingUtilities.invokeLater(() -> new CombatVisualizerDialog(
-                (JFrame) SwingUtilities.getWindowAncestor(this),
-                atk, def, atkDmg, defDmg).setVisible(true));
-    }
-
     public Point getHexPixelCoords(int q, int r) {
         double x = HEX_SIZE * Math.sqrt(3) * (q + r / 2.0);
         double y = HEX_SIZE * 3.0 / 2.0 * r;
@@ -385,7 +352,6 @@ public class GamePanel extends JPanel implements GameEventListener {
     public List<Hex> getBearAttackHexes(){ return bearAttackHexes; }
     public float     getBearAlpha()      { return bearAlpha; }
 
-    // [I7] Fix: Getters برای دسترسی رندرر به هکس‌های زلزله‌زده
     public List<Hex> getEarthquakeHexes(){ return earthquakeHexes; }
     public int       getEarthquakeTimer(){ return earthquakeTimer; }
 
@@ -399,15 +365,39 @@ public class GamePanel extends JPanel implements GameEventListener {
         this.animProgress  = 0.0;
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
     @Override public void onUnitMoved(Unit unit, int oQ, int oR, int nQ, int nR) { repaint(); }
     @Override public void onUnitKilled(Unit unit)                                  { repaint(); }
-    @Override public void onProductionCompleted(String itemName)                   {}
+    @Override public void onUnitStateChanged(Unit unit)                            { repaint(); }
     @Override public void onTurnEnded(int newTurn) { floodedHexes.clear(); floodAlpha = 0f; repaint(); }
     @Override public void onStarvationChanged(boolean s)                           {}
-    @Override public void onUnitStateChanged(Unit unit)                            { repaint(); }
     @Override public void onBuildingConstructed(Hex hex)                           { repaint(); }
     @Override public void onBuildingDestroyed(Hex hex)                             { repaint(); }
     @Override public void onBorderExpanded(int cq, int cr)                         { repaint(); }
-    @Override public void onNotification(String message)                           {}
+
+    @Override
+    public void onDisasterTriggered(String type, Hex center, List<Hex> affected) {
+        SwingUtilities.invokeLater(() -> {
+            if (center == null || !center.isVisible()) return;
+            switch (type) {
+                case "EARTHQUAKE"  -> {
+                    shakeDuration = 30;
+                    earthquakeHexes = new ArrayList<>(affected);
+                    earthquakeTimer = 80;
+                }
+                case "FLOOD"       -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
+                case "BEAR_ATTACK" -> {
+                    bearAttackHexes = new ArrayList<>(affected);
+                    bearAlpha = 0f;
+                    bearFlashTimer = 40;
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onCombatTriggered(List<Integer> atk, List<Integer> def, int atkDmg, int defDmg) {
+        SwingUtilities.invokeLater(() -> new CombatVisualizerDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this),
+                atk, def, atkDmg, defDmg).setVisible(true));
+    }
 }

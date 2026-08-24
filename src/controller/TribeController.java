@@ -9,7 +9,7 @@ import model.trade.TradeStrategy;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class TribeController implements GameEventListener {
+public class TribeController implements UnitListener {
 
     private final GameMap map;
     private static final int MIN_INTER_CAMP_DISTANCE = 4;
@@ -117,8 +117,6 @@ public class TribeController implements GameEventListener {
         processTribeGuardsAI();
     }
 
-    // ─── هوش مصنوعی گاردهای قبیله (اصلاح گام سوم) ──────────────────────────
-
     private void processTribeGuardsAI() {
         List<Unit> guards = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.isEnemy())
@@ -135,7 +133,6 @@ public class TribeController implements GameEventListener {
                 Unit targetUnit = findClosestPlayerUnit(guard, 5);
 
                 if (targetUnit != null) {
-                    // حمله به یونیت
                     int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetUnit.getQ(), targetUnit.getR());
                     if (dist <= guard.getAttackRange()) {
                         Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
@@ -162,7 +159,6 @@ public class TribeController implements GameEventListener {
                         else break;
                     }
                 } else {
-                    // اصلاح گام سوم: در صورت نبود یونیت، جستجو برای ساختمان مرزی
                     Hex targetBuildingHex = findClosestPlayerBuilding(guard, 5);
                     if (targetBuildingHex != null) {
                         int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
@@ -188,7 +184,7 @@ public class TribeController implements GameEventListener {
                             else break;
                         }
                     } else {
-                        break; // نه یونیتی هست نه ساختمانی
+                        break;
                     }
                 }
             }
@@ -203,7 +199,6 @@ public class TribeController implements GameEventListener {
                 .orElse(null);
     }
 
-    // اصلاح گام سوم: متد جدید برای یافتن نزدیکترین ساختمان متعلق به بازیکن
     private Hex findClosestPlayerBuilding(Unit guard, int radius) {
         return map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null
@@ -214,7 +209,6 @@ public class TribeController implements GameEventListener {
                 .orElse(null);
     }
 
-    // تغییر Signature برای قبول کردن Q و R مستقل جهت استفاده مشترک برای یونیت و ساختمان
     private Hex getNextHexTowards(Unit guard, int targetQ, int targetR, UnitController uc) {
         Hex bestHex = null;
         int minTargetDist = map.getHexDistance(guard.getQ(), guard.getR(), targetQ, targetR);
@@ -234,8 +228,6 @@ public class TribeController implements GameEventListener {
         }
         return bestHex;
     }
-
-    // ─── تعاملات و دیپلماسی ─────────────────────────────────────────────────
 
     public void acceptMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();
@@ -381,8 +373,6 @@ public class TribeController implements GameEventListener {
         return true;
     }
 
-    // ─── Listeners ───────────────────────────────────────────────────────────
-
     @Override
     public void onUnitKilled(Unit unit) {
         for (Hex h : map.getHexes()) {
@@ -393,14 +383,9 @@ public class TribeController implements GameEventListener {
         }
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount) {}
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {}
-    @Override public void onProductionCompleted(String itemName) {}
-    @Override public void onTurnEnded(int newTurn) {}
-    @Override public void onStarvationChanged(boolean isStarving) {}
-    @Override public void onUnitStateChanged(Unit unit) {}
-    @Override public void onBuildingConstructed(Hex hex) {}
-    @Override public void onBuildingDestroyed(Hex hex) {}
-    @Override public void onBorderExpanded(int centerQ, int centerR) {}
-    @Override public void onNotification(String message) {}
+    @Override
+    public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR) {}
+
+    @Override
+    public void onUnitStateChanged(Unit unit) {}
 }
