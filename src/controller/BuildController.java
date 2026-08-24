@@ -1,73 +1,13 @@
 package controller;
 
 import model.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 
 public class BuildController {
 
     private final GameMap gameMap;
-    private final Map<BuildingType, Function<TownHall, Boolean>>    techRequirements    = new HashMap<>();
-    private final Map<BuildingType, BiPredicate<Hex, GameMap>>      terrainRequirements = new HashMap<>();
 
     public BuildController(GameMap gameMap) {
         this.gameMap = gameMap;
-        initRules();
-    }
-
-    private void initRules() {
-        techRequirements.put(BuildingType.STONE_MINE, TownHall::isStoneMineUnlocked);
-        techRequirements.put(BuildingType.IRON_MINE,  TownHall::isIronMineUnlocked);
-        techRequirements.put(BuildingType.SETTLEMENT, TownHall::isSettlementUnlocked);
-        techRequirements.put(BuildingType.BAZAAR, th -> th.getLevel() >= 2);
-        techRequirements.put(BuildingType.DOCK,   th -> th.getLevel() >= 2);
-
-        terrainRequirements.put(BuildingType.LUMBER_MILL,
-                (hex, map) -> hex.getTerrainType() == TerrainType.FOREST
-                        && hex.hasResource(ResourceType.WOOD));
-
-        terrainRequirements.put(BuildingType.FARM,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MEADOW
-                        && hex.hasResource(ResourceType.FOOD)
-                        && (hex.getResourceSubtype() == ResourceSubtype.WHEAT
-                        || hex.getResourceSubtype() == ResourceSubtype.RICE));
-
-        terrainRequirements.put(BuildingType.STABLE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
-
-        terrainRequirements.put(BuildingType.STONE_MINE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
-                        && hex.hasResource(ResourceType.STONE));
-
-        terrainRequirements.put(BuildingType.IRON_MINE,
-                (hex, map) -> hex.getTerrainType() == TerrainType.MOUNTAIN
-                        && hex.hasResource(ResourceType.IRON));
-
-        // اصلاح گام ۵: جلوگیری از ساخت شهرک روی معادن سنگ
-        terrainRequirements.put(BuildingType.SETTLEMENT,
-                (hex, map) -> !hex.hasResource(ResourceType.WOOD)
-                        && !hex.hasResource(ResourceType.IRON)
-                        && !hex.hasResource(ResourceType.STONE)
-                        && !hex.hasResource(ResourceType.FOOD));
-
-        terrainRequirements.put(BuildingType.MONUMENT,
-                (hex, map) -> hex.getTerrainType() == TerrainType.PLAINS);
-
-        terrainRequirements.put(BuildingType.BAZAAR,
-                (hex, map) -> hex.getTerrainType() != TerrainType.SEA
-                        && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE);
-
-        terrainRequirements.put(BuildingType.DOCK, (hex, map) -> {
-            if (hex.getTerrainType() == TerrainType.SEA
-                    || hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
-            for (int i = 0; i < 6; i++) {
-                Hex neighbor = map.getNeighbor(hex, i);
-                if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA) return true;
-            }
-            return false;
-        });
     }
 
     public boolean canBuild(BuildingType type, Hex hex, Builder builder) {
@@ -79,8 +19,10 @@ public class BuildController {
         if (builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) return false;
 
         TownHall th = gameMap.getTownHall();
-        if (!hasRequiredTech(type, th))           return false;
-        if (!isValidTerrainForBuilding(type, hex)) return false;
+
+        // فراخوانی مستقیم از طریق Model (رعایت دقیق اصل OCP)
+        if (!type.hasRequiredTech(th)) return false;
+        if (!type.isValidTerrain(hex, gameMap)) return false;
 
         if (type == BuildingType.DOCK && th.getDiscountedDocks() > 0) {
             return true;
@@ -90,14 +32,6 @@ public class BuildController {
         return inv.hasEnough(ResourceType.WOOD,  type.getWoodCost())
                 && inv.hasEnough(ResourceType.STONE, type.getStoneCost())
                 && inv.hasEnough(ResourceType.IRON,  type.getIronCost());
-    }
-
-    private boolean hasRequiredTech(BuildingType type, TownHall th) {
-        return techRequirements.getOrDefault(type, t -> true).apply(th);
-    }
-
-    private boolean isValidTerrainForBuilding(BuildingType type, Hex hex) {
-        return terrainRequirements.getOrDefault(type, (h, m) -> false).test(hex, gameMap);
     }
 
     public void buildStructure(Builder builder, BuildingType type, Hex hex) {
