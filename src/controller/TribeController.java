@@ -114,14 +114,12 @@ public class TribeController implements GameEventListener {
             action.run();
         }
 
-        // اجرای هوش مصنوعی گاردهای قبیله پس از تولید و تصمیمات وضعیت‌ها
         processTribeGuardsAI();
     }
 
-    // ─── هوش مصنوعی گاردهای قبیله (اضافه شده در گام ۲) ──────────────────────────
+    // ─── هوش مصنوعی گاردهای قبیله (اصلاح گام سوم) ──────────────────────────
 
     private void processTribeGuardsAI() {
-        // پیدا کردن تمامی نیروهایی که متعلق به قبایل/بربرها هستند
         List<Unit> guards = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.isEnemy())
                 .collect(Collectors.toList());
@@ -133,39 +131,64 @@ public class TribeController implements GameEventListener {
 
         for (Unit guard : guards) {
             while (guard.getCurrentAP() > 0 && guard.isAlive()) {
-                // جستجوی نزدیک‌ترین هدف (نیروی بازیکن) در شعاع ۵ هکسی
-                Unit target = findClosestPlayerUnit(guard, 5);
-                if (target == null) break; // دشمنی نزدیک نیست، توقف حرکت
 
-                int dist = map.getHexDistance(guard.getQ(), guard.getR(), target.getQ(), target.getR());
+                Unit targetUnit = findClosestPlayerUnit(guard, 5);
 
-                if (dist <= guard.getAttackRange()) {
-                    // هدف در برد است -> حمله
-                    Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
-                    Hex targetHex = map.getHexAt(target.getQ(), target.getR());
+                if (targetUnit != null) {
+                    // حمله به یونیت
+                    int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetUnit.getQ(), targetUnit.getR());
+                    if (dist <= guard.getAttackRange()) {
+                        Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
+                        Hex targetHex = map.getHexAt(targetUnit.getQ(), targetUnit.getR());
 
-                    boolean targetHasWall = false;
-                    for (int i = 0; i < 6; i++) {
-                        if (map.getNeighbor(sourceHex, i) == targetHex) {
-                            targetHasWall = sourceHex.hasWall(i);
-                            break;
+                        boolean targetHasWall = false;
+                        for (int i = 0; i < 6; i++) {
+                            if (map.getNeighbor(sourceHex, i) == targetHex) {
+                                targetHasWall = sourceHex.hasWall(i);
+                                break;
+                            }
                         }
-                    }
 
-                    List<Unit> attackers = Collections.singletonList(guard);
-                    cc.executeAttack(attackers, sourceHex, targetHex, false, false, targetHasWall);
-                    map.removeDeadUnits();
+                        List<Unit> attackers = Collections.singletonList(guard);
+                        cc.executeAttack(attackers, sourceHex, targetHex, false, false, targetHasWall);
+                        map.removeDeadUnits();
 
-                    if (!target.isAlive()) {
-                        GameEventDispatcher.fireNotification("⚠️ A Tribe Guard has defeated your unit!");
+                        if (!targetUnit.isAlive()) {
+                            GameEventDispatcher.fireNotification("⚠️ A Tribe Guard has defeated your unit!");
+                        }
+                    } else {
+                        Hex nextHex = getNextHexTowards(guard, targetUnit.getQ(), targetUnit.getR(), uc);
+                        if (nextHex != null) uc.executeMove(guard, nextHex, map);
+                        else break;
                     }
                 } else {
-                    // هدف دور است -> حرکت به سمت هدف
-                    Hex nextHex = getNextHexTowards(guard, target, uc);
-                    if (nextHex != null) {
-                        uc.executeMove(guard, nextHex, map);
+                    // اصلاح گام سوم: در صورت نبود یونیت، جستجو برای ساختمان مرزی
+                    Hex targetBuildingHex = findClosestPlayerBuilding(guard, 5);
+                    if (targetBuildingHex != null) {
+                        int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
+                        if (dist <= guard.getAttackRange()) {
+                            Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
+                            boolean targetHasWall = false;
+                            for (int i = 0; i < 6; i++) {
+                                if (map.getNeighbor(sourceHex, i) == targetBuildingHex) {
+                                    targetHasWall = sourceHex.hasWall(i);
+                                    break;
+                                }
+                            }
+
+                            List<Unit> attackers = Collections.singletonList(guard);
+                            cc.executeAttack(attackers, sourceHex, targetBuildingHex, true, false, targetHasWall);
+
+                            if (targetBuildingHex.getBuilding() == null || targetBuildingHex.getBuilding().isDestroyed()) {
+                                GameEventDispatcher.fireNotification("⚠️ Tribe Guards destroyed your border building!");
+                            }
+                        } else {
+                            Hex nextHex = getNextHexTowards(guard, targetBuildingHex.getQ(), targetBuildingHex.getR(), uc);
+                            if (nextHex != null) uc.executeMove(guard, nextHex, map);
+                            else break;
+                        }
                     } else {
-                        break; // مسیر مسدود است
+                        break; // نه یونیتی هست نه ساختمانی
                     }
                 }
             }
@@ -174,16 +197,27 @@ public class TribeController implements GameEventListener {
 
     private Unit findClosestPlayerUnit(Unit guard, int radius) {
         return map.getUnits().stream()
-                // فقط به یونیت‌های بازیکن (isEnemy = false) و غیر خرس حمله می‌کند
                 .filter(u -> u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR)
                 .filter(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR()) <= radius)
                 .min(Comparator.comparingInt(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR())))
                 .orElse(null);
     }
 
-    private Hex getNextHexTowards(Unit guard, Unit target, UnitController uc) {
+    // اصلاح گام سوم: متد جدید برای یافتن نزدیکترین ساختمان متعلق به بازیکن
+    private Hex findClosestPlayerBuilding(Unit guard, int radius) {
+        return map.getHexes().stream()
+                .filter(h -> h.getBuilding() != null
+                        && !h.getBuilding().isDestroyed()
+                        && h.isInsideBorder()
+                        && map.getHexDistance(guard.getQ(), guard.getR(), h.getQ(), h.getR()) <= radius)
+                .min(Comparator.comparingInt(h -> map.getHexDistance(guard.getQ(), guard.getR(), h.getQ(), h.getR())))
+                .orElse(null);
+    }
+
+    // تغییر Signature برای قبول کردن Q و R مستقل جهت استفاده مشترک برای یونیت و ساختمان
+    private Hex getNextHexTowards(Unit guard, int targetQ, int targetR, UnitController uc) {
         Hex bestHex = null;
-        int minTargetDist = map.getHexDistance(guard.getQ(), guard.getR(), target.getQ(), target.getR());
+        int minTargetDist = map.getHexDistance(guard.getQ(), guard.getR(), targetQ, targetR);
 
         Hex currentHex = map.getHexAt(guard.getQ(), guard.getR());
         if (currentHex == null) return null;
@@ -191,7 +225,7 @@ public class TribeController implements GameEventListener {
         for (int i = 0; i < 6; i++) {
             Hex neighbor = map.getNeighbor(currentHex, i);
             if (neighbor != null && uc.canMove(guard, neighbor, map)) {
-                int dist = map.getHexDistance(neighbor.getQ(), neighbor.getR(), target.getQ(), target.getR());
+                int dist = map.getHexDistance(neighbor.getQ(), neighbor.getR(), targetQ, targetR);
                 if (dist < minTargetDist) {
                     minTargetDist = dist;
                     bestHex = neighbor;

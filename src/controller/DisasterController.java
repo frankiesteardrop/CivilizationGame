@@ -64,7 +64,12 @@ public class DisasterController {
         int lairR   = (lairHex != null) ? lairHex.getR() : bear.getR();
 
         Unit target = findBearTarget(bear, lairQ, lairR);
-        if (target == null) return;
+
+        // اصلاح گام سوم: اگر هدفی نیست، به سمت لانه برگرد و حذف شو
+        if (target == null) {
+            retreatBear(bear, lairQ, lairR);
+            return;
+        }
 
         int distToTarget = map.getHexDistance(bear.getQ(), bear.getR(),
                 target.getQ(), target.getR());
@@ -89,6 +94,39 @@ public class DisasterController {
                 GameEventDispatcher.fireNotification(
                         "🐻 Bear attack! A unit took 35 damage.");
             }
+        }
+    }
+
+    // اصلاح گام سوم: منطق بازگشت خرس به لانه و حذف از نقشه
+    private void retreatBear(Unit bear, int lairQ, int lairR) {
+        int dist = map.getHexDistance(bear.getQ(), bear.getR(), lairQ, lairR);
+        if (dist == 0) {
+            bear.kill();
+            GameEventDispatcher.fireNotification("🐻 A wild bear has retreated back into the deep forest and disappeared.");
+            return;
+        }
+
+        if (bear.getCurrentAP() < 1) return;
+
+        int bestDist = Integer.MAX_VALUE;
+        Hex bestHex = null;
+        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{-1,1},{0,1}};
+
+        for (int[] dir : dirs) {
+            int nq = bear.getQ() + dir[0];
+            int nr = bear.getR() + dir[1];
+            Hex neighbor = map.getHexAt(nq, nr);
+            if (neighbor == null || neighbor.getTerrainType() == TerrainType.SEA || neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
+
+            int d = map.getHexDistance(nq, nr, lairQ, lairR);
+            if (d < bestDist) {
+                bestDist = d;
+                bestHex = neighbor;
+            }
+        }
+
+        if (bestHex != null) {
+            bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
         }
     }
 
@@ -243,7 +281,6 @@ public class DisasterController {
                         b.takeFloodDamage(30);
                     }
 
-                    // اصلاح گام ۴: شلیک رویداد تخریب در صورت نابودی مزرعه توسط سیل جهت فرار کارگران
                     if (b.isDestroyed()) {
                         GameEventDispatcher.fireBuildingDestroyed(h);
                     }
