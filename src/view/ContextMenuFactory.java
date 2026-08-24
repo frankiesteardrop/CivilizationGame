@@ -152,9 +152,11 @@ public class ContextMenuFactory {
                 Building b = targetHex.getBuilding();
                 if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL
                         && b.getType() != BuildingType.MONUMENT && b.getMaxWorkers() > 0) {
-                    boolean can = mc.getUnitController().canStation(worker, targetHex);
+
+                    // اصلاح حیاتی: ارسال نقشه به متد جهت بررسی هکس‌های دریایی مجاور
+                    boolean can = mc.getUnitController().canStation(worker, targetHex, mc.getGameMap());
                     actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
-                            () -> mc.getUnitController().handleStation(worker, targetHex)));
+                            () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap())));
                 } else {
                     actions.add(new MenuAction("⛔ No workable facility here", false, null));
                 }
@@ -191,13 +193,11 @@ public class ContextMenuFactory {
         boolean hasAnyEnemy = mc.isHostile(targetHex);
         boolean isMilTarget = hasAnyEnemy;
 
-        // ✨ رفع ارور کامپایل (Lambda Scope Fix) ✨
         boolean tempHasWall = false;
         if (dist == 1) {
             int dir = getAttackDirection(map, sourceHex, targetHex);
             if (dir >= 0) tempHasWall = sourceHex.hasWall(dir);
         }
-        // کپسوله کردن متغیر در یک final variable برای استفاده ایمن درون Lambda
         final boolean hasWall = tempHasWall;
 
         if (hasAnyEnemy) {

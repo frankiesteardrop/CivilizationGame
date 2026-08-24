@@ -139,7 +139,8 @@ public class UnitController {
         return -1;
     }
 
-    public boolean canStation(Worker worker, Hex hex) {
+    // اصلاح حیاتی: دریافت GameMap جهت بررسی هکس‌های مجاور برای اسکله
+    public boolean canStation(Worker worker, Hex hex, GameMap map) {
         if (worker == null || !worker.isAlive() || worker.isStationed()) return false;
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;
@@ -150,14 +151,28 @@ public class UnitController {
 
         ResourceType res = building.getType().getProducedResource();
 
-        // اصلاح گام ۵: استثنا کردن Dock از بررسی منبع روی خود هکس (زیرا از هکس مجاور تغذیه می‌کند)
-        if (res != ResourceType.NONE && building.getType() != BuildingType.DOCK && !hex.hasResource(res)) return false;
+        if (building.getType() == BuildingType.DOCK) {
+            if (map == null) return false;
+            boolean hasFish = false;
+            for (int i = 0; i < 6; i++) {
+                Hex neighbor = map.getNeighbor(hex, i);
+                if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA
+                        && neighbor.hasResource(ResourceType.FOOD)) {
+                    hasFish = true;
+                    break;
+                }
+            }
+            // اگر ماهی در دریاهای مجاور نباشد، استقرار کارگر در اسکله غیرمجاز است
+            if (!hasFish) return false;
+        } else if (res != ResourceType.NONE && !hex.hasResource(res)) {
+            return false;
+        }
 
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
-    public boolean handleStation(Worker worker, Hex hex) {
-        if (!canStation(worker, hex)) return false;
+    public boolean handleStation(Worker worker, Hex hex, GameMap map) {
+        if (!canStation(worker, hex, map)) return false;
         return worker.stationIn(hex.getBuilding());
     }
 

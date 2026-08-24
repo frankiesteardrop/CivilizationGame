@@ -5,7 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/view/ContextMenuFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/saves/autosave.json" beforeDir="false" afterPath="$PROJECT_DIR$/saves/autosave.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +35,9 @@
     &quot;accountId&quot;: &quot;fe04d72d-f95b-4ee0-939b-b3487f9c7771&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="ProjectErrors" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 1
 }</component>

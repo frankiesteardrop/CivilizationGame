@@ -9,7 +9,6 @@ public class EnemyState implements TribeState {
     @Override public boolean canFormAlliance() { return false; }
     @Override public boolean canRequestPeace() { return true; }
 
-    // اصلاح گام سوم
     @Override public boolean isHostile() { return true; }
     @Override public boolean canDeclareWar() { return false; }
 
@@ -17,25 +16,24 @@ public class EnemyState implements TribeState {
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
         int currentCount = camp.getAndIncrementGuardCounter();
         if (currentCount > 0 && currentCount % 3 == 0) {
-            int maxGuards = (tribe.getType() == TribeType.WARRIOR) ? 5 : 3;
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
                             && u.getType() == UnitType.SWORDSMAN
-                            && u.isEnemy() // اصلاح [I1]: فیلتر کردن نیروهای خودی بازیکن
+                            && u.isEnemy()
                             && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
                     .count();
 
-            if (currentGuards < maxGuards) {
+            // اصلاح حیاتی: قبیله فقط در صورتی گارد می‌سازد که "هیچ" مدافعی نداشته باشد
+            if (currentGuards == 0) {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
                     if (spawnHex != null) {
-                        // اصلاح گام اول: گارد بربر باید به عنوان دشمن علامت‌گذاری شود
                         Unit guard = UnitFactory.createUnit(UnitType.SWORDSMAN, spawnHex.getQ(), spawnHex.getR());
                         guard.setEnemy(true);
                         map.addUnit(guard);
 
                         if (campHex.isVisible()) {
-                            GameEventDispatcher.fireNotification("⚠️ " + tribe.getType().getDisplayName() + " tribe mobilized guards!");
+                            GameEventDispatcher.fireNotification("⚠️ " + tribe.getType().getDisplayName() + " tribe mobilized a guard to defend its camp!");
                         }
                     }
                 });
