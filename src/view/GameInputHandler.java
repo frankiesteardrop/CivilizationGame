@@ -42,8 +42,7 @@ public class GameInputHandler extends MouseAdapter {
             } else if (SwingUtilities.isRightMouseButton(e)) {
 
                 // جلوگیری از صدور دستور به نیروهای دشمن
-                Unit currentSelected = panel.getSelectedUnit();
-                if (currentSelected != null && currentSelected.isEnemy()) {
+                if (panel.getSelectedUnit() != null && panel.getSelectedUnit().isEnemy()) {
                     GameEventDispatcher.fireNotification("⛔ You cannot command enemy units!");
                     return;
                 }
@@ -124,11 +123,15 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
-            // [M1] Fix: هندلینگ راست کلیک روی بازار جهت نمایش منوی اختصاصی ارتقا و تبادل
+            // اصلاح معماری: واگذاری دیالوگ بازار به لایه View و پاس دادن اکشن آن
             if (bType == BuildingType.BAZAAR) {
                 if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);
-                    panel.showContextMenu(e.getPoint(), mainController.getBazaarMenuActions((Bazaar) clickedHex.getBuilding()));
+                    Bazaar bazaar = (Bazaar) clickedHex.getBuilding();
+                    panel.showContextMenu(e.getPoint(), mainController.getBazaarMenuActions(bazaar, () -> {
+                        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+                        new BazaarTradeDialog(parentFrame, bazaar, mainController.getTradeController()).setVisible(true);
+                    }));
                     return;
                 }
             }

@@ -1,8 +1,6 @@
 package controller;
 
 import model.*;
-import javax.swing.*;
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -100,7 +98,6 @@ public class MainController {
                 upgradeController.canUnlockTech("IRON_MINE"),
                 () -> upgradeController.unlockTech("IRON_MINE")));
 
-        // [B4] Fix: تصحیح متن لیبل و دلیل غیرفعال بودن مطابق استاندارد UI
         actions.add(new MenuAction(th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools"
                 : String.format(prefix + "🔧 Steel Tools (%dI) [Requires Iron Mine tech]", GameConfig.TECH_STEEL_TOOLS_IRON),
                 upgradeController.canUnlockTech("PROF_TOOLS"),
@@ -148,7 +145,8 @@ public class MainController {
         ));
     }
 
-    public List<MenuAction> getBazaarMenuActions(Bazaar bazaar) {
+    // اصلاح معماری: دریافت رفتار گرافیکی به صورت Runnable از لایه View
+    public List<MenuAction> getBazaarMenuActions(Bazaar bazaar, Runnable onTradeAction) {
         List<MenuAction> actions = new ArrayList<>();
         boolean traded = bazaar.hasTraded();
         int     level  = bazaar.getLevel();
@@ -158,7 +156,7 @@ public class MainController {
                 "⚖️ Trade (Level " + level + ")",
                 !traded,
                 "Already traded this turn",
-                () -> showBazaarTradeDialog(bazaar)
+                onTradeAction
         ));
 
         if (bazaar.canUpgrade()) {
@@ -181,78 +179,6 @@ public class MainController {
         }
 
         return actions;
-    }
-
-    private void showBazaarTradeDialog(Bazaar bazaar) {
-        int level = bazaar.getLevel();
-        int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
-
-        JDialog tradeDlg = new JDialog((JFrame) null, "⚖️ Bazaar Trade (Level " + level + ")", true);
-        tradeDlg.setSize(400, 320);
-        tradeDlg.setLocationRelativeTo(null);
-        tradeDlg.getContentPane().setBackground(new Color(25, 28, 35));
-
-        JPanel content = new JPanel(new GridBagLayout());
-        content.setOpaque(false);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(8, 10, 8, 10);
-
-        JLabel info = new JLabel("Trade Amount: " + amount + " units", SwingConstants.CENTER);
-        info.setForeground(new Color(241, 196, 15));
-        info.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
-        content.add(info, gbc);
-
-        ResourceType[] types = {ResourceType.FOOD, ResourceType.WOOD, ResourceType.STONE, ResourceType.IRON};
-        String[] labels = {"🍔 Food", "🪵 Wood", "🪨 Stone", "⚙️ Iron"};
-
-        gbc.gridy = 1; gbc.gridwidth = 1;
-        JLabel giveLbl = new JLabel("Give:");
-        giveLbl.setForeground(Color.LIGHT_GRAY);
-        content.add(giveLbl, gbc);
-
-        JComboBox<String> giveBox = new JComboBox<>(labels);
-        giveBox.setBackground(new Color(35, 39, 48));
-        giveBox.setForeground(Color.WHITE);
-        gbc.gridx = 1;
-        content.add(giveBox, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 2;
-        JLabel getLbl = new JLabel("Receive:");
-        getLbl.setForeground(Color.LIGHT_GRAY);
-        content.add(getLbl, gbc);
-
-        JComboBox<String> getBox = new JComboBox<>(labels);
-        getBox.setBackground(new Color(35, 39, 48));
-        getBox.setForeground(Color.WHITE);
-        gbc.gridx = 1;
-        content.add(getBox, gbc);
-
-        JButton confirmBtn = new JButton("✅ Confirm Trade");
-        confirmBtn.setBackground(new Color(52, 152, 219));
-        confirmBtn.setForeground(Color.WHITE);
-        confirmBtn.setFocusPainted(false);
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
-        content.add(confirmBtn, gbc);
-
-        confirmBtn.addActionListener(e -> {
-            ResourceType give = types[giveBox.getSelectedIndex()];
-            ResourceType get = types[getBox.getSelectedIndex()];
-            if (give == get) {
-                GameEventDispatcher.fireNotification("⚠️ Cannot trade a resource for itself!");
-                return;
-            }
-            if (tradeController.tradeWithBazaar(bazaar, give, get)) {
-                GameEventDispatcher.fireNotification("✅ Trade successful!");
-                tradeDlg.dispose();
-            } else {
-                GameEventDispatcher.fireNotification("❌ Trade failed. Check storage capacity and resources.");
-            }
-        });
-
-        tradeDlg.add(content);
-        tradeDlg.setVisible(true);
     }
 
     public List<MenuAction> getUnitMenuActions(Unit selectedUnit, Hex targetHex) {
