@@ -10,16 +10,12 @@ import java.util.List;
 
 public class HexRenderer {
 
-    // Cached hex polygon (unit coordinates centered at 0,0)
     private final int[] hxBase = new int[6];
     private final int[] hyBase = new int[6];
     private double cachedHexSize = -1;
 
-    // Inner polygon for detail fills (80% of outer)
     private final int[] hxInner = new int[6];
     private final int[] hyInner = new int[6];
-
-    // ─── Setup ────────────────────────────────────────────────────────────────
 
     private void rebuildHexPolygon(double size) {
         if (size == cachedHexSize) return;
@@ -39,13 +35,9 @@ public class HexRenderer {
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING,         RenderingHints.VALUE_RENDER_QUALITY);
         g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,    RenderingHints.VALUE_STROKE_PURE);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,   RenderingHints.VALUE_COLOR_RENDER_QUALITY);
     }
 
-    // ─── Main Entry ───────────────────────────────────────────────────────────
-
-    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map,
-                          UnitController unitController) {
+    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
         setupQuality(g2d);
 
         double zoom  = panel.getZoomFactor();
@@ -54,7 +46,6 @@ public class HexRenderer {
 
         rebuildHexPolygon(size);
 
-        // Culling rectangle (slightly larger than viewport)
         int margin = size * 3;
         Rectangle clip = new Rectangle(-margin, -margin,
                 panel.getWidth()  + margin * 2,
@@ -78,37 +69,16 @@ public class HexRenderer {
             drawTerritoryFill(g2d, hex, pt.x, pt.y, size);
         }
 
-        // ── Pass 3: Rivers ────────────────────────────────────────────────────
+        // ── Pass 3-6: Rivers, Roads, Walls, Borders ───────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isVisible() && !hex.isExplored()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
+
             drawRivers(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
-        }
-
-        // ── Pass 4: Roads ─────────────────────────────────────────────────────
-        for (Hex hex : hexes) {
-            if (!hex.isVisible()) continue;
-            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            if (!clip.contains(pt)) continue;
-            if (hex.hasRoad()) drawRoad(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
-        }
-
-        // ── Pass 5: Walls ─────────────────────────────────────────────────────
-        for (Hex hex : hexes) {
-            if (!hex.isVisible() && !hex.isExplored()) continue;
-            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            if (!clip.contains(pt)) continue;
+            if (hex.isVisible() && hex.hasRoad()) drawRoad(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
             drawWalls(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
-        }
-
-        // ── Pass 6: Territory Borders ─────────────────────────────────────────
-        for (Hex hex : hexes) {
-            if (!hex.isVisible() && !hex.isExplored()) continue;
-            if (!hex.isInsideBorder()) continue;
-            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            if (!clip.contains(pt)) continue;
-            drawTerritoryBorder(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+            if (hex.isInsideBorder()) drawTerritoryBorder(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
         }
 
         // ── Pass 7: Buildings ─────────────────────────────────────────────────
@@ -130,121 +100,49 @@ public class HexRenderer {
             if (zoom >= 0.75) drawResourceIcons(g2d, hex, pt.x, pt.y, size, zoom);
         }
 
-        // ── Pass 9: Hover / Selection / Movement ──────────────────────────────
+        // ── Pass 9 & 10: Highlights & Disasters ───────────────────────────────
         drawHighlights(g2d, panel, map, unitController, clip, size, zoom);
-
-        // ── Pass 10: Disaster Overlays ────────────────────────────────────────
         drawDisasterOverlays(g2d, panel, clip, size);
 
-        // ── Pass 11: Fog (explored but not visible) ───────────────────────────
+        // ── Pass 11 & 12: Advanced Fog of War ─────────────────────────────────
         for (Hex hex : hexes) {
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             if (hex.isExplored() && !hex.isVisible()) {
-                g2d.setColor(UIConfig.FOG_EXPLORED_DARK);
-                drawHexAt(g2d, pt.x, pt.y, true);
+                drawAdvancedFog(g2d, pt.x, pt.y, UIConfig.FOG_EXPLORED_DARK, size);
+            } else if (!hex.isExplored()) {
+                drawAdvancedFog(g2d, pt.x, pt.y, UIConfig.FOG_UNEXPLORED, size);
             }
         }
 
-        // ── Pass 12: Unexplored (solid dark) ─────────────────────────────────
-        for (Hex hex : hexes) {
-            Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
-            if (!clip.contains(pt)) continue;
-            if (!hex.isExplored()) {
-                g2d.setColor(UIConfig.FOG_UNEXPLORED);
-                drawHexAt(g2d, pt.x, pt.y, true);
-            }
-        }
-
-        // ── Pass 13: Hover glow (on top of everything except units) ──────────
+        // ── Pass 13 & 14: Hover & UI Overlays ─────────────────────────────────
         Hex hovered = panel.getHoveredHex();
         if (hovered != null && hovered.isVisible()) {
             Point pt = panel.getHexPixelCoords(hovered.getQ(), hovered.getR());
             g2d.setColor(UIConfig.HEX_HOVER);
             drawHexAt(g2d, pt.x, pt.y, true);
-        }
-
-        // ── Pass 14: Hex Info Overlay ─────────────────────────────────────────
-        if (hovered != null) {
             drawHexInfoOverlay(g2d, panel, hovered);
         }
     }
 
-    // ─── [I2] Hex Info Overlay ────────────────────────────────────────────────
+    private void drawAdvancedFog(Graphics2D g2d, int cx, int cy, Color color, int size) {
+        g2d.translate(cx, cy);
+        g2d.setColor(color);
+        g2d.fillPolygon(hxBase, hyBase, 6);
 
-    private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
-        if (hex == null || !hex.isExplored()) return;
-
-        String terrainInfo = switch (hex.getTerrainType()) {
-            case PLAINS         -> "Plains — 1 AP";
-            case FOREST         -> "Forest — 2 AP";
-            case MOUNTAIN       -> "Mountain — 3 AP | Can build Mine";
-            case MOUNTAIN_RANGE -> "Mountain Range — ✕ IMPASSABLE";
-            case MEADOW         -> "Meadow — 1 AP";
-            case SEA            -> "Sea — requires Seafaring tech";
-        };
-
-        String resourceInfo = buildResourceString(hex);
-        String borderInfo   = hex.isInsideBorder() ? "In Territory" : "Outside Territory";
-        String roadInfo     = hex.hasRoad() ? " | 🛣 Road" : "";
-
-        String line1 = terrainInfo + roadInfo;
-        String line2 = resourceInfo.isEmpty() ? borderInfo : resourceInfo + " | " + borderInfo;
-
-        drawOverlayBox(g2d, panel, line1, line2);
-    }
-
-    private String buildResourceString(Hex hex) {
-        List<String> res = new ArrayList<>();
-        if (hex.hasResource(ResourceType.FOOD)) {
-            String sub = hex.getResourceSubtype() != ResourceSubtype.NONE
-                    ? " (" + hex.getResourceSubtype().getDisplayName() + ")" : "";
-            res.add("🍔 Food" + sub);
+        // رسم بافت خطوط مورب برای فضای ناشناخته تا حس نقشه قدیمی بدهد
+        if (color == UIConfig.FOG_UNEXPLORED) {
+            g2d.setColor(UIConfig.FOG_PATTERN);
+            g2d.setStroke(new BasicStroke(1.5f));
+            for (int i = -size; i < size; i += 8) {
+                g2d.drawLine(i, -size, i + size, size);
+            }
+            g2d.setStroke(new BasicStroke(1f));
         }
-        if (hex.hasResource(ResourceType.WOOD))  res.add("🪵 Wood");
-        if (hex.hasResource(ResourceType.STONE)) res.add("🪨 Stone");
-        if (hex.hasResource(ResourceType.IRON))  res.add("⚙️ Iron");
-
-        return String.join(", ", res);
+        g2d.translate(-cx, -cy);
     }
 
-    private void drawOverlayBox(Graphics2D g2d, GamePanel panel, String line1, String line2) {
-        g2d.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 13));
-        FontMetrics fm = g2d.getFontMetrics();
-
-        int w1 = fm.stringWidth(line1);
-        int w2 = fm.stringWidth(line2);
-        int boxW = Math.max(w1, w2) + 30;
-        int boxH = 60;
-
-        int x = 20;
-        int y = panel.getHeight() - boxH - 20;
-
-        // Shadow
-        g2d.setColor(new Color(0, 0, 0, 150));
-        g2d.fillRoundRect(x + 4, y + 4, boxW, boxH, 12, 12);
-
-        // Background
-        g2d.setColor(new Color(25, 28, 35, 230));
-        g2d.fillRoundRect(x, y, boxW, boxH, 12, 12);
-
-        // Border (Accent glow)
-        g2d.setColor(new Color(65, 165, 255, 180));
-        g2d.setStroke(new BasicStroke(1.5f));
-        g2d.drawRoundRect(x, y, boxW, boxH, 12, 12);
-        g2d.setStroke(new BasicStroke(1f));
-
-        // Text Line 1
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(line1, x + 15, y + 25);
-
-        // Text Line 2
-        g2d.setColor(new Color(180, 190, 200));
-        g2d.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 12));
-        g2d.drawString(line2, x + 15, y + 45);
-    }
-
-    // ─── Pass 1: Terrain Base ─────────────────────────────────────────────────
+    // ─── Terrain Base (Advanced Procedural Rendering) ─────────────────────────
 
     private void drawTerrainBase(Graphics2D g2d, Hex hex, int cx, int cy,
                                  int size, Season season, double zoom) {
@@ -253,10 +151,10 @@ public class HexRenderer {
         g2d.translate(cx, cy);
 
         switch (terrain) {
-            case PLAINS        -> drawPlains(g2d, size, season, zoom);
-            case FOREST        -> drawForest(g2d, size, season, zoom);
-            case MOUNTAIN      -> drawMountain(g2d, size, season, zoom);
-            case MEADOW        -> drawMeadow(g2d, size, season, zoom);
+            case PLAINS        -> drawPlains(g2d, hex, size, season, zoom);
+            case FOREST        -> drawForest(g2d, hex, size, season, zoom);
+            case MOUNTAIN      -> drawMountain(g2d, hex, size, season, zoom);
+            case MEADOW        -> drawMeadow(g2d, hex, size, season, zoom);
             case SEA           -> drawSea(g2d, size, season, zoom);
             case MOUNTAIN_RANGE -> drawMountainRange(g2d, size, season, zoom);
         }
@@ -269,7 +167,7 @@ public class HexRenderer {
         g2d.translate(-cx, -cy);
     }
 
-    private void drawPlains(Graphics2D g2d, int size, Season season, double zoom) {
+    private void drawPlains(Graphics2D g2d, Hex hex, int size, Season season, double zoom) {
         Color base  = UIConfig.TERRAIN_PLAINS;
         Color light = UIConfig.TERRAIN_PLAINS_LIGHT;
         Color dark  = UIConfig.TERRAIN_PLAINS_DARK;
@@ -281,21 +179,50 @@ public class HexRenderer {
 
         fillHexGradient(g2d, size, light, base, dark);
 
+        // Procedural Details & Animals
         if (zoom >= 1.0) {
+            Random rng = new Random(hex.getQ() * 31L + hex.getR() * 17L);
+
+            // Grass patches
             g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 55));
             g2d.setStroke(new BasicStroke((float)(0.6 * zoom)));
-            Random rng = new Random(17);
             for (int i = 0; i < 12; i++) {
                 int gx = (int)((rng.nextDouble() - 0.5) * size * 1.4);
                 int gy = (int)((rng.nextDouble() - 0.5) * size * 1.2);
-                int len = (int)(zoom * 3);
-                g2d.drawLine(gx, gy, gx, gy - len);
+                g2d.drawLine(gx, gy, gx, gy - (int)(zoom * 3));
             }
             g2d.setStroke(new BasicStroke(1f));
+
+            // اگر منبع غذا (دام) دارد، گله حیوانات بکشیم
+            if (hex.hasResource(ResourceType.FOOD)) {
+                boolean isSheep = (hex.getResourceSubtype() == ResourceSubtype.SHEEP);
+                Color animalColor = isSheep ? UIConfig.VISUAL_ANIMAL_SHEEP : UIConfig.VISUAL_ANIMAL_CATTLE;
+
+                g2d.setColor(animalColor);
+                for (int i = 0; i < 5; i++) {
+                    int ax = (int)((rng.nextDouble() - 0.5) * size * 0.8);
+                    int ay = (int)((rng.nextDouble() - 0.5) * size * 0.8);
+                    int aw = (int)(6 * zoom);
+                    int ah = (int)(4 * zoom);
+
+                    // سایه حیوان
+                    g2d.setColor(new Color(0, 0, 0, 80));
+                    g2d.fillOval(ax, ay + ah/2, aw, ah/2);
+
+                    g2d.setColor(animalColor);
+                    if (isSheep) {
+                        g2d.fillOval(ax, ay, aw, ah); // گوسفند (پف‌دار)
+                    } else {
+                        g2d.fillRect(ax, ay, aw, ah); // گاو (مکعبی‌تر)
+                        g2d.setColor(Color.WHITE);
+                        g2d.fillRect(ax + aw/2, ay, aw/3, ah); // لکه روی گاو
+                    }
+                }
+            }
         }
     }
 
-    private void drawForest(Graphics2D g2d, int size, Season season, double zoom) {
+    private void drawForest(Graphics2D g2d, Hex hex, int size, Season season, double zoom) {
         Color base  = UIConfig.TERRAIN_FOREST;
         Color light = UIConfig.TERRAIN_FOREST_LIGHT;
         Color dark  = UIConfig.TERRAIN_FOREST_DARK;
@@ -311,46 +238,54 @@ public class HexRenderer {
         fillHexGradient(g2d, size, light, base, dark);
 
         if (zoom >= 0.75) {
-            drawTreeIcons(g2d, size, zoom, light, season);
+            // اگر منبع چوب دارد، جنگل بسیار انبوه‌تر است
+            int treeCount = hex.hasResource(ResourceType.WOOD) ? 14 : 5;
+            drawProceduralTrees(g2d, hex, size, zoom, light, season, treeCount);
         }
     }
 
-    private void drawTreeIcons(Graphics2D g2d, int size, double zoom,
-                               Color treeColor, Season season) {
+    private void drawProceduralTrees(Graphics2D g2d, Hex hex, int size, double zoom,
+                                     Color treeColor, Season season, int count) {
+        Random rng = new Random(hex.getQ() * 13L + hex.getR() * 7L);
         Color crown = (season == Season.AUTUMN)
                 ? new Color(160, 95, 25)
                 : new Color(treeColor.getRed(), treeColor.getGreen(), treeColor.getBlue());
         Color trunk = new Color(90, 60, 30);
 
-        int[][] positions = {{0, -(int)(size*0.3)}, {-(int)(size*0.28), -(int)(size*0.05)},
-                {(int)(size*0.28), -(int)(size*0.05)}, {-(int)(size*0.15), (int)(size*0.22)},
-                {(int)(size*0.15), (int)(size*0.22)}};
-
         int th = (int)(size * 0.32 * zoom / Math.max(zoom, 0.75));
         int tw = (int)(size * 0.22 * zoom / Math.max(zoom, 0.75));
 
-        for (int[] pos : positions) {
-            int tx = pos[0], ty = pos[1];
+        // مرتب‌سازی درختان از بالا به پایین برای رندرینگ صحیح عمق (Y-Sorting)
+        List<Point> positions = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            int tx = (int)((rng.nextDouble() - 0.5) * size * 1.2);
+            int ty = (int)((rng.nextDouble() - 0.5) * size * 1.1);
+            positions.add(new Point(tx, ty));
+        }
+        positions.sort(Comparator.comparingInt(p -> p.y));
 
+        for (Point pos : positions) {
+            int tx = pos.x, ty = pos.y;
+
+            // تنه
             g2d.setColor(trunk);
-            g2d.fillRect(tx - (int)(tw*0.12), ty + (int)(th*0.55),
-                    (int)(tw*0.24), (int)(th*0.35));
+            g2d.fillRect(tx - (int)(tw*0.12), ty + (int)(th*0.55), (int)(tw*0.24), (int)(th*0.35));
 
-            int[] xs1 = {tx, tx - tw,     tx + tw};
-            int[] ys1 = {ty - th + (int)(th*0.3),
-                    ty + (int)(th*0.5), ty + (int)(th*0.5)};
+            // تاج پایین
+            int[] xs1 = {tx, tx - tw, tx + tw};
+            int[] ys1 = {ty - th + (int)(th*0.3), ty + (int)(th*0.5), ty + (int)(th*0.5)};
             g2d.setColor(crown.darker());
             g2d.fillPolygon(xs1, ys1, 3);
 
+            // تاج بالا
             int[] xs2 = {tx, tx - (int)(tw*0.8), tx + (int)(tw*0.8)};
-            int[] ys2 = {ty - th,
-                    ty + (int)(th*0.15), ty + (int)(th*0.15)};
+            int[] ys2 = {ty - th, ty + (int)(th*0.15), ty + (int)(th*0.15)};
             g2d.setColor(crown);
             g2d.fillPolygon(xs2, ys2, 3);
         }
     }
 
-    private void drawMountain(Graphics2D g2d, int size, Season season, double zoom) {
+    private void drawMountain(Graphics2D g2d, Hex hex, int size, Season season, double zoom) {
         Color base  = UIConfig.TERRAIN_MOUNTAIN;
         Color light = UIConfig.TERRAIN_MOUNTAIN_LIGHT;
         Color dark  = UIConfig.TERRAIN_MOUNTAIN_DARK;
@@ -361,21 +296,34 @@ public class HexRenderer {
             int peakH = (int)(size * 0.55);
             int baseW = (int)(size * 0.65);
 
+            // سایه صخره
             int[] shadowX = {-baseW/4, 0, (int)(baseW*0.5)};
             int[] shadowY = {(int)(size*0.25), -peakH + (int)(size*0.1), (int)(size*0.25)};
             g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_DARK);
             g2d.fillPolygon(shadowX, shadowY, 3);
 
+            // بدنه اصلی کوه
             int[] px = {-baseW/2, 0, baseW/2};
             int[] py = {(int)(size*0.25), -peakH, (int)(size*0.25)};
             g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_ROCK);
             g2d.fillPolygon(px, py, 3);
 
+            // نمای روشن (Highlights)
             int[] px2 = {-baseW/6, baseW/4, baseW*2/3};
             int[] py2 = {(int)(size*0.25), -(int)(peakH*0.65), (int)(size*0.25)};
             g2d.setColor(base);
             g2d.fillPolygon(px2, py2, 3);
 
+            // اگر منبع آهن دارد، رگه‌های معدنی زنگ‌زده رسم کن
+            if (hex.hasResource(ResourceType.IRON)) {
+                g2d.setColor(UIConfig.VISUAL_ORE_IRON);
+                g2d.setStroke(new BasicStroke((float)(1.5 * zoom)));
+                g2d.drawLine(-baseW/4, -(int)(peakH*0.3), 0, -(int)(peakH*0.5));
+                g2d.drawLine(baseW/6, -(int)(peakH*0.2), baseW/3, -(int)(peakH*0.4));
+                g2d.setStroke(new BasicStroke(1f));
+            }
+
+            // برف قله
             boolean hasSnow = (season == Season.WINTER) || (zoom >= 1.25);
             if (hasSnow) {
                 int[] snx = {-baseW/6, 0, baseW/6};
@@ -383,10 +331,18 @@ public class HexRenderer {
                 g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_SNOW);
                 g2d.fillPolygon(snx, sny, 3);
             }
+
+            // اگر منبع سنگ دارد، صخره‌های قابل استخراج در دامنه رسم کن
+            if (hex.hasResource(ResourceType.STONE)) {
+                g2d.setColor(UIConfig.VISUAL_ORE_STONE);
+                int br = (int)(5 * zoom);
+                g2d.fillOval(-baseW/2 - br, (int)(size*0.1), br*2, br*2);
+                g2d.fillOval(baseW/3, (int)(size*0.2), br*3, br*2);
+            }
         }
     }
 
-    private void drawMeadow(Graphics2D g2d, int size, Season season, double zoom) {
+    private void drawMeadow(Graphics2D g2d, Hex hex, int size, Season season, double zoom) {
         Color base  = UIConfig.TERRAIN_MEADOW;
         Color light = UIConfig.TERRAIN_MEADOW_LIGHT;
         Color dark  = UIConfig.TERRAIN_MEADOW_DARK;
@@ -399,27 +355,48 @@ public class HexRenderer {
         fillHexGradient(g2d, size, light, base, dark);
 
         if (zoom >= 1.0) {
-            int rows = 4;
-            int rowH = (int)(size * 0.3 / rows);
-            g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 60));
-            g2d.setStroke(new BasicStroke((float)(0.7 * zoom)));
-            for (int row = -rows; row <= rows; row++) {
-                int ry = row * rowH;
-                if (Math.abs(ry) < size * 0.7) {
-                    g2d.drawLine(-(int)(size*0.55), ry, (int)(size*0.55), ry);
-                }
-            }
-            g2d.setStroke(new BasicStroke(1f));
-        }
+            if (hex.hasResource(ResourceType.FOOD)) {
+                // اگر گندم یا برنج دارد، بافت مزرعه کشاورزی می‌کشیم
+                boolean isWheat = (hex.getResourceSubtype() == ResourceSubtype.WHEAT);
+                Color cropColor = isWheat ? UIConfig.VISUAL_CROP_WHEAT : UIConfig.VISUAL_CROP_RICE;
 
-        if (season == Season.SPRING && zoom >= 1.0) {
-            int[][] flowers = {{-(int)(size*0.2), -(int)(size*0.15)},
-                    {(int)(size*0.1),  (int)(size*0.1)},
-                    {-(int)(size*0.05),(int)(size*0.25)}};
-            g2d.setColor(UIConfig.TERRAIN_MEADOW_FLOWER);
-            for (int[] f : flowers) {
-                int fs = Math.max(2, (int)(3 * zoom));
-                g2d.fillOval(f[0]-fs/2, f[1]-fs/2, fs, fs);
+                g2d.setColor(cropColor);
+                g2d.setStroke(new BasicStroke((float)(2.0 * zoom)));
+                int rows = 5;
+                int rowH = (int)(size * 0.25 / rows);
+
+                for (int row = -rows; row <= rows; row++) {
+                    int ry = row * rowH * 2;
+                    if (Math.abs(ry) < size * 0.6) {
+                        g2d.drawLine(-(int)(size*0.45), ry, (int)(size*0.45), ry);
+                    }
+                }
+                g2d.setStroke(new BasicStroke(1f));
+            } else {
+                // سبزه زار عادی بدون منبع
+                int rows = 4;
+                int rowH = (int)(size * 0.3 / rows);
+                g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 60));
+                g2d.setStroke(new BasicStroke((float)(0.7 * zoom)));
+                for (int row = -rows; row <= rows; row++) {
+                    int ry = row * rowH;
+                    if (Math.abs(ry) < size * 0.7) {
+                        g2d.drawLine(-(int)(size*0.55), ry, (int)(size*0.55), ry);
+                    }
+                }
+                g2d.setStroke(new BasicStroke(1f));
+
+                // گل‌های بهاری
+                if (season == Season.SPRING) {
+                    int[][] flowers = {{-(int)(size*0.2), -(int)(size*0.15)},
+                            {(int)(size*0.1),  (int)(size*0.1)},
+                            {-(int)(size*0.05),(int)(size*0.25)}};
+                    g2d.setColor(UIConfig.TERRAIN_MEADOW_FLOWER);
+                    for (int[] f : flowers) {
+                        int fs = Math.max(2, (int)(3 * zoom));
+                        g2d.fillOval(f[0]-fs/2, f[1]-fs/2, fs, fs);
+                    }
+                }
             }
         }
     }
@@ -971,7 +948,6 @@ public class HexRenderer {
     private void drawDisasterOverlays(Graphics2D g2d, GamePanel panel,
                                       Rectangle clip, int size) {
 
-        // [I7] Fix: گرافیک ارتقا یافته‌ی سیل (امواج متحرک آب)
         List<Hex> floodHexes = panel.getFloodedHexes();
         float floodAlpha = panel.getFloodAlpha();
         if (!floodHexes.isEmpty() && floodAlpha > 0) {
@@ -982,11 +958,9 @@ public class HexRenderer {
 
                 g2d.translate(pt.x, pt.y);
 
-                // Base water
                 g2d.setColor(new Color(30, 100, 200, (int)(floodAlpha * 210)));
                 g2d.fillPolygon(hxBase, hyBase, 6);
 
-                // Dynamic wave lines (حس بالا آمدن و جریان آب)
                 g2d.setColor(new Color(120, 190, 255, (int)(floodAlpha * 150)));
                 g2d.setStroke(new BasicStroke((float)(1.5 * panel.getZoomFactor())));
                 long time = System.currentTimeMillis();
@@ -1001,11 +975,10 @@ public class HexRenderer {
             }
         }
 
-        // [I7] Fix: گرافیک زلزله (رسم ترک‌های عمیق روی زمین)
         List<Hex> eqHexes = panel.getEarthquakeHexes();
         int eqTimer = panel.getEarthquakeTimer();
         if (!eqHexes.isEmpty() && eqTimer > 0) {
-            float crackAlpha = Math.min(1.0f, eqTimer / 20.0f); // fade out at the end
+            float crackAlpha = Math.min(1.0f, eqTimer / 20.0f);
             g2d.setColor(new Color(20, 10, 5, (int)(crackAlpha * 200)));
             g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER));
 
@@ -1015,21 +988,18 @@ public class HexRenderer {
                 if (!clip.contains(pt)) continue;
 
                 g2d.translate(pt.x, pt.y);
-                // Draw a procedural-looking crack (hardcoded lines for simplicity but looks random)
                 int s = (int)(size * 0.5);
                 g2d.drawLine(-s/2, -s/2, -s/4, -s/8);
                 g2d.drawLine(-s/4, -s/8, s/6, 0);
                 g2d.drawLine(s/6, 0, s/3, s/4);
                 g2d.drawLine(s/3, s/4, s/2, s/2);
 
-                // Branch
                 g2d.drawLine(s/6, 0, s/4, -s/3);
                 g2d.translate(-pt.x, -pt.y);
             }
             g2d.setStroke(new BasicStroke(1f));
         }
 
-        // Bear attack overlay
         List<Hex> bearHexes = panel.getBearAttackHexes();
         float bearAlpha = panel.getBearAlpha();
         if (!bearHexes.isEmpty() && bearAlpha > 0) {
