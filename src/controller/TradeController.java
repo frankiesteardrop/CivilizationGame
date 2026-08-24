@@ -18,10 +18,10 @@ public class TradeController implements TurnListener {
         return map.getTownHall().getInventory();
     }
 
-    // تغییر به public برای استفاده در محاسبات زنده لایه View
+    // برای جلوگیری از ارور کامپایل در لایه View (BazaarTradeDialog)، متد نگه داشته شده
+    // اما همواره مقدار false برمی‌گرداند زیرا اتحاد تجاری هیچ تاثیری روی سازه‌های بازیکن ندارد.
     public boolean isCommercialAllied() {
-        return map.getHexes().stream().anyMatch(h -> h.getBuilding() instanceof TribeCamp && !h.getBuilding().isDestroyed()
-                && ((TribeCamp) h.getBuilding()).getTribe().isAllied() && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COMMERCIAL);
+        return false;
     }
 
     public boolean tradeWithBazaar(Bazaar bazaar, ResourceType give, ResourceType get) {
@@ -45,16 +45,14 @@ public class TradeController implements TurnListener {
         Inventory inv = map.getTownHall().getInventory();
         if (!inv.hasEnough(give, amountToGive)) return false;
 
-        int received = strategy.calculateReceivedAmount(amountToGive, get, isCommercialAllied());
+        // پارامتر پاداش برای سازه‌ها همواره false است
+        int received = strategy.calculateReceivedAmount(amountToGive, get, false);
         if (received <= 0) return false;
 
         inv.consumeResource(give, amountToGive);
         inv.addResource(get, received);
         onSuccess.run();
 
-        if (isCommercialAllied()) {
-            GameEventDispatcher.fireNotification("💰 Commercial Alliance bonus: +10% trade rate applied!");
-        }
         return true;
     }
 
