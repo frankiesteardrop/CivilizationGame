@@ -130,7 +130,6 @@ public class HexRenderer {
         g2d.setColor(color);
         g2d.fillPolygon(hxBase, hyBase, 6);
 
-        // رسم بافت خطوط مورب برای فضای ناشناخته تا حس نقشه قدیمی بدهد
         if (color == UIConfig.FOG_UNEXPLORED) {
             g2d.setColor(UIConfig.FOG_PATTERN);
             g2d.setStroke(new BasicStroke(1.5f));
@@ -142,7 +141,7 @@ public class HexRenderer {
         g2d.translate(-cx, -cy);
     }
 
-    // ─── Terrain Base (Advanced Procedural Rendering) ─────────────────────────
+    // ─── Terrain Base ─────────────────────────────────────────────────────────
 
     private void drawTerrainBase(Graphics2D g2d, Hex hex, int cx, int cy,
                                  int size, Season season, double zoom) {
@@ -179,11 +178,9 @@ public class HexRenderer {
 
         fillHexGradient(g2d, size, light, base, dark);
 
-        // Procedural Details & Animals
         if (zoom >= 1.0) {
             Random rng = new Random(hex.getQ() * 31L + hex.getR() * 17L);
 
-            // Grass patches
             g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 55));
             g2d.setStroke(new BasicStroke((float)(0.6 * zoom)));
             for (int i = 0; i < 12; i++) {
@@ -193,7 +190,6 @@ public class HexRenderer {
             }
             g2d.setStroke(new BasicStroke(1f));
 
-            // اگر منبع غذا (دام) دارد، گله حیوانات بکشیم
             if (hex.hasResource(ResourceType.FOOD)) {
                 boolean isSheep = (hex.getResourceSubtype() == ResourceSubtype.SHEEP);
                 Color animalColor = isSheep ? UIConfig.VISUAL_ANIMAL_SHEEP : UIConfig.VISUAL_ANIMAL_CATTLE;
@@ -205,17 +201,16 @@ public class HexRenderer {
                     int aw = (int)(6 * zoom);
                     int ah = (int)(4 * zoom);
 
-                    // سایه حیوان
                     g2d.setColor(new Color(0, 0, 0, 80));
                     g2d.fillOval(ax, ay + ah/2, aw, ah/2);
 
                     g2d.setColor(animalColor);
                     if (isSheep) {
-                        g2d.fillOval(ax, ay, aw, ah); // گوسفند (پف‌دار)
+                        g2d.fillOval(ax, ay, aw, ah);
                     } else {
-                        g2d.fillRect(ax, ay, aw, ah); // گاو (مکعبی‌تر)
+                        g2d.fillRect(ax, ay, aw, ah);
                         g2d.setColor(Color.WHITE);
-                        g2d.fillRect(ax + aw/2, ay, aw/3, ah); // لکه روی گاو
+                        g2d.fillRect(ax + aw/2, ay, aw/3, ah);
                     }
                 }
             }
@@ -238,7 +233,6 @@ public class HexRenderer {
         fillHexGradient(g2d, size, light, base, dark);
 
         if (zoom >= 0.75) {
-            // اگر منبع چوب دارد، جنگل بسیار انبوه‌تر است
             int treeCount = hex.hasResource(ResourceType.WOOD) ? 14 : 5;
             drawProceduralTrees(g2d, hex, size, zoom, light, season, treeCount);
         }
@@ -255,7 +249,6 @@ public class HexRenderer {
         int th = (int)(size * 0.32 * zoom / Math.max(zoom, 0.75));
         int tw = (int)(size * 0.22 * zoom / Math.max(zoom, 0.75));
 
-        // مرتب‌سازی درختان از بالا به پایین برای رندرینگ صحیح عمق (Y-Sorting)
         List<Point> positions = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             int tx = (int)((rng.nextDouble() - 0.5) * size * 1.2);
@@ -267,17 +260,14 @@ public class HexRenderer {
         for (Point pos : positions) {
             int tx = pos.x, ty = pos.y;
 
-            // تنه
             g2d.setColor(trunk);
             g2d.fillRect(tx - (int)(tw*0.12), ty + (int)(th*0.55), (int)(tw*0.24), (int)(th*0.35));
 
-            // تاج پایین
             int[] xs1 = {tx, tx - tw, tx + tw};
             int[] ys1 = {ty - th + (int)(th*0.3), ty + (int)(th*0.5), ty + (int)(th*0.5)};
             g2d.setColor(crown.darker());
             g2d.fillPolygon(xs1, ys1, 3);
 
-            // تاج بالا
             int[] xs2 = {tx, tx - (int)(tw*0.8), tx + (int)(tw*0.8)};
             int[] ys2 = {ty - th, ty + (int)(th*0.15), ty + (int)(th*0.15)};
             g2d.setColor(crown);
@@ -296,25 +286,21 @@ public class HexRenderer {
             int peakH = (int)(size * 0.55);
             int baseW = (int)(size * 0.65);
 
-            // سایه صخره
             int[] shadowX = {-baseW/4, 0, (int)(baseW*0.5)};
             int[] shadowY = {(int)(size*0.25), -peakH + (int)(size*0.1), (int)(size*0.25)};
             g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_DARK);
             g2d.fillPolygon(shadowX, shadowY, 3);
 
-            // بدنه اصلی کوه
             int[] px = {-baseW/2, 0, baseW/2};
             int[] py = {(int)(size*0.25), -peakH, (int)(size*0.25)};
             g2d.setColor(UIConfig.TERRAIN_MOUNTAIN_ROCK);
             g2d.fillPolygon(px, py, 3);
 
-            // نمای روشن (Highlights)
             int[] px2 = {-baseW/6, baseW/4, baseW*2/3};
             int[] py2 = {(int)(size*0.25), -(int)(peakH*0.65), (int)(size*0.25)};
             g2d.setColor(base);
             g2d.fillPolygon(px2, py2, 3);
 
-            // اگر منبع آهن دارد، رگه‌های معدنی زنگ‌زده رسم کن
             if (hex.hasResource(ResourceType.IRON)) {
                 g2d.setColor(UIConfig.VISUAL_ORE_IRON);
                 g2d.setStroke(new BasicStroke((float)(1.5 * zoom)));
@@ -323,7 +309,6 @@ public class HexRenderer {
                 g2d.setStroke(new BasicStroke(1f));
             }
 
-            // برف قله
             boolean hasSnow = (season == Season.WINTER) || (zoom >= 1.25);
             if (hasSnow) {
                 int[] snx = {-baseW/6, 0, baseW/6};
@@ -332,7 +317,6 @@ public class HexRenderer {
                 g2d.fillPolygon(snx, sny, 3);
             }
 
-            // اگر منبع سنگ دارد، صخره‌های قابل استخراج در دامنه رسم کن
             if (hex.hasResource(ResourceType.STONE)) {
                 g2d.setColor(UIConfig.VISUAL_ORE_STONE);
                 int br = (int)(5 * zoom);
@@ -356,7 +340,6 @@ public class HexRenderer {
 
         if (zoom >= 1.0) {
             if (hex.hasResource(ResourceType.FOOD)) {
-                // اگر گندم یا برنج دارد، بافت مزرعه کشاورزی می‌کشیم
                 boolean isWheat = (hex.getResourceSubtype() == ResourceSubtype.WHEAT);
                 Color cropColor = isWheat ? UIConfig.VISUAL_CROP_WHEAT : UIConfig.VISUAL_CROP_RICE;
 
@@ -373,7 +356,6 @@ public class HexRenderer {
                 }
                 g2d.setStroke(new BasicStroke(1f));
             } else {
-                // سبزه زار عادی بدون منبع
                 int rows = 4;
                 int rowH = (int)(size * 0.3 / rows);
                 g2d.setColor(new Color(dark.getRed(), dark.getGreen(), dark.getBlue(), 60));
@@ -386,7 +368,6 @@ public class HexRenderer {
                 }
                 g2d.setStroke(new BasicStroke(1f));
 
-                // گل‌های بهاری
                 if (season == Season.SPRING) {
                     int[][] flowers = {{-(int)(size*0.2), -(int)(size*0.15)},
                             {(int)(size*0.1),  (int)(size*0.1)},
@@ -589,7 +570,7 @@ public class HexRenderer {
 
         double dx = (x2 - x1) / len;
         double dy = (y2 - y1) / len;
-        double nx = -dy, ny = dx; // normal (inward)
+        double nx = -dy, ny = dx;
 
         int count = (int)(len / (6.5 * zoom));
         count = Math.max(2, Math.min(count, 7));
@@ -749,6 +730,18 @@ public class HexRenderer {
                 int[] ety = {(int)(s*0.65) + oy, (int)(s*0.0) + oy, (int)(s*0.65) + oy};
                 g2d.fillPolygon(etx, ety, 3);
             }
+            // اصلاح فاز 2: گرافیک اختصاصی Outpost (برجک دیده‌بانی)
+            case OUTPOST -> {
+                // برجک پایه چوبی
+                g2d.fillRect(-(int)(s*0.35) + ox, -(int)(s*0.8) + oy, (int)(s*0.7), (int)(s*1.6));
+                // بالکن چوبی
+                g2d.fillRect(-(int)(s*0.5) + ox, -(int)(s*0.8) + oy, (int)(s*1.0), (int)(s*0.3));
+                // پرچم بالا
+                g2d.setColor(UIConfig.UNIT_SWORDSMAN);
+                int[] px = {ox, ox + (int)(s*0.6), ox};
+                int[] py = {-(int)(s*0.8) + oy, -(int)(s*0.6) + oy, -(int)(s*0.4) + oy};
+                g2d.fillPolygon(px, py, 3);
+            }
             default -> {
                 g2d.fillRect(-(int)(s*0.65) + ox, -(int)(s*0.65) + oy,
                         (int)(s*1.3), (int)(s*1.3));
@@ -770,6 +763,7 @@ public class HexRenderer {
             case BAZAAR       -> UIConfig.BUILDING_BAZAAR;
             case TRADING_POST -> UIConfig.BUILDING_TRADING_POST;
             case TRIBE_CAMP   -> UIConfig.BUILDING_TRIBE_CAMP;
+            case OUTPOST      -> UIConfig.BUILDING_OUTPOST;
             default           -> Color.GRAY;
         };
     }
@@ -788,6 +782,7 @@ public class HexRenderer {
             case BAZAAR       -> "⚖️";
             case TRADING_POST -> "🏪";
             case TRIBE_CAMP   -> "⛺";
+            case OUTPOST      -> "🗼";
             default           -> "?";
         };
     }
@@ -1051,7 +1046,7 @@ public class HexRenderer {
         String terrainInfo = switch (hex.getTerrainType()) {
             case PLAINS         -> "Plains — 1 AP";
             case FOREST         -> "Forest — 2 AP";
-            case MOUNTAIN       -> "Mountain — 4 AP | Can build Mine"; // 4 AP (Phase 1 rule)
+            case MOUNTAIN       -> "Mountain — 4 AP | Can build Mine";
             case MOUNTAIN_RANGE -> "Mountain Range — ✕ IMPASSABLE";
             case MEADOW         -> "Meadow — 1 AP";
             case SEA            -> "Sea — requires Seafaring tech";

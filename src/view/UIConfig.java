@@ -2,18 +2,12 @@ package view;
 
 import java.awt.*;
 
-/**
- * سیستم طراحی بصری بازی — کامل‌ترین و حرفه‌ای‌ترین palette برای یک بازی استراتژی تاریخی.
- * الهام گرفته از Civilization VI، Age of Empires و Total War.
- */
 public class UIConfig {
 
-    // ─── Typography ───────────────────────────────────────────────────────────
     public static final String FONT_SEGOE_UI  = "Segoe UI";
     public static final String FONT_SANS_SERIF = "SansSerif";
-    public static final String FONT_CINZEL    = "Georgia"; // classical strategy feel
+    public static final String FONT_CINZEL    = "Georgia";
 
-    // ─── Terrain Base Colors ─────────────────────────────────────────────────
     public static final Color TERRAIN_PLAINS        = new Color(142, 159,  90);
     public static final Color TERRAIN_PLAINS_LIGHT  = new Color(168, 185, 110);
     public static final Color TERRAIN_PLAINS_DARK   = new Color(108, 126,  65);
@@ -45,25 +39,21 @@ public class UIConfig {
     public static final Color TERRAIN_MTN_RANGE_PEAK = new Color( 90,  88,  98);
     public static final Color TERRAIN_MTN_RANGE_SNOW = new Color(200, 205, 215);
 
-    // ─── Physical Resource Visuals (اضافه شده برای گرافیک پیشرفته) ───────────
-    public static final Color VISUAL_ORE_IRON       = new Color(195,  90,  50); // رگه‌های زنگ‌زده آهن
-    public static final Color VISUAL_ORE_STONE      = new Color(180, 185, 190); // صخره‌های سنگی
-    public static final Color VISUAL_CROP_WHEAT     = new Color(235, 205,  85); // خوشه‌های گندم
-    public static final Color VISUAL_CROP_RICE      = new Color(155, 210, 120); // مزارع پلکانی برنج
-    public static final Color VISUAL_ANIMAL_SHEEP   = new Color(245, 245, 250); // گله گوسفند
-    public static final Color VISUAL_ANIMAL_CATTLE  = new Color(130,  80,  45); // گله گاو
+    public static final Color VISUAL_ORE_IRON       = new Color(195,  90,  50);
+    public static final Color VISUAL_ORE_STONE      = new Color(180, 185, 190);
+    public static final Color VISUAL_CROP_WHEAT     = new Color(235, 205,  85);
+    public static final Color VISUAL_CROP_RICE      = new Color(155, 210, 120);
+    public static final Color VISUAL_ANIMAL_SHEEP   = new Color(245, 245, 250);
+    public static final Color VISUAL_ANIMAL_CATTLE  = new Color(130,  80,  45);
 
-    // ─── Fog of War ──────────────────────────────────────────────────────────
     public static final Color FOG_UNEXPLORED     = new Color(  4,   6,   8, 255);
     public static final Color FOG_EXPLORED_DARK  = new Color( 10,  15,  20, 165);
     public static final Color FOG_PATTERN        = new Color( 20,  25,  35,  80);
 
-    // ─── Territory / Borders ─────────────────────────────────────────────────
     public static final Color BORDER_TERRITORY      = new Color( 65, 165, 255, 200);
     public static final Color BORDER_TERRITORY_FILL = new Color( 65, 165, 255,  25);
     public static final Color BORDER_GLOW           = new Color( 80, 180, 255, 140);
 
-    // ─── Hex Highlights ──────────────────────────────────────────────────────
     public static final Color HEX_HOVER             = new Color(255, 255, 255,  40);
     public static final Color HEX_SELECTED          = new Color(255, 220,  40, 210);
     public static final Color HEX_SELECTED_GLOW     = new Color(255, 220,  40,  60);
@@ -72,7 +62,6 @@ public class UIConfig {
     public static final Color HEX_ATTACK_TARGET     = new Color(225,  55,  55, 175);
     public static final Color HEX_ATTACK_FILL       = new Color(225,  55,  55,  35);
 
-    // ─── Infrastructure ───────────────────────────────────────────────────────
     public static final Color ROAD_COLOR            = new Color(185, 148,  75);
     public static final Color ROAD_BORDER           = new Color(125,  98,  48);
     public static final Color ROAD_SHADOW           = new Color( 80,  62,  30, 100);
@@ -85,7 +74,6 @@ public class UIConfig {
     public static final Color WALL_SHADOW           = new Color( 95,  90,  82);
     public static final Color WALL_HIGHLIGHT        = new Color(215, 210, 200);
 
-    // ─── Unit Colors ─────────────────────────────────────────────────────────
     public static final Color UNIT_SWORDSMAN        = new Color(215,  58,  45);
     public static final Color UNIT_SWORDSMAN_BORDER = new Color(155,  30,  20);
     public static final Color UNIT_ARCHER           = new Color( 45, 158, 225);
@@ -105,7 +93,6 @@ public class UIConfig {
     public static final Color UNIT_SELECTED_AURA    = new Color(255, 218,  40, 210);
     public static final Color UNIT_STATIONED_AURA   = new Color(255, 200,  50, 150);
 
-    // ─── Building Colors ─────────────────────────────────────────────────────
     public static final Color BUILDING_TOWN_HALL    = new Color(218, 178,  55);
     public static final Color BUILDING_LUMBER_MILL  = new Color( 95, 158,  55);
     public static final Color BUILDING_FARM         = new Color(175, 210,  75);
@@ -119,7 +106,9 @@ public class UIConfig {
     public static final Color BUILDING_TRADING_POST = new Color(155, 198, 158);
     public static final Color BUILDING_TRIBE_CAMP   = new Color(198,  75,  75);
 
-    // ─── Resource / Subtype Colors ────────────────────────────────────────────
+    // رنگ جذاب و متمایز برای Outpost
+    public static final Color BUILDING_OUTPOST      = new Color(140,  95, 185);
+
     public static final Color RESOURCE_FOOD         = new Color(118, 198,  75);
     public static final Color RESOURCE_WOOD         = new Color(158, 108,  52);
     public static final Color RESOURCE_STONE        = new Color(168, 162, 158);

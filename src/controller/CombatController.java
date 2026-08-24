@@ -77,13 +77,32 @@ public class CombatController {
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
                 if (b.isDestroyed()) {
-                    // شلیک رویداد — کارگرها توسط EconomyController نجات داده می‌شوند
                     GameEventDispatcher.fireBuildingDestroyed(targetHex);
+
+                    // اصلاح حیاتی فاز دوم: تسخیر کامل قلمرو و تبدیل به Outpost
                     if (b instanceof TribeCamp camp) {
                         targetHex.setInsideBorder(true);
+                        targetHex.setExplored(true);
+
+                        // اضافه کردن تمام 6 هکس مجاور به قلمرو در صورتیکه مانع طبیعی نباشند
+                        for (int i = 0; i < 6; i++) {
+                            Hex neighbor = map.getNeighbor(targetHex, i);
+                            if (neighbor != null
+                                    && neighbor.getTerrainType() != TerrainType.SEA
+                                    && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                                neighbor.setInsideBorder(true);
+                                neighbor.setExplored(true);
+                            }
+                        }
+
+                        // تبدیل کمپ به Outpost
+                        targetHex.setBuilding(BuildingFactory.createBuilding(BuildingType.OUTPOST));
+
+                        // فراخوانی رویداد گسترش مرز برای آپدیت گرافیک نقشه
+                        GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
+
                         camp.getTribe().getType().grantLoot(map, targetHex);
                     }
-                    // اصلاح گام ۴: حلقه تکراری خروج کارگران از اینجا پاک شد
                 }
             }
 

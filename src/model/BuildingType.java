@@ -101,7 +101,10 @@ public enum BuildingType {
     },
 
     TRADING_POST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
-    TRIBE_CAMP(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2);
+    TRIBE_CAMP(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2),
+
+    // اصلاح فاز 2: اضافه شدن Outpost به عنوان یک سازه مجزا
+    OUTPOST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2);
 
     private final int apCost;
     private final int woodCost;
@@ -140,13 +143,15 @@ public enum BuildingType {
     public int getUpkeepCost()              { return upkeepCost; }
     public int getVisionRadius()            { return visionRadius; }
 
-    // ─── متدهای پیش‌فرض برای اجرای OCP (Open/Closed Principle) ───
+    public int getMaxHp() {
+        return this == TRIBE_CAMP ? 50 : (this == OUTPOST ? 100 : 100);
+    }
+
     public boolean hasRequiredTech(TownHall th) {
         return true;
     }
 
     public boolean isValidTerrain(Hex hex, GameMap map) {
-        // به صورت پیش‌فرض هیچ سازه‌ای قابل ساخت دستی نیست مگر اینکه Override شود
         return false;
     }
 }
