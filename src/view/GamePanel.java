@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * پنل اصلی بازی با موتور رندرینگ پیشرفته (Parallax Particle System و Cinematic VFX).
+ */
 public class GamePanel extends JPanel implements UnitListener, TurnListener, BuildingListener, MapListener, DisasterListener, CombatListener {
 
     private final MainController mainController;
@@ -45,15 +48,24 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
     private float     bearAlpha       = 0f;
     private int       bearFlashTimer  = 0;
 
-    private static class SeasonParticle {
-        float x, y, speedX, speedY, size, alpha;
-        SeasonParticle(float x, float y, float speedX, float speedY, float size, float alpha) {
-            this.x = x; this.y = y; this.speedX = speedX; this.speedY = speedY;
-            this.size = size; this.alpha = alpha;
+    // ─── سیستم پارتیکل فیزیک‌محور پیشرفته (Advanced Particle System) ───
+    private static class AdvancedParticle {
+        float x, y, z;          // z برای عمق Parallax
+        float speedX, speedY;
+        float size, alpha;
+        float phase, swing;     // برای رقص و آشفتگی سینوسی
+        int type;               // 0: برف، 1: باران، 2: برگ پاییزی، 3: شکوفه بهاری
+        Color color;
+
+        AdvancedParticle(int type, float x, float y, float z, float spX, float spY, float sz, float a, float sw, Color c) {
+            this.type = type; this.x = x; this.y = y; this.z = z;
+            this.speedX = spX; this.speedY = spY; this.size = sz;
+            this.alpha = a; this.swing = sw; this.color = c;
+            this.phase = (float)(Math.random() * Math.PI * 2);
         }
     }
 
-    private final List<SeasonParticle> seasonParticles = new ArrayList<>();
+    private final List<AdvancedParticle> particles = new ArrayList<>();
     private Season lastParticleSeason = null;
     private final Random particleRandom = new Random();
 
@@ -82,9 +94,11 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             if (animatingUnit != null) { updateAnimation();    needsRepaint = true; }
             if (selectedUnit  != null) { updatePulseEffect();  needsRepaint = true; }
 
+            // افکت لرزش دوربین (زلزله) با کاهش شدت تدریجی
             if (shakeDuration > 0) {
-                shakeX = (int)((Math.random() - 0.5) * 15);
-                shakeY = (int)((Math.random() - 0.5) * 15);
+                double intensity = (double) shakeDuration / 30.0;
+                shakeX = (int)((Math.random() - 0.5) * 18 * intensity);
+                shakeY = (int)((Math.random() - 0.5) * 18 * intensity);
                 shakeDuration--;
                 if (shakeDuration == 0) { shakeX = 0; shakeY = 0; }
                 needsRepaint = true;
@@ -104,22 +118,21 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
                 needsRepaint = true;
             }
 
+            // افکت هاله خطر خرس (Red Vignette)
             if (bearFlashTimer > 0) {
-                bearAlpha = Math.min(0.55f, bearAlpha + 0.04f);
+                bearAlpha = Math.min(0.65f, bearAlpha + 0.05f);
                 bearFlashTimer--;
                 if (bearFlashTimer == 0) { bearAlpha = 0f; bearAttackHexes.clear(); }
+                needsRepaint = true;
+            } else if (bearAlpha > 0) {
+                bearAlpha -= 0.02f;
+                if (bearAlpha < 0) bearAlpha = 0;
                 needsRepaint = true;
             }
 
             Season currentSeason = mainController.getGameMap().getCurrentSeason();
-            if (currentSeason == Season.WINTER || currentSeason == Season.AUTUMN) {
-                updateSeasonalParticles(currentSeason);
-                needsRepaint = true;
-            } else if (!seasonParticles.isEmpty()) {
-                seasonParticles.clear();
-                lastParticleSeason = null;
-                needsRepaint = true;
-            }
+            updateAdvancedParticles(currentSeason);
+            needsRepaint = true; // ذرات همیشه حرکت می‌کنند
 
             if (needsRepaint) repaint();
         });
@@ -143,70 +156,117 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         repaint();
     }
 
-    private void updateSeasonalParticles(Season season) {
+    // ─── موتور تولید ذرات آب و هوا (Procedural Weather Engine) ───
+
+    private void updateAdvancedParticles(Season season) {
         if (season != lastParticleSeason) {
-            seasonParticles.clear();
+            particles.clear();
             lastParticleSeason = season;
         }
 
-        int maxParticles = (season == Season.WINTER) ? 120 : 280;
+        int maxParticles = switch (season) {
+            case WINTER -> 250; // برف سنگین
+            case AUTUMN -> 350; // باران و برگ
+            case SPRING -> 80;  // شکوفه‌های کم‌تراکم
+            default     -> 0;
+        };
+
         int panelW = Math.max(getWidth(), 100);
         int panelH = Math.max(getHeight(), 100);
 
-        while (seasonParticles.size() < maxParticles) {
+        // تولید ذرات جدید
+        while (particles.size() < maxParticles) {
             boolean firstFrame = (lastParticleSeason == null);
-            seasonParticles.add(createParticle(season, panelW, panelH, firstFrame));
+            float startX = particleRandom.nextFloat() * (panelW + 200) - 100;
+            float startY = firstFrame ? particleRandom.nextFloat() * panelH : -particleRandom.nextFloat() * 50;
+
+            float z = 0.5f + particleRandom.nextFloat() * 1.0f; // Parallax Depth
+
+            if (season == Season.WINTER) {
+                // دانه برف
+                float sz = (1.5f + particleRandom.nextFloat() * 3f) * z;
+                float spY = (0.8f + particleRandom.nextFloat() * 1.2f) * z;
+                particles.add(new AdvancedParticle(0, startX, startY, z, 0, spY, sz,
+                        0.4f + particleRandom.nextFloat() * 0.4f, 1.5f * z, Color.WHITE));
+            } else if (season == Season.AUTUMN) {
+                if (particleRandom.nextFloat() > 0.15f) {
+                    // باران پاییزی (سریع و زاویه‌دار)
+                    float spY = (15.0f + particleRandom.nextFloat() * 10.0f) * z;
+                    float spX = -3.0f - particleRandom.nextFloat() * 2.0f; // باد شدید به چپ
+                    particles.add(new AdvancedParticle(1, startX, startY, z, spX, spY, 2.0f * z,
+                            0.3f + particleRandom.nextFloat() * 0.3f, 0, new Color(150, 180, 210)));
+                } else {
+                    // برگ پاییزی
+                    Color leafColor = particleRandom.nextBoolean() ? new Color(210, 100, 30) : new Color(180, 50, 20);
+                    float spY = (1.5f + particleRandom.nextFloat() * 2.0f) * z;
+                    particles.add(new AdvancedParticle(2, startX, startY, z, -2.0f * z, spY, 4.0f * z,
+                            0.7f, 3.0f * z, leafColor));
+                }
+            } else if (season == Season.SPRING) {
+                // شکوفه بهاری (آرام و رقصان)
+                float spY = (0.5f + particleRandom.nextFloat() * 1.0f) * z;
+                particles.add(new AdvancedParticle(3, startX, startY, z, 1.0f * z, spY, 3.5f * z,
+                        0.6f, 2.0f * z, new Color(255, 180, 200)));
+            }
         }
 
-        for (SeasonParticle p : seasonParticles) {
-            p.x += p.speedX;
+        // حرکت ذرات فیزیک‌محور
+        for (AdvancedParticle p : particles) {
+            p.phase += 0.05f;
+            if (p.type == 0 || p.type == 2 || p.type == 3) {
+                // رقص سینوسی برای برف، برگ و شکوفه
+                p.x += p.speedX + Math.sin(p.phase) * p.swing;
+            } else {
+                // خط مستقیم برای باران
+                p.x += p.speedX;
+            }
             p.y += p.speedY;
         }
 
-        seasonParticles.removeIf(p -> p.y > panelH + 20 || p.x < -30 || p.x > panelW + 30);
+        // حذف ذرات خارج از کادر
+        particles.removeIf(p -> p.y > panelH + 20 || p.x < -150 || p.x > panelW + 150);
     }
 
-    private SeasonParticle createParticle(Season season, int panelW, int panelH, boolean randomY) {
-        float startX = particleRandom.nextFloat() * panelW;
-        float startY = randomY ? particleRandom.nextFloat() * panelH : -particleRandom.nextFloat() * 20;
+    private void drawAdvancedParticles(Graphics2D g2d) {
+        if (particles.isEmpty()) return;
 
-        if (season == Season.WINTER) {
-            return new SeasonParticle(startX, startY,
-                    -0.4f + particleRandom.nextFloat() * 0.8f,
-                    0.8f  + particleRandom.nextFloat() * 1.5f,
-                    2f + particleRandom.nextFloat() * 3f,
-                    0.55f + particleRandom.nextFloat() * 0.45f);
-        } else {
-            return new SeasonParticle(startX, startY,
-                    -4.0f - particleRandom.nextFloat() * 3.0f,
-                    12.0f + particleRandom.nextFloat() * 6.0f,
-                    1.5f + particleRandom.nextFloat() * 2.0f,
-                    0.4f + particleRandom.nextFloat() * 0.4f);
-        }
-    }
-
-    private void drawSeasonalParticles(Graphics2D g2d) {
-        if (seasonParticles.isEmpty()) return;
-
-        Season season = mainController.getGameMap().getCurrentSeason();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        if (season == Season.WINTER) {
-            for (SeasonParticle p : seasonParticles) {
-                g2d.setColor(new Color(1f, 1f, 1f, Math.min(1f, p.alpha)));
-                int sz = Math.max(1, (int) p.size);
-                g2d.fillOval((int) p.x - sz / 2, (int) p.y - sz / 2, sz, sz);
+        for (AdvancedParticle p : particles) {
+            g2d.setColor(new Color(p.color.getRed(), p.color.getGreen(), p.color.getBlue(), (int)(p.alpha * 255)));
+
+            if (p.type == 0 || p.type == 3) {
+                // برف و شکوفه (دایره‌ای نرم)
+                int sz = Math.max(2, (int) p.size);
+                g2d.fillOval((int) p.x, (int) p.y, sz, sz);
+            } else if (p.type == 1) {
+                // باران (خطوط مورب)
+                g2d.setStroke(new BasicStroke(p.size / 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                int x2 = (int)(p.x - p.speedX * 1.2f);
+                int y2 = (int)(p.y - p.speedY * 1.2f);
+                g2d.drawLine((int)p.x, (int)p.y, x2, y2);
+            } else if (p.type == 2) {
+                // برگ پاییزی (چندضلعی کوچک)
+                int sz = Math.max(3, (int) p.size);
+                g2d.fillRect((int) p.x, (int) p.y, sz, sz - 1);
             }
-        } else if (season == Season.AUTUMN) {
-            for (SeasonParticle p : seasonParticles) {
-                g2d.setStroke(new BasicStroke(p.size, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g2d.setColor(new Color(0.7f, 0.85f, 0.95f, Math.min(1f, p.alpha)));
-                int x1 = (int) p.x, y1 = (int) p.y;
-                int x2 = (int)(p.x - p.speedX * 1.5f);
-                int y2 = (int)(p.y - p.speedY * 1.5f);
-                g2d.drawLine(x1, y1, x2, y2);
-            }
-            g2d.setStroke(new BasicStroke(1f));
+        }
+        g2d.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawCinematicOverlays(Graphics2D g2d) {
+        // افکت تپش خطر خرس (Red Vignette)
+        if (bearAlpha > 0) {
+            int w = getWidth();
+            int h = getHeight();
+            float radius = Math.max(w, h) * 0.8f;
+            RadialGradientPaint rgp = new RadialGradientPaint(
+                    w / 2f, h / 2f, radius,
+                    new float[]{0.3f, 1.0f},
+                    new Color[]{new Color(0, 0, 0, 0), new Color(180, 0, 0, (int)(bearAlpha * 255))}
+            );
+            g2d.setPaint(rgp);
+            g2d.fillRect(0, 0, w, h);
         }
     }
 
@@ -239,12 +299,15 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
+        // اعمال لرزش زلزله روی نقشه بازی
         g2d.translate(shakeX, shakeY);
         hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
-        g2d.translate(-shakeX, -shakeY);
+        g2d.translate(-shakeX, -shakeY); // بازگشت برای رسم افکت‌های روی صفحه (Screen-Space)
 
-        drawSeasonalParticles(g2d);
+        // رندر سیستم پارتیکل و افکت‌های سینمایی
+        drawAdvancedParticles(g2d);
+        drawCinematicOverlays(g2d);
     }
 
     public void showContextMenu(Point p, List<MenuAction> actions) {
@@ -380,15 +443,15 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             if (center == null || !center.isVisible()) return;
             switch (type) {
                 case "EARTHQUAKE"  -> {
-                    shakeDuration = 30;
+                    shakeDuration = 45; // افزایش زمان لرزش
                     earthquakeHexes = new ArrayList<>(affected);
-                    earthquakeTimer = 80;
+                    earthquakeTimer = 100;
                 }
                 case "FLOOD"       -> { floodedHexes = new ArrayList<>(affected); floodAlpha = 0f; }
                 case "BEAR_ATTACK" -> {
                     bearAttackHexes = new ArrayList<>(affected);
                     bearAlpha = 0f;
-                    bearFlashTimer = 40;
+                    bearFlashTimer = 60; // افزایش زمان تپش صفحه
                 }
             }
         });
