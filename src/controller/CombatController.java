@@ -77,14 +77,11 @@ public class CombatController {
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
                 if (b.isDestroyed()) {
-                    GameEventDispatcher.fireBuildingDestroyed(targetHex);
-
-                    // اصلاح حیاتی فاز دوم: تسخیر کامل قلمرو و تبدیل به Outpost
+                    // تسخیر کامل قلمرو و تبدیل به Outpost برای قبایل
                     if (b instanceof TribeCamp camp) {
                         targetHex.setInsideBorder(true);
                         targetHex.setExplored(true);
 
-                        // اضافه کردن تمام 6 هکس مجاور به قلمرو در صورتیکه مانع طبیعی نباشند
                         for (int i = 0; i < 6; i++) {
                             Hex neighbor = map.getNeighbor(targetHex, i);
                             if (neighbor != null
@@ -95,14 +92,15 @@ public class CombatController {
                             }
                         }
 
-                        // تبدیل کمپ به Outpost
                         targetHex.setBuilding(BuildingFactory.createBuilding(BuildingType.OUTPOST));
-
-                        // فراخوانی رویداد گسترش مرز برای آپدیت گرافیک نقشه
                         GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
-
                         camp.getTribe().getType().grantLoot(map, targetHex);
+                    } else {
+                        // اصلاح حیاتی: برای سایر ساختمان‌ها که تخریب شده‌اند، ارجاعشان را از هکس پاک می‌کنیم تا Ghost Building ایجاد نشود.
+                        targetHex.setBuilding(null);
                     }
+
+                    GameEventDispatcher.fireBuildingDestroyed(targetHex);
                 }
             }
 

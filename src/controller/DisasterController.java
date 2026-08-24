@@ -82,7 +82,6 @@ public class DisasterController {
         if (distToTarget <= 1 && bear.getCurrentAP() >= 1) {
             bear.consumeAP(1);
 
-            // اصلاح گام ششم: تفکیک حمله به نیروی نظامی (با تاس) و غیرنظامی (آسیب مستقیم)
             boolean isMilitaryTarget = (target.getType() == UnitType.SWORDSMAN ||
                     target.getType() == UnitType.ARCHER ||
                     target.getType() == UnitType.CAVALRY);
@@ -98,7 +97,6 @@ public class DisasterController {
                 defList.sort(Collections.reverseOrder());
 
                 if (bearDie > maxDefDie) {
-                    // خرس برنده شد
                     int dmg = bear.getType().getBaseDamage();
                     target.takeDamage(dmg);
                     GameEventDispatcher.fireCombatTriggered(atkList, defList, 0, dmg);
@@ -109,13 +107,11 @@ public class DisasterController {
                         GameEventDispatcher.fireNotification("🐻 Bear attack! Military unit took " + dmg + " damage. (Dice: " + bearDie + " vs " + maxDefDie + ")");
                     }
                 } else {
-                    // مدافع مساوی کرد یا برد (تساوی به نفع بازیکن است)
                     bear.kill();
                     GameEventDispatcher.fireCombatTriggered(atkList, defList, bear.getMaxHp(), 0);
                     GameEventDispatcher.fireNotification("⚔️ Military unit successfully defended against the bear! (Dice: " + maxDefDie + " vs " + bearDie + ")");
                 }
             } else {
-                // حمله به غیرنظامی (بدون تاس دفاعی)
                 int dmg = bear.getType().getBaseDamage();
                 target.takeDamage(dmg);
                 GameEventDispatcher.fireNotification("🐻 A wild bear attacked a defenseless civilian! Took " + dmg + " damage.");
@@ -135,7 +131,7 @@ public class DisasterController {
 
         int bestDist = Integer.MAX_VALUE;
         Hex bestHex = null;
-        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{0,-1},{0,1}}; // اصلاح شد برای مسیرهای شش ضلعی
+        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{0,-1},{0,1}};
 
         for (int[] dir : dirs) {
             int nq = bear.getQ() + dir[0];
@@ -307,6 +303,7 @@ public class DisasterController {
                     }
 
                     if (b.isDestroyed()) {
+                        h.setBuilding(null); // اصلاح حیاتی: حذف مرجع ساختمان پس از تخریب توسط سیل
                         GameEventDispatcher.fireBuildingDestroyed(h);
                     }
                 }
