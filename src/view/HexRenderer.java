@@ -1042,4 +1042,78 @@ public class HexRenderer {
                 (int)(a.getGreen() + (b.getGreen() - a.getGreen()) * t),
                 (int)(a.getBlue()  + (b.getBlue()  - a.getBlue())  * t));
     }
+
+    // ─── UI Overlays (Hover Info) ────────────────────────────────────────────
+
+    private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
+        if (hex == null || !hex.isExplored()) return;
+
+        String terrainInfo = switch (hex.getTerrainType()) {
+            case PLAINS         -> "Plains — 1 AP";
+            case FOREST         -> "Forest — 2 AP";
+            case MOUNTAIN       -> "Mountain — 4 AP | Can build Mine"; // 4 AP (Phase 1 rule)
+            case MOUNTAIN_RANGE -> "Mountain Range — ✕ IMPASSABLE";
+            case MEADOW         -> "Meadow — 1 AP";
+            case SEA            -> "Sea — requires Seafaring tech";
+        };
+
+        String resourceInfo = buildResourceString(hex);
+        String borderInfo   = hex.isInsideBorder() ? "In Territory" : "Outside Territory";
+        String roadInfo     = hex.hasRoad() ? " | 🛣 Road" : "";
+
+        String line1 = terrainInfo + roadInfo;
+        String line2 = resourceInfo.isEmpty() ? borderInfo : resourceInfo + " | " + borderInfo;
+
+        drawOverlayBox(g2d, panel, line1, line2);
+    }
+
+    private String buildResourceString(Hex hex) {
+        java.util.List<String> res = new java.util.ArrayList<>();
+        if (hex.hasResource(ResourceType.FOOD)) {
+            String sub = hex.getResourceSubtype() != ResourceSubtype.NONE
+                    ? " (" + hex.getResourceSubtype().getDisplayName() + ")" : "";
+            res.add("🍔 Food" + sub);
+        }
+        if (hex.hasResource(ResourceType.WOOD))  res.add("🪵 Wood");
+        if (hex.hasResource(ResourceType.STONE)) res.add("🪨 Stone");
+        if (hex.hasResource(ResourceType.IRON))  res.add("⚙️ Iron");
+
+        return String.join(", ", res);
+    }
+
+    private void drawOverlayBox(Graphics2D g2d, GamePanel panel, String line1, String line2) {
+        g2d.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 13));
+        FontMetrics fm = g2d.getFontMetrics();
+
+        int w1 = fm.stringWidth(line1);
+        int w2 = fm.stringWidth(line2);
+        int boxW = Math.max(w1, w2) + 30;
+        int boxH = 60;
+
+        int x = 20;
+        int y = panel.getHeight() - boxH - 20;
+
+        // Shadow
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRoundRect(x + 4, y + 4, boxW, boxH, 12, 12);
+
+        // Background
+        g2d.setColor(new Color(25, 28, 35, 230));
+        g2d.fillRoundRect(x, y, boxW, boxH, 12, 12);
+
+        // Border (Accent glow)
+        g2d.setColor(new Color(65, 165, 255, 180));
+        g2d.setStroke(new BasicStroke(1.5f));
+        g2d.drawRoundRect(x, y, boxW, boxH, 12, 12);
+        g2d.setStroke(new BasicStroke(1f));
+
+        // Text Line 1
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(line1, x + 15, y + 25);
+
+        // Text Line 2
+        g2d.setColor(new Color(180, 190, 200));
+        g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.PLAIN, 12));
+        g2d.drawString(line2, x + 15, y + 45);
+    }
 }
