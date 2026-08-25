@@ -19,9 +19,8 @@ public class CombatController {
         DamageHandler swordsman = new SwordsmanDamageHandler();
         DamageHandler archer    = new ArcherDamageHandler();
         DamageHandler cavalry   = new CavalryDamageHandler();
-        DamageHandler civilian  = new CivilianDamageHandler(); // اضافه شدن هندلر غیرنظامیان
+        DamageHandler civilian  = new CivilianDamageHandler();
 
-        // اتصال زنجیره مسئولیت: شمشیرزن -> کماندار -> سواره‌نظام -> غیرنظامیان
         swordsman.setNext(archer);
         archer.setNext(cavalry);
         cavalry.setNext(civilian);
@@ -56,10 +55,8 @@ public class CombatController {
             if (swords > 2 || archers > 2 || cavs > 1) return -1;
         }
 
-        // کسر AP از مهاجمان
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // استخراج لیست مدافعان در ابتدای کار برای کسر AP (اصلاح باگ Combat AP)
         List<Unit> validDefenders = map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && u.getQ() == targetHex.getQ()
@@ -68,15 +65,28 @@ public class CombatController {
                         : (u.getType() == UnitType.SWORDSMAN
                         || u.getType() == UnitType.ARCHER
                         || u.getType() == UnitType.CAVALRY
-                        // غیرنظامیان به عنوان مدافع اضافه شدند تا از آسیب مصون نمانند
                         || u.getType() == UnitType.WORKER
                         || u.getType() == UnitType.BUILDER
                         || u.getType() == UnitType.EXPLORER
                         || u.getType() == UnitType.BORDER_EXPANDER)))
                 .collect(Collectors.toList());
 
-        // کسر AP از مدافعان
         validDefenders.forEach(u -> u.consumeAP(1));
+
+        // اصلاح نهایی: اعلام جنگ خودکار در صورت حمله بازیکن به یونیت‌های قبیله
+        boolean isPlayerAttacking = !validAttackers.isEmpty() && !validAttackers.get(0).isEnemy();
+        if (isPlayerAttacking) {
+            for (Unit def : validDefenders) {
+                if (def.getOwnerTribe() != null) {
+                    Tribe t = def.getOwnerTribe();
+                    if (!t.getState().getName().equals("Enemy")) {
+                        t.setAllied(false);
+                        t.addRelationship(-200);
+                        GameEventDispatcher.fireNotification("⚔️ You attacked a Tribe unit! War declared automatically.");
+                    }
+                }
+            }
+        }
 
         if (isSiegeAttack) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
@@ -101,7 +111,7 @@ public class CombatController {
                 if (b instanceof TribeCamp camp) {
                     if (!camp.getTribe().getState().getName().equals("Enemy")) {
                         camp.getTribe().setAllied(false);
-                        camp.getTribe().addRelationship(-200); // افت فوری به -۱۰۰
+                        camp.getTribe().addRelationship(-200);
                         GameEventDispatcher.fireNotification("⚔️ You attacked a Tribe Camp! War declared automatically.");
                     }
                 }
@@ -110,7 +120,6 @@ public class CombatController {
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
                 if (b.isDestroyed()) {
-                    // تسخیر کامل قلمرو و تبدیل به Outpost برای قبایل
                     if (b instanceof TribeCamp camp) {
                         targetHex.setInsideBorder(true);
                         targetHex.setExplored(true);
@@ -167,7 +176,6 @@ public class CombatController {
         }
 
         if (defenderTakesDmg > 0) {
-            // استفاده از لیستی که در بالا ساختیم به جای محاسبه مجدد
             if (isTargetAnimal) {
                 for (Unit bear : validDefenders) {
                     if (defenderTakesDmg > 0) {

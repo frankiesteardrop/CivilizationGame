@@ -24,10 +24,10 @@ public class EnemyState implements TribeState {
                             && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
                     .count();
 
-            // اصلاح گام دوم: تعیین سقف مجاز تولید گارد بر اساس نوع قبیله
+            // تعیین سقف مجاز تولید گارد بر اساس نوع قبیله
             int maxGuards = (tribe.getType() == TribeType.WARRIOR) ? 5 : 3;
 
-            // اصلاح گام دوم: بررسی رسیدن به سقف داینامیک به جای صفر بودن
+            // بررسی رسیدن به سقف داینامیک به جای صفر بودن
             if (currentGuards < maxGuards) {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
@@ -41,6 +41,10 @@ public class EnemyState implements TribeState {
 
                         Unit guard = UnitFactory.createUnit(guardType, spawnHex.getQ(), spawnHex.getR());
                         guard.setEnemy(true);
+
+                        // اصلاح نهایی: ثبت قبیله به عنوان مالک این یونیت
+                        guard.setOwnerTribe(tribe);
+
                         map.addUnit(guard);
 
                         if (campHex.isVisible()) {
