@@ -276,13 +276,12 @@ public class TribeController implements UnitListener {
         }
     }
 
-    // اصلاح گام سوم: افزودن متد بررسی ظرفیت انبار برای جلوگیری از هدر رفتن پاداش ماموریت
     public boolean canHoldMissionReward(Tribe tribe) {
         Inventory inv = map.getTownHall().getInventory();
         return switch (tribe.getType()) {
             case FARMER, COASTAL -> inv.getResourceAmount(ResourceType.FOOD) + 30 <= inv.getCapacity(ResourceType.FOOD);
             case MOUNTAIN        -> inv.getResourceAmount(ResourceType.STONE) + 20 <= inv.getCapacity(ResourceType.STONE);
-            default              -> true; // پاداش سایر قبایل (مانند نیروی نظامی یا باف تجاری) به انبار منابع بستگی ندارد
+            default              -> true;
         };
     }
 
@@ -290,7 +289,6 @@ public class TribeController implements UnitListener {
         Mission m = camp.getTribe().getMission();
         if (m == null || !m.getState().canDeliver()) return false;
 
-        // اطمینان نهایی پیش از تحویل
         if (!canHoldMissionReward(camp.getTribe())) return false;
 
         return m.getState().deliver(m, camp, map);
@@ -301,19 +299,32 @@ public class TribeController implements UnitListener {
 
         if (targetTribe.getMissionCooldown() > 0) return false;
 
-        boolean hasFarmer = false, hasMountain = false, hasWarrior = false;
+        // متغیر جامع برای پیگیری هرگونه اتحاد موجود در مپ
+        boolean hasAnyOtherAlliance = false;
+        boolean hasFarmer = false;
+        boolean hasMountain = false;
+        boolean hasWarrior = false;
+
         for (Hex h : map.getHexes()) {
             if (h.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
                 Tribe t = camp.getTribe();
-                if (!t.isAllied()) continue;
+                // نادیده گرفتن خود قبیله هدف و قبایل غیرمتحد
+                if (!t.isAllied() || t == targetTribe) continue;
+
+                hasAnyOtherAlliance = true;
                 if (t.getType() == TribeType.FARMER)   hasFarmer   = true;
                 if (t.getType() == TribeType.MOUNTAIN) hasMountain = true;
                 if (t.getType() == TribeType.WARRIOR)  hasWarrior  = true;
             }
         }
 
+        // قانون اول: اگر اتحاد جنگجو روی مپ هست، هیچ اتحاد جدیدی مجاز نیست
         if (hasWarrior) return false;
-        if (targetTribe.getType() == TribeType.WARRIOR && (hasFarmer || hasMountain)) return false;
+
+        // قانون دوم: اگر می‌خواهیم با جنگجو متحد شویم، هیچ اتحاد دیگری نباید داشته باشیم
+        if (targetTribe.getType() == TribeType.WARRIOR && hasAnyOtherAlliance) return false;
+
+        // قانون سوم: انحصار متقابل کشاورز و کوهستانی
         if (targetTribe.getType() == TribeType.FARMER  && hasMountain) return false;
         if (targetTribe.getType() == TribeType.MOUNTAIN && hasFarmer)  return false;
 
