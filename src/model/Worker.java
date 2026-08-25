@@ -38,8 +38,7 @@ public class Worker extends Unit {
         this.isStationed = false;
         this.stationedBuilding = null;
 
-        // اصلاح حیاتی: استرداد AP مصرف شده برای استقرار طبق داک فاز اول
-        this.currentAP = Math.min(this.maxAP, this.currentAP + GameConfig.WORKER_STATION_AP_COST);
+        // [تغییرات گام ۱]: خط مربوط به استرداد AP حذف شد تا باگ Infinite AP برطرف شده و با داک همگام شود.
 
         if (map != null) {
             Hex currentHex = map.getHexAt(this.q, this.r);
