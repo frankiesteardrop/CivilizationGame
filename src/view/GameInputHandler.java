@@ -41,7 +41,6 @@ public class GameInputHandler extends MouseAdapter {
                 panel.repaint();
             } else if (SwingUtilities.isRightMouseButton(e)) {
 
-                // جلوگیری از صدور دستور به نیروهای دشمن
                 if (panel.getSelectedUnit() != null && panel.getSelectedUnit().isEnemy()) {
                     GameEventDispatcher.fireNotification("⛔ You cannot command enemy units!");
                     return;
@@ -103,11 +102,9 @@ public class GameInputHandler extends MouseAdapter {
 
         Unit selectedUnit = panel.getSelectedUnit();
 
-        // ─── ۱. ساختمان‌های ویژه ─────────────────────────────────────────────
         if (clickedHex.getBuilding() != null && !clickedHex.getBuilding().isDestroyed()) {
             BuildingType bType = clickedHex.getBuilding().getType();
 
-            // ─── جلوگیری از تعامل با ساختمان‌های درون تاریکی (مه جنگ) ───
             boolean isInteractingWithMenu = (selectedUnit == null || selectedUnit.getAttackRange() <= 0);
             if (bType != BuildingType.TRIBE_CAMP && isInteractingWithMenu && !clickedHex.isVisible()) {
                 GameEventDispatcher.fireNotification("⚠️ Cannot interact with structures hidden in the Fog of War.");
@@ -143,17 +140,17 @@ public class GameInputHandler extends MouseAdapter {
             }
 
             if (bType == BuildingType.TRIBE_CAMP) {
-                if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isHostile(clickedHex)) {
+                // استفاده از isAttackable به جای isHostile برای رفع مصونیت قبایل
+                if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isAttackable(clickedHex)) {
                     panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
                     return;
                 }
                 panel.setSelectedUnit(null);
-                panel.onTribeInteractionTriggered(clickedHex); // بررسی تاریکیِ مختص قبیله، داخل این متد انجام می‌شود
+                panel.onTribeInteractionTriggered(clickedHex);
                 return;
             }
         }
 
-        // ─── ۲. یونیت انتخاب‌شده ────────────────────────────────────────────
         if (selectedUnit != null) {
             boolean isSameHex = (selectedUnit.getQ() == clickedHex.getQ() && selectedUnit.getR() == clickedHex.getR());
 

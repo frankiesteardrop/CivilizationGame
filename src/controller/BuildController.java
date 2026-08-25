@@ -20,7 +20,6 @@ public class BuildController {
 
         TownHall th = gameMap.getTownHall();
 
-        // فراخوانی مستقیم از طریق Model (رعایت دقیق اصل OCP)
         if (!type.hasRequiredTech(th)) return false;
         if (!type.isValidTerrain(hex, gameMap)) return false;
 
@@ -59,6 +58,10 @@ public class BuildController {
         }
 
         gameMap.updateFogOfWar();
+
+        // اصلاح حیاتی: فراخوانی فوری حذف یگان‌های مرده برای از بین بردن اشباح بیلدر (Phantom Builder)
+        gameMap.removeDeadUnits();
+
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
@@ -75,6 +78,9 @@ public class BuildController {
         builder.consumeAP(1);
         builder.useCharge();
         hex.setRoad(true);
+
+        gameMap.removeDeadUnits(); // جلوگیری از اشباح بیلدر
+
         GameEventDispatcher.fireUnitStateChanged(builder);
         GameEventDispatcher.fireBuildingConstructed(hex);
         GameEventDispatcher.fireNotification("🛣️ Road successfully constructed!");
@@ -121,6 +127,8 @@ public class BuildController {
 
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
+
+        gameMap.removeDeadUnits(); // جلوگیری از اشباح بیلدر
 
         GameEventDispatcher.fireUnitStateChanged(builder);
         GameEventDispatcher.fireBuildingConstructed(hex);

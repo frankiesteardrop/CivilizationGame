@@ -153,7 +153,6 @@ public class ContextMenuFactory {
                 if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL
                         && b.getType() != BuildingType.MONUMENT && b.getMaxWorkers() > 0) {
 
-                    // اصلاح حیاتی: ارسال نقشه به متد جهت بررسی هکس‌های دریایی مجاور
                     boolean can = mc.getUnitController().canStation(worker, targetHex, mc.getGameMap());
                     actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
                             () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap())));
@@ -190,7 +189,8 @@ public class ContextMenuFactory {
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY))
                 .collect(Collectors.toList());
 
-        boolean hasAnyEnemy = mc.isHostile(targetHex);
+        // اصلاح حیاتی: استفاده از isAttackable برای اعمال امکان حمله به کمپ‌های خنثی/صلح‌طلب
+        boolean hasAnyEnemy = mc.isAttackable(targetHex);
         boolean isMilTarget = hasAnyEnemy;
 
         boolean tempHasWall = false;

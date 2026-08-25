@@ -60,8 +60,19 @@ public class MainController {
         return hasAnimal || hasEnemyUnit || hasTribeEnemy;
     }
 
+    // متد جدید برای باز کردن امکان حمله فیزیکی به قبایل خنثی
+    public boolean isAttackable(Hex hex) {
+        if (hex == null) return false;
+        if (isHostile(hex)) return true;
+        if (hex.getBuilding() instanceof TribeCamp && !hex.getBuilding().isDestroyed()) return true;
+        return false;
+    }
+
     public boolean isCapturable(Unit unit, Hex hex) {
         if (unit == null || hex == null) return false;
+        // اصلاح حیاتی: کمپ قبیله با 1 AP قابل تسخیر نیست و حتماً باید محاصره (Siege) شود
+        if (hex.getBuilding() instanceof TribeCamp) return false;
+
         int dist = gameMap.getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR());
         return unit.getAttackRange() > 0 && !isHostile(hex) && !hex.isInsideBorder() && dist == 1;
     }

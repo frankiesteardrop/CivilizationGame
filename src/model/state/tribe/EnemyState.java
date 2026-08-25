@@ -18,17 +18,25 @@ public class EnemyState implements TribeState {
         if (currentCount > 0 && currentCount % 3 == 0) {
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
-                            && u.getType() == UnitType.SWORDSMAN
+                            // اصلاح: شمارش هر دو نوع نیروی نظامی برای جلوگیری از تولید بیش از حد
+                            && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER)
                             && u.isEnemy()
                             && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
                     .count();
 
-            // اصلاح حیاتی: قبیله فقط در صورتی گارد می‌سازد که "هیچ" مدافعی نداشته باشد
+            // قبیله فقط در صورتی گارد می‌سازد که "هیچ" مدافعی نداشته باشد
             if (currentGuards == 0) {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
                     if (spawnHex != null) {
-                        Unit guard = UnitFactory.createUnit(UnitType.SWORDSMAN, spawnHex.getQ(), spawnHex.getR());
+
+                        // اصلاح حیاتی: هوش مصنوعی ارتش متنوع برای قبیله جنگجو
+                        UnitType guardType = UnitType.SWORDSMAN;
+                        if (tribe.getType() == TribeType.WARRIOR) {
+                            guardType = map.getRandom().nextBoolean() ? UnitType.SWORDSMAN : UnitType.ARCHER;
+                        }
+
+                        Unit guard = UnitFactory.createUnit(guardType, spawnHex.getQ(), spawnHex.getR());
                         guard.setEnemy(true);
                         map.addUnit(guard);
 
