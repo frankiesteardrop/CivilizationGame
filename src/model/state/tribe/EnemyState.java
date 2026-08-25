@@ -18,19 +18,22 @@ public class EnemyState implements TribeState {
         if (currentCount > 0 && currentCount % 3 == 0) {
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
-                            // اصلاح: شمارش هر دو نوع نیروی نظامی برای جلوگیری از تولید بیش از حد
+                            // شمارش هر دو نوع نیروی نظامی برای جلوگیری از تولید بیش از حد
                             && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER)
                             && u.isEnemy()
                             && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
                     .count();
 
-            // قبیله فقط در صورتی گارد می‌سازد که "هیچ" مدافعی نداشته باشد
-            if (currentGuards == 0) {
+            // اصلاح گام دوم: تعیین سقف مجاز تولید گارد بر اساس نوع قبیله
+            int maxGuards = (tribe.getType() == TribeType.WARRIOR) ? 5 : 3;
+
+            // اصلاح گام دوم: بررسی رسیدن به سقف داینامیک به جای صفر بودن
+            if (currentGuards < maxGuards) {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
                     if (spawnHex != null) {
 
-                        // اصلاح حیاتی: هوش مصنوعی ارتش متنوع برای قبیله جنگجو
+                        // هوش مصنوعی ارتش متنوع برای قبیله جنگجو
                         UnitType guardType = UnitType.SWORDSMAN;
                         if (tribe.getType() == TribeType.WARRIOR) {
                             guardType = map.getRandom().nextBoolean() ? UnitType.SWORDSMAN : UnitType.ARCHER;
