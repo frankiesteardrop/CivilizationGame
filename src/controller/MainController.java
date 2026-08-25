@@ -60,7 +60,6 @@ public class MainController {
         return hasAnimal || hasEnemyUnit || hasTribeEnemy;
     }
 
-    // متد جدید برای باز کردن امکان حمله فیزیکی به قبایل خنثی
     public boolean isAttackable(Hex hex) {
         if (hex == null) return false;
         if (isHostile(hex)) return true;
@@ -70,14 +69,29 @@ public class MainController {
 
     public boolean isCapturable(Unit unit, Hex hex) {
         if (unit == null || hex == null) return false;
-        // اصلاح حیاتی: کمپ قبیله با 1 AP قابل تسخیر نیست و حتماً باید محاصره (Siege) شود
+
+        // کمپ قبیله با Capture تسخیر نمی‌شود، بلکه باید در نبرد تخریب شود
         if (hex.getBuilding() instanceof TribeCamp) return false;
 
         int dist = gameMap.getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR());
-        return unit.getAttackRange() > 0 && !isHostile(hex) && !hex.isInsideBorder() && dist == 1;
-    }
 
-    // ─── MVC CLEANUP: تفویض ساخت‌وساز رابط کاربری به لایه View ───
+        if (unit.getAttackRange() <= 0 || isHostile(hex) || hex.isInsideBorder() || dist != 1) {
+            return false;
+        }
+
+        // سیستم ضدتقلب: نیروی نظامی فقط و فقط می‌تواند هکس‌های خالی‌ای را تصرف کند
+        // که در مجاورت مستقیم کمپ قبیله دشمن هستند (طبق محدودیت‌های داک).
+        for (int i = 0; i < 6; i++) {
+            Hex neighbor = gameMap.getNeighbor(hex, i);
+            if (neighbor != null && neighbor.getBuilding() instanceof TribeCamp camp) {
+                if (camp.getTribe().getState().getName().equals("Enemy")) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     public List<MenuAction> getTownHallMenuActions() {
         return view.ContextMenuFactory.buildTownHallMenu(this);

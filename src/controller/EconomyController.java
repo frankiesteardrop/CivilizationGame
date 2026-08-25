@@ -6,9 +6,8 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     private final MainController mainController;
 
-    // ─── سیستم Stateful Delta Tracking برای مدیریت انباشته رضایت ───
     private int lastMonumentCount = 0;
-    private int lastSettlementCount = 0; // متغیر جدید برای جلوگیری از نشت رضایت
+    private int lastSettlementCount = 0;
     private boolean lastGarrisonState = false;
     private boolean lastCapState = false;
     private boolean isHappinessInitialized = false;
@@ -27,10 +26,6 @@ public class EconomyController implements TurnListener, BuildingListener {
                         == TribeType.COASTAL);
     }
 
-    /**
-     * همگام‌سازی رویدادمحور و انباشته‌ی متغیر رضایت (Happiness).
-     * این متد تغییرات لحظه‌ای را بررسی کرده و اختلاف (Delta) را یک‌بار اعمال می‌کند.
-     */
     private void updateHappinessState(GameMap map) {
         TownHall th = map.getTownHall();
 
@@ -38,7 +33,6 @@ public class EconomyController implements TurnListener, BuildingListener {
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.MONUMENT)
                 .count();
 
-        // شمارش زنده شهرک‌های سالم موجود در نقشه
         int currentSettlements = (int) map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.SETTLEMENT)
                 .count();
@@ -49,7 +43,6 @@ public class EconomyController implements TurnListener, BuildingListener {
 
         boolean currentCapState = map.getMilitaryUnitCount() >= map.getMilitaryUnitCap();
 
-        // مقداردهی اولیه برای جلوگیری از اعمال مجدد پاداش‌ها هنگام بارگذاری سیو
         if (!isHappinessInitialized) {
             lastMonumentCount = currentMonuments;
             lastSettlementCount = currentSettlements;
@@ -59,27 +52,23 @@ public class EconomyController implements TurnListener, BuildingListener {
             return;
         }
 
-        // اعمال پاداش Monument
         int monumentDiff = currentMonuments - lastMonumentCount;
         if (monumentDiff != 0) {
             th.addHappiness(monumentDiff * 2);
             lastMonumentCount = currentMonuments;
         }
 
-        // اعمال جریمه Settlement به صورت داینامیک (در صورت تخریب، امتیاز برمی‌گردد)
         int settlementDiff = currentSettlements - lastSettlementCount;
         if (settlementDiff != 0) {
-            th.addHappiness(-settlementDiff); // ۱- برای ساخت، ۱+ برای تخریب
+            th.addHappiness(-settlementDiff);
             lastSettlementCount = currentSettlements;
         }
 
-        // اعمال پاداش پادگان (Garrison)
         if (currentGarrison != lastGarrisonState) {
             th.addHappiness(currentGarrison ? 1 : -1);
             lastGarrisonState = currentGarrison;
         }
 
-        // اعمال جریمه سقف ارتش (و جبران آن در صورت خالی شدن ظرفیت)
         if (currentCapState != lastCapState) {
             th.addHappiness(currentCapState ? -1 : 1);
             if (currentCapState) {
@@ -92,7 +81,7 @@ public class EconomyController implements TurnListener, BuildingListener {
     }
 
     public int getEffectiveHappiness(GameMap map) {
-        updateHappinessState(map); // همیشه قبل از خواندن رضایت، وضعیت رویدادها را سینک می‌کنیم
+        updateHappinessState(map);
         return map.getTownHall().getHappiness();
     }
 
@@ -349,7 +338,11 @@ public class EconomyController implements TurnListener, BuildingListener {
         }
 
         if (happiness <= -3) production -= b.getStationedWorkers();
-        if (happiness >= 3)  production += production / 10;
+
+        // اصلاح فرمول ریاضی عصر طلایی برای جلوگیری از صفر شدن پاداش اعداد کوچک
+        if (happiness >= 3) {
+            production += (int) Math.ceil(production * 0.1);
+        }
 
         return Math.max(0, production);
     }

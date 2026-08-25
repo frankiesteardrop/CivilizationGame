@@ -25,9 +25,7 @@ public class UnitController {
         if (!isNeighbor) return false;
 
         if (targetHex.getTerrainType() == TerrainType.SEA) {
-            if (map == null) return false;
-            if (!map.getTownHall().isSeafaringUnlocked()) return false;
-            return unit.getCurrentAP() >= 1;
+            if (map == null || !map.getTownHall().isSeafaringUnlocked()) return false;
         }
 
         if (map != null && !hasCapacityForUnit(unit, targetHex, map)) return false;
@@ -35,14 +33,19 @@ public class UnitController {
         int cost;
         if (map != null) {
             Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
+
+            // اگر یونیت از خشکی قصد ورود به دریا را دارد، کل AP مصرف می‌شود اما حداقل به 1 AP نیاز دارد
+            if (targetHex.getTerrainType() == TerrainType.SEA && fromHex != null && fromHex.getTerrainType() != TerrainType.SEA) {
+                return unit.getCurrentAP() >= 1;
+            }
+
             if (fromHex != null) {
-                cost = calculateMoveCost(fromHex, targetHex, dq, dr,
-                        map.getCurrentSeason());
+                cost = calculateMoveCost(fromHex, targetHex, dq, dr, map.getCurrentSeason());
             } else {
                 cost = getBaseSeasonalCost(targetHex, map.getCurrentSeason());
             }
         } else {
-            cost = targetHex.getTerrainType().getMovementCost();
+            cost = (targetHex.getTerrainType() == TerrainType.SEA) ? 1 : targetHex.getTerrainType().getMovementCost();
         }
 
         return unit.getCurrentAP() >= cost;
@@ -52,19 +55,19 @@ public class UnitController {
         if (unit == null || targetHex == null || map == null) return;
         if (!canMove(unit, targetHex, map)) return;
 
-        if (targetHex.getTerrainType() == TerrainType.SEA) {
-            unit.moveTo(targetHex.getQ(), targetHex.getR(), unit.getCurrentAP());
-            map.updateFogOfWar();
-            return;
-        }
-
         Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
         int dq      = targetHex.getQ() - unit.getQ();
         int dr      = targetHex.getR() - unit.getR();
 
-        int cost = (fromHex != null)
-                ? calculateMoveCost(fromHex, targetHex, dq, dr, map.getCurrentSeason())
-                : getBaseSeasonalCost(targetHex, map.getCurrentSeason());
+        int cost;
+        // اگر یونیت از خشکی وارد دریا می‌شود، طبق قانون داک تمام AP صفر می‌شود
+        if (targetHex.getTerrainType() == TerrainType.SEA && fromHex != null && fromHex.getTerrainType() != TerrainType.SEA) {
+            cost = unit.getCurrentAP();
+        } else {
+            cost = (fromHex != null)
+                    ? calculateMoveCost(fromHex, targetHex, dq, dr, map.getCurrentSeason())
+                    : getBaseSeasonalCost(targetHex, map.getCurrentSeason());
+        }
 
         unit.moveTo(targetHex.getQ(), targetHex.getR(), cost);
         map.updateFogOfWar();
@@ -102,12 +105,16 @@ public class UnitController {
     private int calculateMoveCost(Hex fromHex, Hex toHex, int dq, int dr, Season season) {
         int cost = toHex.getTerrainType().getMovementCost();
 
+        // عبور از دریا در صورت داشتن تکنولوژی ۱ AP است (مگر اینکه از خشکی وارد شود که کل AP می‌رود)
+        if (toHex.getTerrainType() == TerrainType.SEA) {
+            cost = 1;
+        }
+
         boolean roadConnected = fromHex.hasRoad() && toHex.hasRoad();
         if (roadConnected) cost = 1;
 
         int dir = getDirection(dq, dr);
         if (dir >= 0 && fromHex.hasRiver(dir)) {
-            // اصلاح حیاتی: کاهش جریمه رودخانه به +1 برای جلوگیری از بن‌بست حرکتی
             if (!roadConnected) cost += 1;
         }
 
@@ -127,7 +134,9 @@ public class UnitController {
     }
 
     private int getBaseSeasonalCost(Hex toHex, Season season) {
-        return applySeasonalPenalty(toHex.getTerrainType().getMovementCost(), toHex, season);
+        int cost = toHex.getTerrainType().getMovementCost();
+        if (toHex.getTerrainType() == TerrainType.SEA) cost = 1;
+        return applySeasonalPenalty(cost, toHex, season);
     }
 
     private int getDirection(int dq, int dr) {
