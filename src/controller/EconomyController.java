@@ -6,8 +6,9 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     private final MainController mainController;
 
+    // ─── سیستم Stateful Delta Tracking برای مدیریت انباشته رضایت ───
     private int lastMonumentCount = 0;
-    private int lastSettlementCount = 0;
+    private int lastSettlementCount = 0; // متغیر جدید برای جلوگیری از نشت رضایت
     private boolean lastGarrisonState = false;
     private boolean lastCapState = false;
     private boolean isHappinessInitialized = false;
@@ -26,6 +27,10 @@ public class EconomyController implements TurnListener, BuildingListener {
                         == TribeType.COASTAL);
     }
 
+    /**
+     * همگام‌سازی رویدادمحور و انباشته‌ی متغیر رضایت (Happiness).
+     * این متد تغییرات لحظه‌ای را بررسی کرده و اختلاف (Delta) را یک‌بار اعمال می‌کند.
+     */
     private void updateHappinessState(GameMap map) {
         TownHall th = map.getTownHall();
 
@@ -33,16 +38,19 @@ public class EconomyController implements TurnListener, BuildingListener {
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.MONUMENT)
                 .count();
 
+        // شمارش زنده شهرک‌های سالم موجود در نقشه
         int currentSettlements = (int) map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.SETTLEMENT)
                 .count();
 
+        // اصلاح امنیتی: اطمینان از اینکه نیروی روی TownHall متعلق به خود بازیکن است نه دشمن
         boolean currentGarrison = map.getUnits().stream()
-                .anyMatch(u -> u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()
+                .anyMatch(u -> u.isAlive() && !u.isEnemy() && u.getQ() == th.getQ() && u.getR() == th.getR()
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
 
         boolean currentCapState = map.getMilitaryUnitCount() >= map.getMilitaryUnitCap();
 
+        // مقداردهی اولیه برای جلوگیری از اعمال مجدد پاداش‌ها هنگام بارگذاری سیو
         if (!isHappinessInitialized) {
             lastMonumentCount = currentMonuments;
             lastSettlementCount = currentSettlements;
@@ -52,23 +60,27 @@ public class EconomyController implements TurnListener, BuildingListener {
             return;
         }
 
+        // اعمال پاداش Monument
         int monumentDiff = currentMonuments - lastMonumentCount;
         if (monumentDiff != 0) {
             th.addHappiness(monumentDiff * 2);
             lastMonumentCount = currentMonuments;
         }
 
+        // اعمال جریمه Settlement به صورت داینامیک (در صورت تخریب، امتیاز برمی‌گردد)
         int settlementDiff = currentSettlements - lastSettlementCount;
         if (settlementDiff != 0) {
-            th.addHappiness(-settlementDiff);
+            th.addHappiness(-settlementDiff); // ۱- برای ساخت، ۱+ برای تخریب
             lastSettlementCount = currentSettlements;
         }
 
+        // اعمال پاداش پادگان (Garrison)
         if (currentGarrison != lastGarrisonState) {
             th.addHappiness(currentGarrison ? 1 : -1);
             lastGarrisonState = currentGarrison;
         }
 
+        // اعمال جریمه سقف ارتش (و جبران آن در صورت خالی شدن ظرفیت)
         if (currentCapState != lastCapState) {
             th.addHappiness(currentCapState ? -1 : 1);
             if (currentCapState) {
@@ -81,7 +93,7 @@ public class EconomyController implements TurnListener, BuildingListener {
     }
 
     public int getEffectiveHappiness(GameMap map) {
-        updateHappinessState(map);
+        updateHappinessState(map); // همیشه قبل از خواندن رضایت، وضعیت رویدادها را سینک می‌کنیم
         return map.getTownHall().getHappiness();
     }
 
@@ -209,10 +221,13 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     private boolean processFoodConsumption(GameMap map) {
         Inventory inventory = map.getTownHall().getInventory();
+
+        // اصلاح حیاتی: فقط نیروهای خودی که خرس نیستند و دشمن نیستند از انبار غذا مصرف می‌کنند
         int totalFoodNeeded = map.getUnits().stream()
-                .filter(Unit::isAlive)
+                .filter(u -> u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR)
                 .mapToInt(Unit::getFoodConsumption)
                 .sum();
+
         if (totalFoodNeeded == 0) return false;
 
         int currentFood = inventory.getResourceAmount(ResourceType.FOOD);
@@ -290,7 +305,10 @@ public class EconomyController implements TurnListener, BuildingListener {
         if (type == ResourceType.FOOD) {
             grossProduction += (farmPairs / 2);
             for (Unit u : map.getUnits()) {
-                if (u.isAlive()) grossConsumption += u.getFoodConsumption();
+                // اصلاح حیاتی: عدم کسر غذای گاردهای قبیله دشمن و حیوانات وحشی از گزارش خالص
+                if (u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR) {
+                    grossConsumption += u.getFoodConsumption();
+                }
             }
         }
 
@@ -339,7 +357,6 @@ public class EconomyController implements TurnListener, BuildingListener {
 
         if (happiness <= -3) production -= b.getStationedWorkers();
 
-        // اصلاح فرمول ریاضی عصر طلایی برای جلوگیری از صفر شدن پاداش اعداد کوچک
         if (happiness >= 3) {
             production += (int) Math.ceil(production * 0.1);
         }
