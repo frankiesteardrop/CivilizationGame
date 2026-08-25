@@ -163,6 +163,19 @@ public class SaveLoadController {
                 }
             }
 
+            // ─── ترمیم زنجیره ارجاع قبایل (Post-Load Reference Restoration) ───
+            for (Unit unit : loadedMap.getUnits()) {
+                if (unit.getOwnerTribe() != null) {
+                    TribeType type = unit.getOwnerTribe().getType();
+                    for (Hex hex : loadedMap.getHexes()) {
+                        if (hex.getBuilding() instanceof TribeCamp camp && camp.getTribe().getType() == type) {
+                            unit.setOwnerTribe(camp.getTribe());
+                            break;
+                        }
+                    }
+                }
+            }
+
             return loadedMap;
 
         } catch (Exception e) {
@@ -279,7 +292,6 @@ public class SaveLoadController {
             JsonObject obj = json.getAsJsonObject();
             BuildingType type = BuildingType.valueOf(obj.get("CLASS_TYPE").getAsString());
 
-            // اصلاح ارور کامپایل: اضافه شدن OUTPOST به سوییچ تا تمام مقادیر Enum پوشش داده شوند
             Class<? extends Building> clazz = switch (type) {
                 case TOWN_HALL    -> TownHall.class;
                 case LUMBER_MILL  -> LumberMill.class;
