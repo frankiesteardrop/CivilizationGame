@@ -6,6 +6,12 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     private final MainController mainController;
 
+    // ─── سیستم Stateful Delta Tracking برای مدیریت انباشته رضایت ───
+    private int lastMonumentCount = 0;
+    private boolean lastGarrisonState = false;
+    private boolean lastCapState = false;
+    private boolean isHappinessInitialized = false;
+
     public EconomyController(MainController mainController) {
         this.mainController = mainController;
         GameEventDispatcher.addListener(this);
@@ -20,29 +26,60 @@ public class EconomyController implements TurnListener, BuildingListener {
                         == TribeType.COASTAL);
     }
 
-    public int getEffectiveHappiness(GameMap map) {
+    /**
+     * همگام‌سازی رویدادمحور و انباشته‌ی متغیر رضایت (Happiness).
+     * این متد تغییرات لحظه‌ای را بررسی کرده و اختلاف (Delta) را یک‌بار اعمال می‌کند.
+     */
+    private void updateHappinessState(GameMap map) {
         TownHall th = map.getTownHall();
-        int baseHappiness = th.getHappiness();
 
-        int monumentBonus = 0;
-        for (Hex hex : map.getHexes()) {
-            Building b = hex.getBuilding();
-            if (b != null && !b.isDestroyed() && b.getType() == BuildingType.MONUMENT) {
-                monumentBonus += 2;
-            }
+        int currentMonuments = (int) map.getHexes().stream()
+                .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.MONUMENT)
+                .count();
+
+        boolean currentGarrison = map.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()
+                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
+
+        boolean currentCapState = map.getMilitaryUnitCount() >= map.getMilitaryUnitCap();
+
+        // مقداردهی اولیه برای جلوگیری از اعمال مجدد پاداش‌ها هنگام بارگذاری سیو
+        if (!isHappinessInitialized) {
+            lastMonumentCount = currentMonuments;
+            lastGarrisonState = currentGarrison;
+            lastCapState = currentCapState;
+            isHappinessInitialized = true;
+            return;
         }
 
-        boolean hasMilitaryInTH = map.getUnits().stream()
-                .anyMatch(u -> u.isAlive()
-                        && u.getQ() == th.getQ()
-                        && u.getR() == th.getR()
-                        && (u.getType() == UnitType.SWORDSMAN
-                        || u.getType() == UnitType.ARCHER
-                        || u.getType() == UnitType.CAVALRY));
+        // اعمال پاداش Monument
+        int monumentDiff = currentMonuments - lastMonumentCount;
+        if (monumentDiff != 0) {
+            th.addHappiness(monumentDiff * 2);
+            lastMonumentCount = currentMonuments;
+        }
 
-        int garrisonBonus = hasMilitaryInTH ? 1 : 0;
+        // اعمال پاداش پادگان (Garrison)
+        if (currentGarrison != lastGarrisonState) {
+            th.addHappiness(currentGarrison ? 1 : -1);
+            lastGarrisonState = currentGarrison;
+        }
 
-        return baseHappiness + monumentBonus + garrisonBonus;
+        // اعمال جریمه سقف ارتش (و جبران آن در صورت خالی شدن ظرفیت)
+        if (currentCapState != lastCapState) {
+            th.addHappiness(currentCapState ? -1 : 1);
+            if (currentCapState) {
+                GameEventDispatcher.fireNotification("⚔️ Military Unit Cap reached! -1 Happiness.");
+            } else {
+                GameEventDispatcher.fireNotification("⚖️ Military Unit Cap relieved. +1 Happiness.");
+            }
+            lastCapState = currentCapState;
+        }
+    }
+
+    public int getEffectiveHappiness(GameMap map) {
+        updateHappinessState(map); // همیشه قبل از خواندن رضایت، وضعیت رویدادها را سینک می‌کنیم
+        return map.getTownHall().getHappiness();
     }
 
     @Override
@@ -155,7 +192,7 @@ public class EconomyController implements TurnListener, BuildingListener {
             if (!inventory.consumeResource(b.getUpkeepResource(), b.getUpkeepAmount())) {
                 b.registerFailedUpkeep();
                 if (b.isDestroyed()) {
-                    hex.setBuilding(null); // اصلاح حیاتی: حذف مرجع ساختمان از روی هکس
+                    hex.setBuilding(null);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
                     GameEventDispatcher.fireNotification(
                             "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
@@ -290,7 +327,7 @@ public class EconomyController implements TurnListener, BuildingListener {
                 Hex n = map.getNeighbor(hex, i);
                 if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
             }
-            if (mCount >= 2) production += 1; // اصلاح حیاتی: پاداش مجاورت کوهستان به +1 تغییر یافت
+            if (mCount >= 2) production += 1;
         }
 
         if (b.getType() == BuildingType.DOCK && coastalAllied) {

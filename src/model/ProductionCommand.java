@@ -97,17 +97,8 @@ public abstract class ProductionCommand {
 
             contextMap.addUnit(UnitFactory.createUnit(unitType, tq, tr));
 
-            // اصلاح منطق جریمه سقف ارتش: فقط و دقیقاً در لحظه رسیدن به سقف اعمال شود
-            if (unitType == UnitType.SWORDSMAN
-                    || unitType == UnitType.ARCHER
-                    || unitType == UnitType.CAVALRY) {
-                if (contextMap.getMilitaryUnitCount() == contextMap.getMilitaryUnitCap()) {
-                    th.addHappiness(-1);
-                    GameEventDispatcher.fireNotification(
-                            "⚔️ Military Unit Cap reached! (Cap: "
-                                    + contextMap.getMilitaryUnitCap() + ") -1 Happiness.");
-                }
-            }
+            // بلوک جریمه سقف ارتش از اینجا پاک شد.
+            // اکنون به صورت مرکزی در EconomyController.updateHappinessState مدیریت می‌شود.
         }
     }
 
