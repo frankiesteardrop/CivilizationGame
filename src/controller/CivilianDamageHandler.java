@@ -14,8 +14,11 @@ public class CivilianDamageHandler extends DamageHandler {
                     u.getType() == UnitType.EXPLORER ||
                     u.getType() == UnitType.BORDER_EXPANDER) && u.isAlive()) {
 
-                u.takeDamage(1);
-                damageAmount--;
+                // اصلاح: تمرکز دمیج روی یک یونیت تا زمان مرگ یا اتمام دمیج
+                while (u.isAlive() && damageAmount > 0) {
+                    u.takeDamage(1);
+                    damageAmount--;
+                }
                 if (damageAmount == 0) return;
             }
         }
