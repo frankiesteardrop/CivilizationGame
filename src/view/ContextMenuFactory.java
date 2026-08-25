@@ -91,19 +91,16 @@ public class ContextMenuFactory {
         List<MenuAction> actions = new ArrayList<>();
         boolean traded = bazaar.hasTraded();
         int     level  = bazaar.getLevel();
-        Inventory inv  = mc.getGameMap().getTownHall().getInventory();
 
         actions.add(new MenuAction("⚖️ Trade (Level " + level + ")", !traded, "Already traded this turn", onTradeAction));
 
         if (bazaar.canUpgrade()) {
             int stoneCost = (level == 1) ? 30 : 60;
-            boolean canUpg = inv.hasEnough(ResourceType.STONE, stoneCost);
+            // اصلاح حیاتی MVC: واگذاری منطق اعتبارسنجی و ارتقا به کنترلر
+            boolean canUpg = mc.getTradeController().canUpgradeBazaar(bazaar);
             actions.add(new MenuAction("⬆️ Upgrade Bazaar → Level " + (level + 1) + " (" + stoneCost + " Stone)",
                     canUpg, "Need " + stoneCost + " Stone to upgrade", () -> {
-                if (inv.consumeResource(ResourceType.STONE, stoneCost)) {
-                    bazaar.upgrade();
-                    GameEventDispatcher.fireNotification("⚖️ Bazaar upgraded to Level " + bazaar.getLevel() + "!");
-                }
+                mc.getTradeController().upgradeBazaar(bazaar);
             }));
         } else {
             actions.add(new MenuAction("✅ Bazaar is at Max Level (3)", false, null));
@@ -189,7 +186,6 @@ public class ContextMenuFactory {
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY))
                 .collect(Collectors.toList());
 
-        // اصلاح حیاتی: استفاده از isAttackable برای اعمال امکان حمله به کمپ‌های خنثی/صلح‌طلب
         boolean hasAnyEnemy = mc.isAttackable(targetHex);
         boolean isMilTarget = hasAnyEnemy;
 

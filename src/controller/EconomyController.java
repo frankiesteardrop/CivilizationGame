@@ -90,7 +90,8 @@ public class EconomyController implements TurnListener, BuildingListener {
 
         if (isStarving) {
             for (Unit unit : map.getUnits()) {
-                if (unit.isAlive() && unit.getType() != UnitType.BEAR) {
+                // اصلاح حیاتی: اضافه شدن شرط !unit.isEnemy() برای جلوگیری از تاثیر قحطی روی دشمنان
+                if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
                     unit.consumeAP(1);
                 }
             }

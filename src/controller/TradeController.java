@@ -18,8 +18,6 @@ public class TradeController implements TurnListener {
         return map.getTownHall().getInventory();
     }
 
-    // برای جلوگیری از ارور کامپایل در لایه View (BazaarTradeDialog)، متد نگه داشته شده
-    // اما همواره مقدار false برمی‌گرداند زیرا اتحاد تجاری هیچ تاثیری روی سازه‌های بازیکن ندارد.
     public boolean isCommercialAllied() {
         return false;
     }
@@ -45,7 +43,6 @@ public class TradeController implements TurnListener {
         Inventory inv = map.getTownHall().getInventory();
         if (!inv.hasEnough(give, amountToGive)) return false;
 
-        // پارامتر پاداش برای سازه‌ها همواره false است
         int received = strategy.calculateReceivedAmount(amountToGive, get, false);
         if (received <= 0) return false;
 
@@ -54,6 +51,23 @@ public class TradeController implements TurnListener {
         onSuccess.run();
 
         return true;
+    }
+
+    // ─── منطق ارتقای بازار منتقل شده از View به Controller (MVC Fix) ───
+
+    public boolean canUpgradeBazaar(Bazaar bazaar) {
+        if (bazaar == null || !bazaar.canUpgrade()) return false;
+        int stoneCost = (bazaar.getLevel() == 1) ? 30 : 60;
+        return map.getTownHall().getInventory().hasEnough(ResourceType.STONE, stoneCost);
+    }
+
+    public void upgradeBazaar(Bazaar bazaar) {
+        if (!canUpgradeBazaar(bazaar)) return;
+        int stoneCost = (bazaar.getLevel() == 1) ? 30 : 60;
+        if (map.getTownHall().getInventory().consumeResource(ResourceType.STONE, stoneCost)) {
+            bazaar.upgrade();
+            GameEventDispatcher.fireNotification("⚖️ Bazaar upgraded to Level " + bazaar.getLevel() + "!");
+        }
     }
 
     @Override
