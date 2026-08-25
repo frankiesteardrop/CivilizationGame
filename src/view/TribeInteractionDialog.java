@@ -156,13 +156,25 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        boolean canDeliver = tribe.getMission() != null
-                && tribe.getMission().getState().canDeliver();
+        // اصلاح گام سوم: اضافه کردن منطق بررسی ظرفیت انبار پیش از فعال کردن دکمه تحویل
+        boolean isMissionReady = tribe.getMission() != null && tribe.getMission().getState().canDeliver();
+        boolean hasCapacity = tribeController.canHoldMissionReward(tribe);
+        boolean canDeliver = isMissionReady && hasCapacity;
+
+        String deliverDisabledReason;
+        if (!isMissionReady) {
+            deliverDisabledReason = "No ready mission to deliver";
+        } else if (!hasCapacity) {
+            deliverDisabledReason = "Storage is full! Not enough capacity for rewards.";
+        } else {
+            deliverDisabledReason = null;
+        }
+
         actionsPanel.add(buildActionButton(
                 "✅  Deliver Mission",
                 "Deliver completed mission for rewards",
                 canDeliver,
-                "No ready mission to deliver",
+                deliverDisabledReason,
                 ACCENT_GREEN,
                 () -> {
                     if (tribeController.deliverMission(camp)) {
@@ -171,7 +183,7 @@ public class TribeInteractionDialog extends JDialog {
                                 "Mission Complete ✅", JOptionPane.INFORMATION_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(this,
-                                "Delivery failed. Resources missing?",
+                                "Delivery failed. Resources missing or storage full?",
                                 "Error", JOptionPane.ERROR_MESSAGE);
                     }
                     rebuildAndRefresh();
@@ -533,8 +545,6 @@ public class TribeInteractionDialog extends JDialog {
 
         finalizeSubDialog(dlg, content);
     }
-
-    // ─── MVC CLEANUP: دریافت اطلاعات از مدل به جای هاردکد کردن ───
 
     private String getTribeRewardDescription() {
         String currentStatus = tribe.getState().getName();

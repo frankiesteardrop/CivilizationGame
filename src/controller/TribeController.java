@@ -128,7 +128,6 @@ public class TribeController implements UnitListener {
         CombatController cc = new CombatController(map);
 
         for (Unit guard : guards) {
-            // اصلاح حیاتی: متغیرهای کنترلی برای محدود کردن به 1 حرکت و 1 حمله طبق داک
             boolean hasMoved = false;
             boolean hasAttacked = false;
 
@@ -160,7 +159,7 @@ public class TribeController implements UnitListener {
                             }
                             hasAttacked = true;
                         } else {
-                            break; // نزدیک است اما قبلاً در این نوبت حمله کرده
+                            break;
                         }
                     } else {
                         if (!hasMoved) {
@@ -170,7 +169,7 @@ public class TribeController implements UnitListener {
                                 hasMoved = true;
                             } else break;
                         } else {
-                            break; // نیاز به حرکت دارد اما قبلاً در این نوبت حرکت کرده
+                            break;
                         }
                     }
                 } else {
@@ -210,7 +209,7 @@ public class TribeController implements UnitListener {
                             }
                         }
                     } else {
-                        break; // هیچ هدفی پیدا نشد
+                        break;
                     }
                 }
             }
@@ -277,9 +276,23 @@ public class TribeController implements UnitListener {
         }
     }
 
+    // اصلاح گام سوم: افزودن متد بررسی ظرفیت انبار برای جلوگیری از هدر رفتن پاداش ماموریت
+    public boolean canHoldMissionReward(Tribe tribe) {
+        Inventory inv = map.getTownHall().getInventory();
+        return switch (tribe.getType()) {
+            case FARMER, COASTAL -> inv.getResourceAmount(ResourceType.FOOD) + 30 <= inv.getCapacity(ResourceType.FOOD);
+            case MOUNTAIN        -> inv.getResourceAmount(ResourceType.STONE) + 20 <= inv.getCapacity(ResourceType.STONE);
+            default              -> true; // پاداش سایر قبایل (مانند نیروی نظامی یا باف تجاری) به انبار منابع بستگی ندارد
+        };
+    }
+
     public boolean deliverMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();
         if (m == null || !m.getState().canDeliver()) return false;
+
+        // اطمینان نهایی پیش از تحویل
+        if (!canHoldMissionReward(camp.getTribe())) return false;
+
         return m.getState().deliver(m, camp, map);
     }
 
