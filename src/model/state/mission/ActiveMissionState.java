@@ -33,10 +33,10 @@ public class ActiveMissionState implements MissionState {
 
     @Override
     public void onUnitKilled(Mission mission, TribeCamp camp, Unit unit, GameMap map) {
-        // اصلاح C2: منطق خاص قبیله جنگجو
+        // منطق خاص قبیله جنگجو
         if (camp.getTribe().getType() != TribeType.WARRIOR) return;
 
-        // اصلاح C2: فقط یونیت‌های دشمن (isEnemy) یا حیوانات وحشی (BEAR) محاسبه می‌شوند
+        // فقط یونیت‌های دشمن (isEnemy) یا حیوانات وحشی (BEAR) محاسبه می‌شوند
         // کشتن یونیت‌های خودی نباید count شود
         if (!unit.isEnemy() && unit.getType() != UnitType.BEAR) return;
 
@@ -46,11 +46,25 @@ public class ActiveMissionState implements MissionState {
         int distToKill = map.getHexDistance(unit.getQ(), unit.getR(), campHex.getQ(), campHex.getR());
         if (distToKill > 5) return;
 
+        // ─── سیستم ضد-تقلب مکان‌محور (Spatial Anti-Cheat Heuristic) ───
+        // بررسی اینکه آیا کشته شدن این یونیت کار نیروی نظامی بازیکن بوده است؟
+        boolean playerCausedKill = map.getUnits().stream()
+                .anyMatch(u -> u.isAlive()
+                        && !u.isEnemy()
+                        && u.getType() != UnitType.BEAR
+                        && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY)
+                        && map.getHexDistance(u.getQ(), u.getR(), unit.getQ(), unit.getR()) <= u.getAttackRange());
+
+        if (!playerCausedKill) {
+            // مرگ بر اثر عوامل دیگر (مثل درگیری خرس با گارد قبیله) بوده است
+            return;
+        }
+        // ─────────────────────────────────────────────────────────────
+
         mission.addProgress(1);
         GameEventDispatcher.fireNotification("⚔️ Warrior Mission: " + mission.getProgress() + "/2 enemies defeated near camp.");
 
-        // اصلاح C2: بررسی مستقیم progress بجای isCompleted()
-        // چون TribeType.WARRIOR.getMissionGoal().isCompleted() همیشه false برمی‌گرداند
+        // بررسی مستقیم progress بجای isCompleted()
         if (mission.getProgress() >= 2) {
             mission.setState(new ReadyMissionState());
             GameEventDispatcher.fireNotification("✅ Mission for Warrior Tribe is ready to deliver!");
