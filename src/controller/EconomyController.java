@@ -8,6 +8,7 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     // ─── سیستم Stateful Delta Tracking برای مدیریت انباشته رضایت ───
     private int lastMonumentCount = 0;
+    private int lastSettlementCount = 0; // متغیر جدید برای جلوگیری از نشت رضایت
     private boolean lastGarrisonState = false;
     private boolean lastCapState = false;
     private boolean isHappinessInitialized = false;
@@ -37,6 +38,11 @@ public class EconomyController implements TurnListener, BuildingListener {
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.MONUMENT)
                 .count();
 
+        // شمارش زنده شهرک‌های سالم موجود در نقشه
+        int currentSettlements = (int) map.getHexes().stream()
+                .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.SETTLEMENT)
+                .count();
+
         boolean currentGarrison = map.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getQ() == th.getQ() && u.getR() == th.getR()
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
@@ -46,6 +52,7 @@ public class EconomyController implements TurnListener, BuildingListener {
         // مقداردهی اولیه برای جلوگیری از اعمال مجدد پاداش‌ها هنگام بارگذاری سیو
         if (!isHappinessInitialized) {
             lastMonumentCount = currentMonuments;
+            lastSettlementCount = currentSettlements;
             lastGarrisonState = currentGarrison;
             lastCapState = currentCapState;
             isHappinessInitialized = true;
@@ -57,6 +64,13 @@ public class EconomyController implements TurnListener, BuildingListener {
         if (monumentDiff != 0) {
             th.addHappiness(monumentDiff * 2);
             lastMonumentCount = currentMonuments;
+        }
+
+        // اعمال جریمه Settlement به صورت داینامیک (در صورت تخریب، امتیاز برمی‌گردد)
+        int settlementDiff = currentSettlements - lastSettlementCount;
+        if (settlementDiff != 0) {
+            th.addHappiness(-settlementDiff); // ۱- برای ساخت، ۱+ برای تخریب
+            lastSettlementCount = currentSettlements;
         }
 
         // اعمال پاداش پادگان (Garrison)
@@ -90,7 +104,6 @@ public class EconomyController implements TurnListener, BuildingListener {
 
         if (isStarving) {
             for (Unit unit : map.getUnits()) {
-                // اصلاح حیاتی: اضافه شدن شرط !unit.isEnemy() برای جلوگیری از تاثیر قحطی روی دشمنان
                 if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
                     unit.consumeAP(1);
                 }

@@ -53,13 +53,11 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
-        if (type == BuildingType.SETTLEMENT) {
-            gameMap.getTownHall().addHappiness(-1);
-        }
+        // لاجیک هاردکد شده کسر رضایت از اینجا حذف شد تا در EconomyController مدیریت شود.
 
         gameMap.updateFogOfWar();
 
-        // اصلاح حیاتی: فراخوانی فوری حذف یگان‌های مرده برای از بین بردن اشباح بیلدر (Phantom Builder)
+        // فراخوانی فوری حذف یگان‌های مرده برای از بین بردن اشباح بیلدر (Phantom Builder)
         gameMap.removeDeadUnits();
 
         GameEventDispatcher.fireBuildingConstructed(hex);
