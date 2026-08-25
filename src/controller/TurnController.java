@@ -45,7 +45,8 @@ public class TurnController {
             if (unit.isAlive()) {
                 unit.resetAP();
 
-                if (effectiveHappiness <= -5) {
+                // اصلاح حیاتی: اضافه شدن شرط !unit.isEnemy() تا جریمه شورش فقط به نیروهای بازیکن بخورد نه قبایل
+                if (effectiveHappiness <= -5 && !unit.isEnemy()) {
                     UnitType t = unit.getType();
                     if (t == UnitType.WORKER    || t == UnitType.SWORDSMAN
                             || t == UnitType.ARCHER    || t == UnitType.CAVALRY) {
@@ -114,7 +115,7 @@ public class TurnController {
             case WINTER ->
                     "❄️ Winter has come! (Turns 31-40 of cycle)\n"
                             + "⚠ All Farms: -1 Food production per turn.\n"
-                            + "⚠ All land hex movement: +1 AP for ALL units (enemies included).";
+                            + "⚠ All land movement: +1 AP for ALL units (enemies included).";
         };
         GameEventDispatcher.fireNotification(message);
     }

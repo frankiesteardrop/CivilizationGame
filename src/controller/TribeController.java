@@ -128,63 +128,89 @@ public class TribeController implements UnitListener {
         CombatController cc = new CombatController(map);
 
         for (Unit guard : guards) {
-            while (guard.getCurrentAP() > 0 && guard.isAlive()) {
+            // اصلاح حیاتی: متغیرهای کنترلی برای محدود کردن به 1 حرکت و 1 حمله طبق داک
+            boolean hasMoved = false;
+            boolean hasAttacked = false;
+
+            while (guard.getCurrentAP() > 0 && guard.isAlive() && (!hasMoved || !hasAttacked)) {
 
                 Unit targetUnit = findClosestPlayerUnit(guard, 5);
 
                 if (targetUnit != null) {
                     int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetUnit.getQ(), targetUnit.getR());
                     if (dist <= guard.getAttackRange()) {
-                        Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
-                        Hex targetHex = map.getHexAt(targetUnit.getQ(), targetUnit.getR());
-
-                        boolean targetHasWall = false;
-                        for (int i = 0; i < 6; i++) {
-                            if (map.getNeighbor(sourceHex, i) == targetHex) {
-                                targetHasWall = sourceHex.hasWall(i);
-                                break;
-                            }
-                        }
-
-                        List<Unit> attackers = Collections.singletonList(guard);
-                        cc.executeAttack(attackers, sourceHex, targetHex, false, false, targetHasWall);
-                        map.removeDeadUnits();
-
-                        if (!targetUnit.isAlive()) {
-                            GameEventDispatcher.fireNotification("⚠️ A Tribe Guard has defeated your unit!");
-                        }
-                    } else {
-                        Hex nextHex = getNextHexTowards(guard, targetUnit.getQ(), targetUnit.getR(), uc);
-                        if (nextHex != null) uc.executeMove(guard, nextHex, map);
-                        else break;
-                    }
-                } else {
-                    Hex targetBuildingHex = findClosestPlayerBuilding(guard, 5);
-                    if (targetBuildingHex != null) {
-                        int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
-                        if (dist <= guard.getAttackRange()) {
+                        if (!hasAttacked) {
                             Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
+                            Hex targetHex = map.getHexAt(targetUnit.getQ(), targetUnit.getR());
+
                             boolean targetHasWall = false;
                             for (int i = 0; i < 6; i++) {
-                                if (map.getNeighbor(sourceHex, i) == targetBuildingHex) {
+                                if (map.getNeighbor(sourceHex, i) == targetHex) {
                                     targetHasWall = sourceHex.hasWall(i);
                                     break;
                                 }
                             }
 
                             List<Unit> attackers = Collections.singletonList(guard);
-                            cc.executeAttack(attackers, sourceHex, targetBuildingHex, true, false, targetHasWall);
+                            cc.executeAttack(attackers, sourceHex, targetHex, false, false, targetHasWall);
+                            map.removeDeadUnits();
 
-                            if (targetBuildingHex.getBuilding() == null || targetBuildingHex.getBuilding().isDestroyed()) {
-                                GameEventDispatcher.fireNotification("⚠️ Tribe Guards destroyed your border building!");
+                            if (!targetUnit.isAlive()) {
+                                GameEventDispatcher.fireNotification("⚠️ A Tribe Guard has defeated your unit!");
                             }
+                            hasAttacked = true;
                         } else {
-                            Hex nextHex = getNextHexTowards(guard, targetBuildingHex.getQ(), targetBuildingHex.getR(), uc);
-                            if (nextHex != null) uc.executeMove(guard, nextHex, map);
-                            else break;
+                            break; // نزدیک است اما قبلاً در این نوبت حمله کرده
                         }
                     } else {
-                        break;
+                        if (!hasMoved) {
+                            Hex nextHex = getNextHexTowards(guard, targetUnit.getQ(), targetUnit.getR(), uc);
+                            if (nextHex != null) {
+                                uc.executeMove(guard, nextHex, map);
+                                hasMoved = true;
+                            } else break;
+                        } else {
+                            break; // نیاز به حرکت دارد اما قبلاً در این نوبت حرکت کرده
+                        }
+                    }
+                } else {
+                    Hex targetBuildingHex = findClosestPlayerBuilding(guard, 5);
+                    if (targetBuildingHex != null) {
+                        int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
+                        if (dist <= guard.getAttackRange()) {
+                            if (!hasAttacked) {
+                                Hex sourceHex = map.getHexAt(guard.getQ(), guard.getR());
+                                boolean targetHasWall = false;
+                                for (int i = 0; i < 6; i++) {
+                                    if (map.getNeighbor(sourceHex, i) == targetBuildingHex) {
+                                        targetHasWall = sourceHex.hasWall(i);
+                                        break;
+                                    }
+                                }
+
+                                List<Unit> attackers = Collections.singletonList(guard);
+                                cc.executeAttack(attackers, sourceHex, targetBuildingHex, true, false, targetHasWall);
+
+                                if (targetBuildingHex.getBuilding() == null || targetBuildingHex.getBuilding().isDestroyed()) {
+                                    GameEventDispatcher.fireNotification("⚠️ Tribe Guards destroyed your border building!");
+                                }
+                                hasAttacked = true;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            if (!hasMoved) {
+                                Hex nextHex = getNextHexTowards(guard, targetBuildingHex.getQ(), targetBuildingHex.getR(), uc);
+                                if (nextHex != null) {
+                                    uc.executeMove(guard, nextHex, map);
+                                    hasMoved = true;
+                                } else break;
+                            } else {
+                                break;
+                            }
+                        }
+                    } else {
+                        break; // هیچ هدفی پیدا نشد
                     }
                 }
             }
