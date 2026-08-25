@@ -38,22 +38,22 @@ public class Worker extends Unit {
         this.isStationed = false;
         this.stationedBuilding = null;
 
+        // اصلاح حیاتی: استرداد AP مصرف شده برای استقرار طبق داک فاز اول
+        this.currentAP = Math.min(this.maxAP, this.currentAP + GameConfig.WORKER_STATION_AP_COST);
+
         if (map != null) {
             Hex currentHex = map.getHexAt(this.q, this.r);
 
-            // بررسی تداخل: آیا هکس فعلی توسط یونیت دیگری اشغال شده یا غیرقابل عبور است؟
             boolean isOccupied = map.getUnits().stream()
                     .anyMatch(u -> u.isAlive() && u != this && u.getQ() == this.q && u.getR() == this.r);
 
             if (isOccupied || currentHex == null || currentHex.getTerrainType() == TerrainType.SEA || currentHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) {
-                // جستجوی گسترده تا شعاع 3 هکس برای پیدا کردن محل امن
                 Hex safeHex = map.findNearbyEmptyHex(this.q, this.r, 3);
 
                 if (safeHex != null) {
                     this.q = safeHex.getQ();
                     this.r = safeHex.getR();
                 } else {
-                    // اگر هیچ جای خالی در شعاع 3 نباشد، کارگر از بین می‌رود (جلوگیری از باگ تداخل)
                     this.kill();
                     return;
                 }

@@ -107,7 +107,8 @@ public class UnitController {
 
         int dir = getDirection(dq, dr);
         if (dir >= 0 && fromHex.hasRiver(dir)) {
-            if (!roadConnected) cost += 2;
+            // اصلاح حیاتی: کاهش جریمه رودخانه به +1 برای جلوگیری از بن‌بست حرکتی
+            if (!roadConnected) cost += 1;
         }
 
         return applySeasonalPenalty(cost, toHex, season);
@@ -139,7 +140,6 @@ public class UnitController {
         return -1;
     }
 
-    // اصلاح حیاتی: دریافت GameMap جهت بررسی هکس‌های مجاور برای اسکله
     public boolean canStation(Worker worker, Hex hex, GameMap map) {
         if (worker == null || !worker.isAlive() || worker.isStationed()) return false;
         if (worker.getQ() != hex.getQ() || worker.getR() != hex.getR()) return false;
@@ -162,7 +162,6 @@ public class UnitController {
                     break;
                 }
             }
-            // اگر ماهی در دریاهای مجاور نباشد، استقرار کارگر در اسکله غیرمجاز است
             if (!hasFish) return false;
         } else if (res != ResourceType.NONE && !hex.hasResource(res)) {
             return false;

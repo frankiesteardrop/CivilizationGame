@@ -50,7 +50,8 @@ public enum BuildingType {
         }
     },
 
-    SETTLEMENT(3, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1) {
+    // اصلاح حیاتی: تغییر هزینه AP شهرک از 3 به 2 برای جلوگیری از قفل شدن بازی
+    SETTLEMENT(2, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1) {
         @Override
         public boolean hasRequiredTech(TownHall th) {
             return th.isSettlementUnlocked();
@@ -102,8 +103,6 @@ public enum BuildingType {
 
     TRADING_POST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
     TRIBE_CAMP(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2),
-
-    // اصلاح فاز 2: اضافه شدن Outpost به عنوان یک سازه مجزا
     OUTPOST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2);
 
     private final int apCost;
