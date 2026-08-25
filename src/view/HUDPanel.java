@@ -262,10 +262,11 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
                 BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
                 BorderFactory.createEmptyBorder(6, 12, 6, 12)
         ));
+        // اصلاح حیاتی UI: متون مطابق با داک تنظیم شد
         JLabel label = new JLabel(
                 "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
                         + "<b>⚠️ STARVATION!</b>"
-                        + "<span style='color:#ffaaaa; font-size:11px;'> Queue frozen | -1 AP/unit</span>"
+                        + "<span style='color:#ffaaaa; font-size:11px;'> Population frozen | -1 AP/unit</span>"
                         + "</body></html>"
         );
         card.add(label, BorderLayout.CENTER);
@@ -278,10 +279,11 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(180, 20, 20));
         panel.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
+        // اصلاح حیاتی UI: متون مطابق با داک تنظیم شد
         JLabel msg = new JLabel(
                 "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION CRISIS!</b><br/>"
                         + "<span style='color:#ffcccc; font-size:12px;'>"
-                        + "Your people are starving!<br/>Production queue frozen. Units lose 1 AP per turn."
+                        + "Your people are starving!<br/>Population growth frozen. Units lose 1 AP per turn."
                         + "</span></center></html>", SwingConstants.CENTER
         );
         msg.setBorder(BorderFactory.createEmptyBorder(15, 25, 15, 25));
