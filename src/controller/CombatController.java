@@ -56,7 +56,27 @@ public class CombatController {
             if (swords > 2 || archers > 2 || cavs > 1) return -1;
         }
 
+        // کسر AP از مهاجمان
         validAttackers.forEach(u -> u.consumeAP(1));
+
+        // استخراج لیست مدافعان در ابتدای کار برای کسر AP (اصلاح باگ Combat AP)
+        List<Unit> validDefenders = map.getUnits().stream()
+                .filter(u -> u.isAlive()
+                        && u.getQ() == targetHex.getQ()
+                        && u.getR() == targetHex.getR()
+                        && (isTargetAnimal ? u.getType() == UnitType.BEAR
+                        : (u.getType() == UnitType.SWORDSMAN
+                        || u.getType() == UnitType.ARCHER
+                        || u.getType() == UnitType.CAVALRY
+                        // غیرنظامیان به عنوان مدافع اضافه شدند تا از آسیب مصون نمانند
+                        || u.getType() == UnitType.WORKER
+                        || u.getType() == UnitType.BUILDER
+                        || u.getType() == UnitType.EXPLORER
+                        || u.getType() == UnitType.BORDER_EXPANDER)))
+                .collect(Collectors.toList());
+
+        // کسر AP از مدافعان
+        validDefenders.forEach(u -> u.consumeAP(1));
 
         if (isSiegeAttack) {
             int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
@@ -77,7 +97,7 @@ public class CombatController {
             } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
                 Building b = targetHex.getBuilding();
 
-                // اصلاح نهایی (مورد ۶): اعلام جنگ خودکار در صورت حمله غیرمستقیم به کمپ قبیله
+                // اعلام جنگ خودکار در صورت حمله غیرمستقیم به کمپ قبیله
                 if (b instanceof TribeCamp camp) {
                     if (!camp.getTribe().getState().getName().equals("Enemy")) {
                         camp.getTribe().setAllied(false);
@@ -147,21 +167,7 @@ public class CombatController {
         }
 
         if (defenderTakesDmg > 0) {
-            List<Unit> validDefenders = map.getUnits().stream()
-                    .filter(u -> u.isAlive()
-                            && u.getQ() == targetHex.getQ()
-                            && u.getR() == targetHex.getR()
-                            && (isTargetAnimal ? u.getType() == UnitType.BEAR
-                            : (u.getType() == UnitType.SWORDSMAN
-                            || u.getType() == UnitType.ARCHER
-                            || u.getType() == UnitType.CAVALRY
-                            // اصلاح حیاتی: غیرنظامیان به عنوان مدافع اضافه شدند تا از آسیب مصون نمانند
-                            || u.getType() == UnitType.WORKER
-                            || u.getType() == UnitType.BUILDER
-                            || u.getType() == UnitType.EXPLORER
-                            || u.getType() == UnitType.BORDER_EXPANDER)))
-                    .collect(Collectors.toList());
-
+            // استفاده از لیستی که در بالا ساختیم به جای محاسبه مجدد
             if (isTargetAnimal) {
                 for (Unit bear : validDefenders) {
                     if (defenderTakesDmg > 0) {
