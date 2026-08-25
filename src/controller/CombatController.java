@@ -76,6 +76,16 @@ public class CombatController {
 
             } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
                 Building b = targetHex.getBuilding();
+
+                // اصلاح نهایی (مورد ۶): اعلام جنگ خودکار در صورت حمله غیرمستقیم به کمپ قبیله
+                if (b instanceof TribeCamp camp) {
+                    if (!camp.getTribe().getState().getName().equals("Enemy")) {
+                        camp.getTribe().setAllied(false);
+                        camp.getTribe().addRelationship(-200); // افت فوری به -۱۰۰
+                        GameEventDispatcher.fireNotification("⚔️ You attacked a Tribe Camp! War declared automatically.");
+                    }
+                }
+
                 b.takeDamage(siegeDmg);
                 GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
 
