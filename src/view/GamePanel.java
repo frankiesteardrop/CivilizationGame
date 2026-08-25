@@ -354,6 +354,13 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         if (campHex == null || !(campHex.getBuilding() instanceof TribeCamp)) return;
         if (campHex.getBuilding().isDestroyed()) return;
 
+        // ─── گام نهایی: رفع باگ تله‌پاتی (Exploit مه جنگ) ───
+        if (!campHex.isVisible()) {
+            GameEventDispatcher.fireNotification(
+                    "⚠️ This tribe is currently hidden in the Fog of War! You need active vision to interact.");
+            return;
+        }
+
         TribeCamp camp = (TribeCamp) campHex.getBuilding();
 
         if (!camp.isDiscovered()) {

@@ -107,6 +107,13 @@ public class GameInputHandler extends MouseAdapter {
         if (clickedHex.getBuilding() != null && !clickedHex.getBuilding().isDestroyed()) {
             BuildingType bType = clickedHex.getBuilding().getType();
 
+            // ─── جلوگیری از تعامل با ساختمان‌های درون تاریکی (مه جنگ) ───
+            boolean isInteractingWithMenu = (selectedUnit == null || selectedUnit.getAttackRange() <= 0);
+            if (bType != BuildingType.TRIBE_CAMP && isInteractingWithMenu && !clickedHex.isVisible()) {
+                GameEventDispatcher.fireNotification("⚠️ Cannot interact with structures hidden in the Fog of War.");
+                return;
+            }
+
             if (bType == BuildingType.TOWN_HALL) {
                 if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);
@@ -123,7 +130,6 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
-            // اصلاح معماری: واگذاری دیالوگ بازار به لایه View و پاس دادن اکشن آن
             if (bType == BuildingType.BAZAAR) {
                 if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);
@@ -142,7 +148,7 @@ public class GameInputHandler extends MouseAdapter {
                     return;
                 }
                 panel.setSelectedUnit(null);
-                panel.onTribeInteractionTriggered(clickedHex);
+                panel.onTribeInteractionTriggered(clickedHex); // بررسی تاریکیِ مختص قبیله، داخل این متد انجام می‌شود
                 return;
             }
         }
