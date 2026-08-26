@@ -73,7 +73,6 @@ public class CombatController {
 
         validDefenders.forEach(u -> u.consumeAP(1));
 
-        // اصلاح نهایی: اعلام جنگ خودکار در صورت حمله بازیکن به یونیت‌های قبیله
         boolean isPlayerAttacking = !validAttackers.isEmpty() && !validAttackers.get(0).isEnemy();
         if (isPlayerAttacking) {
             for (Unit def : validDefenders) {
@@ -107,7 +106,6 @@ public class CombatController {
             } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
                 Building b = targetHex.getBuilding();
 
-                // اعلام جنگ خودکار در صورت حمله غیرمستقیم به کمپ قبیله
                 if (b instanceof TribeCamp camp) {
                     if (!camp.getTribe().getState().getName().equals("Enemy")) {
                         camp.getTribe().setAllied(false);
@@ -172,19 +170,25 @@ public class CombatController {
         }
 
         if (attackerTakesDmg > 0) {
-            damageChain.handleDamage(validAttackers, attackerTakesDmg);
+            List<Unit> aliveAttackers = validAttackers.stream().filter(Unit::isAlive).collect(Collectors.toList());
+            if (!aliveAttackers.isEmpty()) {
+                damageChain.handleDamage(aliveAttackers, attackerTakesDmg);
+            }
         }
 
         if (defenderTakesDmg > 0) {
             if (isTargetAnimal) {
                 for (Unit bear : validDefenders) {
-                    if (defenderTakesDmg > 0) {
+                    if (defenderTakesDmg > 0 && bear.isAlive()) {
                         bear.kill();
                         defenderTakesDmg--;
                     }
                 }
             } else {
-                damageChain.handleDamage(validDefenders, defenderTakesDmg);
+                List<Unit> aliveDefenders = validDefenders.stream().filter(Unit::isAlive).collect(Collectors.toList());
+                if (!aliveDefenders.isEmpty()) {
+                    damageChain.handleDamage(aliveDefenders, defenderTakesDmg);
+                }
             }
         }
 

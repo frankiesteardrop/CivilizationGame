@@ -1,4 +1,3 @@
-// 2. ArcherDamageHandler.java
 package controller;
 
 import model.Unit;

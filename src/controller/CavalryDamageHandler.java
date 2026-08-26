@@ -1,4 +1,3 @@
-// 3. CavalryDamageHandler.java
 package controller;
 
 import model.Unit;

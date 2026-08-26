@@ -1,4 +1,3 @@
-// 5. SwordsmanDamageHandler.java
 package controller;
 
 import model.Unit;

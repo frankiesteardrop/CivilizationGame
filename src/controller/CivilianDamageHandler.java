@@ -1,4 +1,3 @@
-// 4. CivilianDamageHandler.java
 package controller;
 
 import model.Unit;
