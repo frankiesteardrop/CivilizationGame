@@ -117,6 +117,8 @@ public class TribeController implements UnitListener {
         processTribeGuardsAI();
     }
 
+    // ─── سیستم هوش مصنوعی پیشرفته (Cascade Targeting AI) ───
+
     private void processTribeGuardsAI() {
         List<Unit> guards = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.isEnemy())
@@ -131,9 +133,15 @@ public class TribeController implements UnitListener {
             boolean hasMoved = false;
             boolean hasAttacked = false;
 
+            Hex campHex = getCampHex(guard.getOwnerTribe());
+            if (campHex == null) continue;
+
             while (guard.getCurrentAP() > 0 && guard.isAlive() && (!hasMoved || !hasAttacked)) {
 
-                Unit targetUnit = findClosestPlayerUnit(guard, 5);
+                // سیستم اولویت‌بندی آبشاری
+                Unit targetUnit = findUnitAdjacentToCamp(campHex);
+                if (targetUnit == null) targetUnit = findClosestMilitary(campHex, guard, 5);
+                if (targetUnit == null) targetUnit = findClosestCivilian(campHex, guard, 5);
 
                 if (targetUnit != null) {
                     int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetUnit.getQ(), targetUnit.getR());
@@ -159,7 +167,7 @@ public class TribeController implements UnitListener {
                             }
                             hasAttacked = true;
                         } else {
-                            break;
+                            break; // در هر ترن فقط یک حمله مجاز است
                         }
                     } else {
                         if (!hasMoved) {
@@ -173,7 +181,8 @@ public class TribeController implements UnitListener {
                         }
                     }
                 } else {
-                    Hex targetBuildingHex = findClosestPlayerBuilding(guard, 5);
+                    // اولویت چهارم: حمله به ساختمان مرزی در صورت نبود هیچ یونیتی
+                    Hex targetBuildingHex = findClosestPlayerBuilding(campHex, guard, 5);
                     if (targetBuildingHex != null) {
                         int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
                         if (dist <= guard.getAttackRange()) {
@@ -209,27 +218,67 @@ public class TribeController implements UnitListener {
                             }
                         }
                     } else {
-                        break;
+                        // اولویت پنجم: هیچ هدفی نیست، بازگشت به کمپ
+                        if (guard.getQ() != campHex.getQ() || guard.getR() != campHex.getR()) {
+                            if (!hasMoved) {
+                                Hex nextHex = getNextHexTowards(guard, campHex.getQ(), campHex.getR(), uc);
+                                if (nextHex != null) {
+                                    uc.executeMove(guard, nextHex, map);
+                                    hasMoved = true;
+                                } else break;
+                            } else break;
+                        } else {
+                            break; // هم‌اکنون در کمپ است و هدفی ندارد
+                        }
                     }
                 }
             }
         }
     }
 
-    private Unit findClosestPlayerUnit(Unit guard, int radius) {
+    // ─── متدهای کمکی جدید برای سیستم هوش مصنوعی ───
+
+    private Hex getCampHex(Tribe tribe) {
+        if (tribe == null) return null;
+        for (Hex h : map.getHexes()) {
+            if (h.getBuilding() instanceof TribeCamp camp && camp.getTribe() == tribe) {
+                return h;
+            }
+        }
+        return null;
+    }
+
+    private Unit findUnitAdjacentToCamp(Hex campHex) {
         return map.getUnits().stream()
                 .filter(u -> u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR)
-                .filter(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR()) <= radius)
+                .filter(u -> map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 1)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Unit findClosestMilitary(Hex campHex, Unit guard, int radius) {
+        return map.getUnits().stream()
+                .filter(u -> u.isAlive() && !u.isEnemy() &&
+                        (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY))
+                .filter(u -> map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= radius)
                 .min(Comparator.comparingInt(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR())))
                 .orElse(null);
     }
 
-    private Hex findClosestPlayerBuilding(Unit guard, int radius) {
+    private Unit findClosestCivilian(Hex campHex, Unit guard, int radius) {
+        return map.getUnits().stream()
+                .filter(u -> u.isAlive() && !u.isEnemy() &&
+                        (u.getType() == UnitType.WORKER || u.getType() == UnitType.BUILDER ||
+                                u.getType() == UnitType.EXPLORER || u.getType() == UnitType.BORDER_EXPANDER))
+                .filter(u -> map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= radius)
+                .min(Comparator.comparingInt(u -> map.getHexDistance(guard.getQ(), guard.getR(), u.getQ(), u.getR())))
+                .orElse(null);
+    }
+
+    private Hex findClosestPlayerBuilding(Hex campHex, Unit guard, int radius) {
         return map.getHexes().stream()
-                .filter(h -> h.getBuilding() != null
-                        && !h.getBuilding().isDestroyed()
-                        && h.isInsideBorder()
-                        && map.getHexDistance(guard.getQ(), guard.getR(), h.getQ(), h.getR()) <= radius)
+                .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.isInsideBorder())
+                .filter(h -> map.getHexDistance(campHex.getQ(), campHex.getR(), h.getQ(), h.getR()) <= radius)
                 .min(Comparator.comparingInt(h -> map.getHexDistance(guard.getQ(), guard.getR(), h.getQ(), h.getR())))
                 .orElse(null);
     }
@@ -253,6 +302,8 @@ public class TribeController implements UnitListener {
         }
         return bestHex;
     }
+
+    // ─── سایر عملیات تجاری و دیپلماسی ───
 
     public void acceptMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();
@@ -288,18 +339,14 @@ public class TribeController implements UnitListener {
     public boolean deliverMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();
         if (m == null || !m.getState().canDeliver()) return false;
-
         if (!canHoldMissionReward(camp.getTribe())) return false;
-
         return m.getState().deliver(m, camp, map);
     }
 
     public boolean formAlliance(Tribe targetTribe) {
         if (!targetTribe.canFormAlliance()) return false;
-
         if (targetTribe.getMissionCooldown() > 0) return false;
 
-        // متغیر جامع برای پیگیری هرگونه اتحاد موجود در مپ
         boolean hasAnyOtherAlliance = false;
         boolean hasFarmer = false;
         boolean hasMountain = false;
@@ -308,7 +355,6 @@ public class TribeController implements UnitListener {
         for (Hex h : map.getHexes()) {
             if (h.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
                 Tribe t = camp.getTribe();
-                // نادیده گرفتن خود قبیله هدف و قبایل غیرمتحد
                 if (!t.isAllied() || t == targetTribe) continue;
 
                 hasAnyOtherAlliance = true;
@@ -318,13 +364,8 @@ public class TribeController implements UnitListener {
             }
         }
 
-        // قانون اول: اگر اتحاد جنگجو روی مپ هست، هیچ اتحاد جدیدی مجاز نیست
         if (hasWarrior) return false;
-
-        // قانون دوم: اگر می‌خواهیم با جنگجو متحد شویم، هیچ اتحاد دیگری نباید داشته باشیم
         if (targetTribe.getType() == TribeType.WARRIOR && hasAnyOtherAlliance) return false;
-
-        // قانون سوم: انحصار متقابل کشاورز و کوهستانی
         if (targetTribe.getType() == TribeType.FARMER  && hasMountain) return false;
         if (targetTribe.getType() == TribeType.MOUNTAIN && hasFarmer)  return false;
 
