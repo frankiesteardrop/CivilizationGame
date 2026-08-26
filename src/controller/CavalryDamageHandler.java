@@ -1,8 +1,10 @@
+// 3. CavalryDamageHandler.java
 package controller;
 
 import model.Unit;
 import model.UnitType;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CavalryDamageHandler extends DamageHandler {
     @Override
@@ -10,7 +12,6 @@ public class CavalryDamageHandler extends DamageHandler {
         if (damageAmount <= 0) return;
         for (Unit u : units) {
             if (u.getType() == UnitType.CAVALRY && u.isAlive()) {
-                // اصلاح: تمرکز دمیج روی یک یونیت تا زمان مرگ (برای سواره‌نظام که ۲ جان دارد)
                 while (u.isAlive() && damageAmount > 0) {
                     u.takeDamage(1);
                     damageAmount--;
@@ -18,9 +19,11 @@ public class CavalryDamageHandler extends DamageHandler {
                 if (damageAmount == 0) return;
             }
         }
-        // اصلاح حیاتی: این بخش در کد شما جا افتاده بود که باعث شکستن الگو (Chain) می‌شد!
         if (next != null && damageAmount > 0) {
-            next.handleDamage(units, damageAmount);
+            List<Unit> aliveUnits = units.stream().filter(Unit::isAlive).collect(Collectors.toList());
+            if (!aliveUnits.isEmpty()) {
+                next.handleDamage(aliveUnits, damageAmount);
+            }
         }
     }
 }

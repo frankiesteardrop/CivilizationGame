@@ -1,8 +1,10 @@
+// 4. CivilianDamageHandler.java
 package controller;
 
 import model.Unit;
 import model.UnitType;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CivilianDamageHandler extends DamageHandler {
     @Override
@@ -14,7 +16,6 @@ public class CivilianDamageHandler extends DamageHandler {
                     u.getType() == UnitType.EXPLORER ||
                     u.getType() == UnitType.BORDER_EXPANDER) && u.isAlive()) {
 
-                // اصلاح: تمرکز دمیج روی یک یونیت تا زمان مرگ یا اتمام دمیج
                 while (u.isAlive() && damageAmount > 0) {
                     u.takeDamage(1);
                     damageAmount--;
@@ -23,7 +24,10 @@ public class CivilianDamageHandler extends DamageHandler {
             }
         }
         if (next != null && damageAmount > 0) {
-            next.handleDamage(units, damageAmount);
+            List<Unit> aliveUnits = units.stream().filter(Unit::isAlive).collect(Collectors.toList());
+            if (!aliveUnits.isEmpty()) {
+                next.handleDamage(aliveUnits, damageAmount);
+            }
         }
     }
 }

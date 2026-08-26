@@ -1,14 +1,15 @@
+// 1. EconomyController.java
 package controller;
 
 import model.*;
+import java.util.List;
 
 public class EconomyController implements TurnListener, BuildingListener {
 
     private final MainController mainController;
 
-    // ─── سیستم Stateful Delta Tracking برای مدیریت انباشته رضایت ───
     private int lastMonumentCount = 0;
-    private int lastSettlementCount = 0; // متغیر جدید برای جلوگیری از نشت رضایت
+    private int lastSettlementCount = 0;
     private boolean lastGarrisonState = false;
     private boolean lastCapState = false;
     private boolean isHappinessInitialized = false;
@@ -23,34 +24,22 @@ public class EconomyController implements TurnListener, BuildingListener {
                 .anyMatch(h -> h.getBuilding() instanceof TribeCamp
                         && !h.getBuilding().isDestroyed()
                         && ((TribeCamp) h.getBuilding()).getTribe().isAllied()
-                        && ((TribeCamp) h.getBuilding()).getTribe().getType()
-                        == TribeType.COASTAL);
+                        && ((TribeCamp) h.getBuilding()).getTribe().getType() == TribeType.COASTAL);
     }
 
-    /**
-     * همگام‌سازی رویدادمحور و انباشته‌ی متغیر رضایت (Happiness).
-     * این متد تغییرات لحظه‌ای را بررسی کرده و اختلاف (Delta) را یک‌بار اعمال می‌کند.
-     */
     private void updateHappinessState(GameMap map) {
         TownHall th = map.getTownHall();
-
         int currentMonuments = (int) map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.MONUMENT)
                 .count();
-
-        // شمارش زنده شهرک‌های سالم موجود در نقشه
         int currentSettlements = (int) map.getHexes().stream()
                 .filter(h -> h.getBuilding() != null && !h.getBuilding().isDestroyed() && h.getBuilding().getType() == BuildingType.SETTLEMENT)
                 .count();
-
-        // اصلاح امنیتی: اطمینان از اینکه نیروی روی TownHall متعلق به خود بازیکن است نه دشمن
         boolean currentGarrison = map.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && !u.isEnemy() && u.getQ() == th.getQ() && u.getR() == th.getR()
                         && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY));
-
         boolean currentCapState = map.getMilitaryUnitCount() >= map.getMilitaryUnitCap();
 
-        // مقداردهی اولیه برای جلوگیری از اعمال مجدد پاداش‌ها هنگام بارگذاری سیو
         if (!isHappinessInitialized) {
             lastMonumentCount = currentMonuments;
             lastSettlementCount = currentSettlements;
@@ -60,27 +49,23 @@ public class EconomyController implements TurnListener, BuildingListener {
             return;
         }
 
-        // اعمال پاداش Monument
         int monumentDiff = currentMonuments - lastMonumentCount;
         if (monumentDiff != 0) {
             th.addHappiness(monumentDiff * 2);
             lastMonumentCount = currentMonuments;
         }
 
-        // اعمال جریمه Settlement به صورت داینامیک (در صورت تخریب، امتیاز برمی‌گردد)
         int settlementDiff = currentSettlements - lastSettlementCount;
         if (settlementDiff != 0) {
-            th.addHappiness(-settlementDiff); // ۱- برای ساخت، ۱+ برای تخریب
+            th.addHappiness(-settlementDiff);
             lastSettlementCount = currentSettlements;
         }
 
-        // اعمال پاداش پادگان (Garrison)
         if (currentGarrison != lastGarrisonState) {
             th.addHappiness(currentGarrison ? 1 : -1);
             lastGarrisonState = currentGarrison;
         }
 
-        // اعمال جریمه سقف ارتش (و جبران آن در صورت خالی شدن ظرفیت)
         if (currentCapState != lastCapState) {
             th.addHappiness(currentCapState ? -1 : 1);
             if (currentCapState) {
@@ -93,7 +78,7 @@ public class EconomyController implements TurnListener, BuildingListener {
     }
 
     public int getEffectiveHappiness(GameMap map) {
-        updateHappinessState(map); // همیشه قبل از خواندن رضایت، وضعیت رویدادها را سینک می‌کنیم
+        updateHappinessState(map);
         return map.getTownHall().getHappiness();
     }
 
@@ -124,15 +109,45 @@ public class EconomyController implements TurnListener, BuildingListener {
         return isStarving;
     }
 
+    // ─── Single Source of Truth for Resource Extraction (DRY) ───
+    private Hex resolveExtractionHex(GameMap map, Hex hex, Building b, ResourceType targetRes) {
+        if (b.getType() == BuildingType.DOCK && targetRes == ResourceType.FOOD) {
+            for (int i = 0; i < 6; i++) {
+                Hex neighbor = map.getNeighbor(hex, i);
+                if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
+                    return neighbor;
+                }
+            }
+            return null;
+        }
+        return hex.hasResource(targetRes) ? hex : null;
+    }
+
+    // ─── Single Source of Truth for Farm Synergy (DRY) ───
+    private int calculateFarmSynergy(GameMap map) {
+        int farmPairs = 0;
+        for (Hex hex : map.getHexes()) {
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed() && b.getType() == BuildingType.FARM) {
+                for (int i = 0; i < 6; i++) {
+                    Hex n = map.getNeighbor(hex, i);
+                    if (n != null && n.getBuilding() != null && !n.getBuilding().isDestroyed() && n.getBuilding().getType() == BuildingType.FARM) {
+                        farmPairs++;
+                    }
+                }
+            }
+        }
+        return farmPairs / 2;
+    }
+
     private void produceResources(GameMap map) {
-        TownHall  townHall  = map.getTownHall();
+        TownHall townHall = map.getTownHall();
         Inventory inventory = townHall.getInventory();
         final int happiness = getEffectiveHappiness(map);
-        Season    season    = map.getCurrentSeason();
-        boolean   coastalAllied = isCoastalAllied(map);
+        Season season = map.getCurrentSeason();
+        boolean coastalAllied = isCoastalAllied(map);
 
         townHall.produceSafeguardResources();
-        int farmPairs = 0;
 
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
@@ -141,34 +156,16 @@ public class EconomyController implements TurnListener, BuildingListener {
             ResourceType targetRes = b.getType().getProducedResource();
             if (targetRes == ResourceType.NONE) continue;
 
-            boolean canProduce = false;
-            Hex targetExtractionHex = hex;
-
-            if (b.getType() == BuildingType.DOCK && targetRes == ResourceType.FOOD) {
-                for (int i = 0; i < 6; i++) {
-                    Hex neighbor = map.getNeighbor(hex, i);
-                    if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
-                        targetExtractionHex = neighbor;
-                        canProduce = true;
-                        break;
-                    }
-                }
-            } else if (hex.hasResource(targetRes)) {
-                canProduce = true;
-            }
-
-            if (!canProduce) {
+            Hex targetExtractionHex = resolveExtractionHex(map, hex, b, targetRes);
+            if (targetExtractionHex == null) {
                 ejectWorkersFromHex(map, hex);
                 continue;
             }
 
             int production = calculateBuildingGrossProduction(b, hex, map, townHall, season, happiness, coastalAllied);
-
             if (production <= 0) continue;
 
-            int currentAmount = inventory.getResourceAmount(targetRes);
-            int capacity = inventory.getCapacity(targetRes);
-            int availableSpace = Math.max(0, capacity - currentAmount);
+            int availableSpace = Math.max(0, inventory.getCapacity(targetRes) - inventory.getResourceAmount(targetRes));
             int actualToExtract = Math.min(production, availableSpace);
 
             if (actualToExtract > 0) {
@@ -176,23 +173,15 @@ public class EconomyController implements TurnListener, BuildingListener {
                 inventory.addResource(targetRes, extracted);
             }
 
-            if (!targetExtractionHex.hasResource(targetRes))
+            if (!targetExtractionHex.hasResource(targetRes)) {
                 ejectWorkersFromHex(map, hex);
-
-            if (b.getType() == BuildingType.FARM) {
-                for (int i = 0; i < 6; i++) {
-                    Hex neighbor = map.getNeighbor(hex, i);
-                    if (neighbor != null && neighbor.getBuilding() != null && !neighbor.getBuilding().isDestroyed() && neighbor.getBuilding().getType() == BuildingType.FARM) {
-                        farmPairs++;
-                    }
-                }
             }
         }
 
-        farmPairs /= 2;
-        if (farmPairs > 0) {
-            int space = inventory.getCapacity(ResourceType.FOOD) - inventory.getResourceAmount(ResourceType.FOOD);
-            int actualBonus = Math.min(farmPairs, space);
+        int synergyBonus = calculateFarmSynergy(map);
+        if (synergyBonus > 0) {
+            int availableFoodSpace = Math.max(0, inventory.getCapacity(ResourceType.FOOD) - inventory.getResourceAmount(ResourceType.FOOD));
+            int actualBonus = Math.min(synergyBonus, availableFoodSpace);
             if (actualBonus > 0) inventory.addResource(ResourceType.FOOD, actualBonus);
         }
     }
@@ -209,9 +198,7 @@ public class EconomyController implements TurnListener, BuildingListener {
                 if (b.isDestroyed()) {
                     hex.setBuilding(null);
                     GameEventDispatcher.fireBuildingDestroyed(hex);
-                    GameEventDispatcher.fireNotification(
-                            "⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!"
-                    );
+                    GameEventDispatcher.fireNotification("⚠️ " + b.getType().name() + " collapsed due to 3 turns of unpaid upkeep!");
                 }
             } else {
                 b.resetFailedUpkeep();
@@ -221,8 +208,6 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     private boolean processFoodConsumption(GameMap map) {
         Inventory inventory = map.getTownHall().getInventory();
-
-        // اصلاح حیاتی: فقط نیروهای خودی که خرس نیستند و دشمن نیستند از انبار غذا مصرف می‌کنند
         int totalFoodNeeded = map.getUnits().stream()
                 .filter(u -> u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR)
                 .mapToInt(Unit::getFoodConsumption)
@@ -263,37 +248,13 @@ public class EconomyController implements TurnListener, BuildingListener {
         if (type == ResourceType.WOOD) grossProduction += GameConfig.SAFEGUARD_WOOD_AMOUNT;
         if (type == ResourceType.FOOD) grossProduction += GameConfig.SAFEGUARD_FOOD_AMOUNT;
 
-        int farmPairs = 0;
-
         for (Hex h : map.getHexes()) {
             Building b = h.getBuilding();
             if (b == null || b.isDestroyed() || b.getType() == BuildingType.TOWN_HALL) continue;
 
             if (b.getType().getProducedResource() == type) {
-                boolean hasResourceForNet = h.hasResource(type);
-                if (b.getType() == BuildingType.DOCK && type == ResourceType.FOOD) {
-                    hasResourceForNet = false;
-                    for (int i = 0; i < 6; i++) {
-                        Hex neighbor = map.getNeighbor(h, i);
-                        if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
-                            hasResourceForNet = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (hasResourceForNet) {
-                    int prod = calculateBuildingGrossProduction(b, h, map, townHall, season, happiness, coastalAllied);
-                    grossProduction += prod;
-                }
-            }
-
-            if (b.getType() == BuildingType.FARM && type == ResourceType.FOOD) {
-                for (int i = 0; i < 6; i++) {
-                    Hex neighbor = map.getNeighbor(h, i);
-                    if (neighbor != null && neighbor.getBuilding() != null && !neighbor.getBuilding().isDestroyed() && neighbor.getBuilding().getType() == BuildingType.FARM) {
-                        farmPairs++;
-                    }
+                if (resolveExtractionHex(map, h, b, type) != null) {
+                    grossProduction += calculateBuildingGrossProduction(b, h, map, townHall, season, happiness, coastalAllied);
                 }
             }
 
@@ -303,17 +264,15 @@ public class EconomyController implements TurnListener, BuildingListener {
         }
 
         if (type == ResourceType.FOOD) {
-            grossProduction += (farmPairs / 2);
+            grossProduction += calculateFarmSynergy(map);
             for (Unit u : map.getUnits()) {
-                // اصلاح حیاتی: عدم کسر غذای گاردهای قبیله دشمن و حیوانات وحشی از گزارش خالص
                 if (u.isAlive() && !u.isEnemy() && u.getType() != UnitType.BEAR) {
                     grossConsumption += u.getFoodConsumption();
                 }
             }
         }
 
-        int currentAmount = inventory.getResourceAmount(type);
-        int availableSpace = Math.max(0, inventory.getCapacity(type) - currentAmount);
+        int availableSpace = Math.max(0, inventory.getCapacity(type) - inventory.getResourceAmount(type));
         return Math.min(grossProduction, availableSpace) - grossConsumption;
     }
 
@@ -356,7 +315,6 @@ public class EconomyController implements TurnListener, BuildingListener {
         }
 
         if (happiness <= -3) production -= b.getStationedWorkers();
-
         if (happiness >= 3) {
             production += (int) Math.ceil(production * 0.1);
         }
