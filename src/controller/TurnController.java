@@ -23,83 +23,77 @@ public class TurnController {
     }
 
     public void forceEndTurn() {
-        // I3 (گام ۳): اطلاع به Pause Menu که Save در این لحظه مجاز نیست
         mainController.setProcessingTurn(true);
         try {
             executeEndTurnLogic();
         } finally {
-            // تضمین reset شدن flag حتی در صورت exception
             mainController.setProcessingTurn(false);
         }
     }
 
-    /**
-     * منطق اصلی End Turn — جدا از flag management برای خوانایی بهتر.
-     */
     private void executeEndTurnLogic() {
-        int effectiveHappiness = mainController.getEconomyController()
-                .getEffectiveHappiness(gameMap);
-
-        // ─── ۱. تجدید AP یونیت‌ها و اعمال جریمه شورش (Rebellion) ───
-        for (Unit unit : gameMap.getUnits()) {
-            if (unit.isAlive()) {
-                unit.resetAP();
-
-                // اصلاح حیاتی: اضافه شدن شرط !unit.isEnemy() تا جریمه شورش فقط به نیروهای بازیکن بخورد نه قبایل
-                if (effectiveHappiness <= -5 && !unit.isEnemy()) {
-                    UnitType t = unit.getType();
-                    if (t == UnitType.WORKER    || t == UnitType.SWORDSMAN
-                            || t == UnitType.ARCHER    || t == UnitType.CAVALRY) {
-                        unit.consumeAP(1);
-                    }
-                }
-            }
-        }
-
-        // ─── ۲. کاهش تایمر توقف تولید سیل ──────────────────────────────────
+        // 1. کاهش تایمر توقف تولید سیل
         for (Hex hex : gameMap.getHexes()) {
             if (hex.getBuilding() != null) {
                 hex.getBuilding().decrementFloodHalt();
             }
         }
 
-        // ─── ۳. پاکسازی ایمن واحدهای مرده ───────────────────────────────────
+        // 2. پاکسازی ایمن واحدهای مرده
         gameMap.removeDeadUnits();
 
-        // ─── ۴. N2: تشخیص تغییر فصل قبل از increment ────────────────────────
+        // 3. تغییر فصل
         Season seasonBefore = gameMap.getCurrentSeason();
-
         gameMap.incrementTurn();
         gameMap.updateFogOfWar();
-
-        // ─── ۵. N2: Notification تغییر فصل ───────────────────────────────────
         Season seasonAfter = gameMap.getCurrentSeason();
         if (seasonBefore != seasonAfter) {
             fireSeasonChangeNotification(seasonAfter);
         }
 
-        // ─── ۶. هوش مصنوعی خرس و بلایای طبیعی ─────────────────────────────
+        // 4. تجدید AP خرس‌ها برای هوش مصنوعی
+        for (Unit unit : gameMap.getUnits()) {
+            if (unit.isAlive() && unit.getType() == UnitType.BEAR) {
+                unit.resetAP();
+            }
+        }
         DisasterController disasterController = new DisasterController(gameMap);
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // ─── ۷. اطلاع‌رسانی پایان نوبت و رفتار قبایل ────────────────────────
+        // 5. رویدادهای پایان نوبت (تولید منابع، آپگریدها، اعمال قحطی اولیه)
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
+
+        // 6. هوش مصنوعی قبایل (حملات دشمن روی AP قبلی بازیکن اثر می‌گذارد)
         mainController.getTribeController().processTribesTurn();
 
-        // ─── ۸. ذخیره خودکار (Autosave) ───────────────────────────────────
+        // 7. تجدید AP بازیکن در شروع نوبت جدید و اعمال دقیق جریمه‌ها (Sequence Fix)
+        int effectiveHappiness = mainController.getEconomyController().getEffectiveHappiness(gameMap);
+        for (Unit unit : gameMap.getUnits()) {
+            if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
+
+                unit.resetAP(); // پر کردن کامل AP برای نوبت جدید
+
+                // اعمال جریمه شورش (Rebellion)
+                if (effectiveHappiness <= -5) {
+                    UnitType t = unit.getType();
+                    if (t == UnitType.WORKER || t == UnitType.SWORDSMAN
+                            || t == UnitType.ARCHER || t == UnitType.CAVALRY) {
+                        unit.consumeAP(1);
+                    }
+                }
+
+                // جبران جریمه قحطی (Starvation) روی AP جدید
+                if (gameMap.isStarving()) {
+                    unit.consumeAP(1);
+                }
+            }
+        }
+
+        // 8. ذخیره خودکار وضعیت پایدار
         mainController.getSaveLoadController().autosave();
     }
 
-    /**
-     * N2: notification کامل و واضح هنگام تغییر فصل.
-     *
-     * طبق spec، تغییر فصل باید علاوه بر اثرات gameplay، از نظر بصری هم روی صفحه
-     * مشخص باشد. این notification متنی اثرات جدید فصل را برای بازیکن توضیح می‌دهد
-     * تا هیچ‌وقت بدون اطلاع با تغییر ناگهانی وضعیت بازی مواجه نشود.
-     *
-     * @param newSeason فصل جدیدی که شروع شده
-     */
     private void fireSeasonChangeNotification(Season newSeason) {
         String message = switch (newSeason) {
             case SPRING ->

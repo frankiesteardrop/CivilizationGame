@@ -117,8 +117,6 @@ public class TribeController implements UnitListener {
         processTribeGuardsAI();
     }
 
-    // ─── سیستم هوش مصنوعی پیشرفته (Cascade Targeting AI) ───
-
     private void processTribeGuardsAI() {
         List<Unit> guards = map.getUnits().stream()
                 .filter(u -> u.isAlive() && u.isEnemy())
@@ -130,6 +128,9 @@ public class TribeController implements UnitListener {
         CombatController cc = new CombatController(map);
 
         for (Unit guard : guards) {
+            // اصلاح حیاتی (تأمین AP هوش مصنوعی در ابتدای رفتار آن)
+            guard.resetAP();
+
             boolean hasMoved = false;
             boolean hasAttacked = false;
 
@@ -138,7 +139,6 @@ public class TribeController implements UnitListener {
 
             while (guard.getCurrentAP() > 0 && guard.isAlive() && (!hasMoved || !hasAttacked)) {
 
-                // سیستم اولویت‌بندی آبشاری
                 Unit targetUnit = findUnitAdjacentToCamp(campHex);
                 if (targetUnit == null) targetUnit = findClosestMilitary(campHex, guard, 5);
                 if (targetUnit == null) targetUnit = findClosestCivilian(campHex, guard, 5);
@@ -167,7 +167,7 @@ public class TribeController implements UnitListener {
                             }
                             hasAttacked = true;
                         } else {
-                            break; // در هر ترن فقط یک حمله مجاز است
+                            break;
                         }
                     } else {
                         if (!hasMoved) {
@@ -181,7 +181,6 @@ public class TribeController implements UnitListener {
                         }
                     }
                 } else {
-                    // اولویت چهارم: حمله به ساختمان مرزی در صورت نبود هیچ یونیتی
                     Hex targetBuildingHex = findClosestPlayerBuilding(campHex, guard, 5);
                     if (targetBuildingHex != null) {
                         int dist = map.getHexDistance(guard.getQ(), guard.getR(), targetBuildingHex.getQ(), targetBuildingHex.getR());
@@ -218,7 +217,6 @@ public class TribeController implements UnitListener {
                             }
                         }
                     } else {
-                        // اولویت پنجم: هیچ هدفی نیست، بازگشت به کمپ
                         if (guard.getQ() != campHex.getQ() || guard.getR() != campHex.getR()) {
                             if (!hasMoved) {
                                 Hex nextHex = getNextHexTowards(guard, campHex.getQ(), campHex.getR(), uc);
@@ -228,15 +226,13 @@ public class TribeController implements UnitListener {
                                 } else break;
                             } else break;
                         } else {
-                            break; // هم‌اکنون در کمپ است و هدفی ندارد
+                            break;
                         }
                     }
                 }
             }
         }
     }
-
-    // ─── متدهای کمکی جدید برای سیستم هوش مصنوعی ───
 
     private Hex getCampHex(Tribe tribe) {
         if (tribe == null) return null;
@@ -302,8 +298,6 @@ public class TribeController implements UnitListener {
         }
         return bestHex;
     }
-
-    // ─── سایر عملیات تجاری و دیپلماسی ───
 
     public void acceptMission(TribeCamp camp) {
         Mission m = camp.getTribe().getMission();

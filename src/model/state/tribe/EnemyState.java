@@ -1,4 +1,5 @@
 package model.state.tribe;
+
 import model.*;
 import java.util.List;
 
@@ -16,24 +17,21 @@ public class EnemyState implements TribeState {
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex, GameMap map, List<Runnable> deferredActions) {
         int currentCount = camp.getAndIncrementGuardCounter();
         if (currentCount > 0 && currentCount % 3 == 0) {
+
+            // اصلاح حیاتی (Unit Cap Exploit): شمارش یگان‌های این قبیله در کل مپ به جای شعاع 3 هکسی
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
-                            // شمارش هر دو نوع نیروی نظامی برای جلوگیری از تولید بیش از حد
                             && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER)
-                            && u.isEnemy()
-                            && map.getHexDistance(campHex.getQ(), campHex.getR(), u.getQ(), u.getR()) <= 3)
+                            && u.getOwnerTribe() == tribe)
                     .count();
 
-            // تعیین سقف مجاز تولید گارد بر اساس نوع قبیله
             int maxGuards = (tribe.getType() == TribeType.WARRIOR) ? 5 : 3;
 
-            // بررسی رسیدن به سقف داینامیک به جای صفر بودن
             if (currentGuards < maxGuards) {
                 deferredActions.add(() -> {
                     Hex spawnHex = map.findNearbyEmptyHex(campHex.getQ(), campHex.getR(), 3);
                     if (spawnHex != null) {
 
-                        // هوش مصنوعی ارتش متنوع برای قبیله جنگجو
                         UnitType guardType = UnitType.SWORDSMAN;
                         if (tribe.getType() == TribeType.WARRIOR) {
                             guardType = map.getRandom().nextBoolean() ? UnitType.SWORDSMAN : UnitType.ARCHER;
@@ -41,8 +39,6 @@ public class EnemyState implements TribeState {
 
                         Unit guard = UnitFactory.createUnit(guardType, spawnHex.getQ(), spawnHex.getR());
                         guard.setEnemy(true);
-
-                        // اصلاح نهایی: ثبت قبیله به عنوان مالک این یونیت
                         guard.setOwnerTribe(tribe);
 
                         map.addUnit(guard);
