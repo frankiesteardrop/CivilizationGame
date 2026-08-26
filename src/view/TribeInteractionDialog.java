@@ -1,6 +1,7 @@
 package view;
 
 import controller.MainController;
+import controller.TradeController;
 import controller.TribeController;
 import model.*;
 import model.mission.Mission;
@@ -156,7 +157,6 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // اصلاح گام سوم: اضافه کردن منطق بررسی ظرفیت انبار پیش از فعال کردن دکمه تحویل
         boolean isMissionReady = tribe.getMission() != null && tribe.getMission().getState().canDeliver();
         boolean hasCapacity = tribeController.canHoldMissionReward(tribe);
         boolean canDeliver = isMissionReady && hasCapacity;
@@ -402,38 +402,21 @@ public class TribeInteractionDialog extends JDialog {
 
         JButton confirmBtn = buildSubButton("✅ Confirm Trade", true);
 
+        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             int amt = (int) amountSpinner.getValue();
             ResourceType getRes = allRes[getBox.getSelectedIndex()];
             ResourceType giveRes = allRes[giveBox.getSelectedIndex()];
 
-            if (giveRes == getRes) {
-                preview.setText("⚠️ Cannot trade same resource!");
-                preview.setForeground(ACCENT_RED);
-                confirmBtn.setEnabled(false);
-                return;
-            }
+            TradeController.TradePreview previewResult = mainController.getTradeController()
+                    .previewTribeTrade(tribe, giveRes, amt, getRes);
 
-            Inventory inv = mainController.getGameMap().getTownHall().getInventory();
-            boolean hasEnoughGive = inv.hasEnough(giveRes, amt);
-
-            int recv = tribe.getType().getTradeStrategy()
-                    .calculateReceivedAmount(amt, getRes, tribe.hasTradeBonus());
-
-            int currentGet = inv.getResourceAmount(getRes);
-            int capGet = inv.getCapacity(getRes);
-            boolean hasCapacity = (currentGet + recv <= capGet);
-
-            if (!hasEnoughGive) {
-                preview.setText("⚠️ Not enough " + giveRes.name() + "!");
-                preview.setForeground(ACCENT_RED);
-                confirmBtn.setEnabled(false);
-            } else if (!hasCapacity) {
-                preview.setText("⚠️ Storage full! Cannot hold " + recv + " " + getRes.name());
+            if (!previewResult.isValid) {
+                preview.setText("⚠️ " + previewResult.errorMessage);
                 preview.setForeground(ACCENT_RED);
                 confirmBtn.setEnabled(false);
             } else {
-                preview.setText("You receive: ~" + recv + " " + resEmoji[getBox.getSelectedIndex()].split(" ")[1]);
+                preview.setText("You receive: ~" + previewResult.receivedAmount + " " + resEmoji[getBox.getSelectedIndex()].split(" ")[1]);
                 preview.setForeground(ACCENT_GREEN);
                 confirmBtn.setEnabled(true);
             }

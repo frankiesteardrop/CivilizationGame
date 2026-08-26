@@ -3,10 +3,8 @@ package view;
 import controller.TradeController;
 import model.GameEventDispatcher;
 import model.Hex;
-import model.Inventory;
 import model.ResourceType;
 import model.TradingPost;
-import model.trade.TradingPostTradeStrategy;
 
 import javax.swing.*;
 import java.awt.*;
@@ -50,7 +48,6 @@ public class TradingPostTradeDialog extends JDialog {
         amountLbl.setForeground(Color.LIGHT_GRAY);
         content.add(amountLbl, gbc);
 
-        // ورودی سفارشی مقدار در مرکز تجارت
         JSpinner amountSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 9999, 5));
         amountSpinner.getEditor().getComponent(0).setBackground(new Color(35, 39, 48));
         ((JSpinner.DefaultEditor) amountSpinner.getEditor()).getTextField().setForeground(Color.WHITE);
@@ -80,41 +77,20 @@ public class TradingPostTradeDialog extends JDialog {
         gbc.gridy = 5;
         content.add(confirmBtn, gbc);
 
+        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             ResourceType give = types[giveBox.getSelectedIndex()];
             ResourceType get = types[getBox.getSelectedIndex()];
             int amount = (int) amountSpinner.getValue();
 
-            if (give == get) {
-                preview.setText("⚠️ Cannot trade a resource for itself!");
-                preview.setForeground(new Color(231, 76, 60));
-                confirmBtn.setEnabled(false);
-                return;
-            }
+            TradeController.TradePreview previewResult = tradeController.previewTradingPostTrade(give, amount, get);
 
-            Inventory inv = tradeController.getPlayerInventory();
-            boolean hasEnoughGive = inv.hasEnough(give, amount);
-
-            int recv = new TradingPostTradeStrategy().calculateReceivedAmount(amount, get, false);
-
-            int currentGet = inv.getResourceAmount(get);
-            int capGet = inv.getCapacity(get);
-            boolean hasCapacity = (currentGet + recv <= capGet);
-
-            if (!hasEnoughGive) {
-                preview.setText("⚠️ Not enough " + give.name() + "!");
-                preview.setForeground(new Color(231, 76, 60));
-                confirmBtn.setEnabled(false);
-            } else if (recv <= 0) {
-                preview.setText("⚠️ Amount too small for an 80% return!");
-                preview.setForeground(new Color(231, 76, 60));
-                confirmBtn.setEnabled(false);
-            } else if (!hasCapacity) {
-                preview.setText("⚠️ Storage full! Need space for " + recv + " " + get.name());
+            if (!previewResult.isValid) {
+                preview.setText("⚠️ " + previewResult.errorMessage);
                 preview.setForeground(new Color(231, 76, 60));
                 confirmBtn.setEnabled(false);
             } else {
-                preview.setText("You will receive: " + recv + " " + get.name() + " ✅");
+                preview.setText("You will receive: " + previewResult.receivedAmount + " " + get.name() + " ✅");
                 preview.setForeground(new Color(46, 204, 113));
                 confirmBtn.setEnabled(true);
             }

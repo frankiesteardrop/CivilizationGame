@@ -3,9 +3,7 @@ package view;
 import controller.TradeController;
 import model.Bazaar;
 import model.GameEventDispatcher;
-import model.Inventory;
 import model.ResourceType;
-import model.trade.BazaarTradeStrategy;
 
 import javax.swing.*;
 import java.awt.*;
@@ -71,38 +69,19 @@ public class BazaarTradeDialog extends JDialog {
         gbc.gridy = 4;
         content.add(confirmBtn, gbc);
 
-        // اعتبارسنجی زنده (Live Validation)
+        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             ResourceType give = types[giveBox.getSelectedIndex()];
             ResourceType get = types[getBox.getSelectedIndex()];
 
-            if (give == get) {
-                preview.setText("⚠️ Cannot trade a resource for itself!");
-                preview.setForeground(new Color(231, 76, 60));
-                confirmBtn.setEnabled(false);
-                return;
-            }
+            TradeController.TradePreview previewResult = tradeController.previewBazaarTrade(bazaar, give, get);
 
-            Inventory inv = tradeController.getPlayerInventory();
-            boolean hasEnoughGive = inv.hasEnough(give, amount);
-
-            int recv = new BazaarTradeStrategy(bazaar.getLevel())
-                    .calculateReceivedAmount(amount, get, tradeController.isCommercialAllied());
-
-            int currentGet = inv.getResourceAmount(get);
-            int capGet = inv.getCapacity(get);
-            boolean hasCapacity = (currentGet + recv <= capGet);
-
-            if (!hasEnoughGive) {
-                preview.setText("⚠️ Not enough " + give.name() + " to trade!");
-                preview.setForeground(new Color(231, 76, 60));
-                confirmBtn.setEnabled(false);
-            } else if (!hasCapacity) {
-                preview.setText("⚠️ Storage full! Need space for " + recv + " " + get.name());
+            if (!previewResult.isValid) {
+                preview.setText("⚠️ " + previewResult.errorMessage);
                 preview.setForeground(new Color(231, 76, 60));
                 confirmBtn.setEnabled(false);
             } else {
-                preview.setText("You will receive: " + recv + " " + get.name() + " ✅");
+                preview.setText("You will receive: " + previewResult.receivedAmount + " " + get.name() + " ✅");
                 preview.setForeground(new Color(46, 204, 113));
                 confirmBtn.setEnabled(true);
             }
