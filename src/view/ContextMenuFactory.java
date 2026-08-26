@@ -96,7 +96,6 @@ public class ContextMenuFactory {
 
         if (bazaar.canUpgrade()) {
             int stoneCost = (level == 1) ? 30 : 60;
-            // اصلاح حیاتی MVC: واگذاری منطق اعتبارسنجی و ارتقا به کنترلر
             boolean canUpg = mc.getTradeController().canUpgradeBazaar(bazaar);
             actions.add(new MenuAction("⬆️ Upgrade Bazaar → Level " + (level + 1) + " (" + stoneCost + " Stone)",
                     canUpg, "Need " + stoneCost + " Stone to upgrade", () -> {
@@ -105,6 +104,21 @@ public class ContextMenuFactory {
         } else {
             actions.add(new MenuAction("✅ Bazaar is at Max Level (3)", false, null));
         }
+
+        return actions;
+    }
+
+    // اصلاح حیاتی: متد سازنده منوی Trading Post با بررسی قلمرو بازیکن
+    public static List<MenuAction> buildTradingPostMenu(MainController mc, TradingPost post, Hex hex, Runnable onTradeAction) {
+        List<MenuAction> actions = new ArrayList<>();
+
+        if (!hex.isInsideBorder()) {
+            actions.add(new MenuAction("⛔ Hex must be in your territory to trade", false, null));
+            return actions;
+        }
+
+        boolean traded = post.hasTraded();
+        actions.add(new MenuAction("🏪 Trade (80% Rate - Custom Amount)", !traded, "Already traded this turn", onTradeAction));
 
         return actions;
     }

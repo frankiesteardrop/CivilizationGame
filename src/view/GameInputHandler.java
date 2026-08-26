@@ -139,8 +139,20 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
+            // اصلاح حیاتی: هندلر جدید برای اتصال Trading Post به UI
+            if (bType == BuildingType.TRADING_POST) {
+                if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
+                    panel.setSelectedUnit(null);
+                    TradingPost post = (TradingPost) clickedHex.getBuilding();
+                    panel.showContextMenu(e.getPoint(), ContextMenuFactory.buildTradingPostMenu(mainController, post, clickedHex, () -> {
+                        JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(panel);
+                        new TradingPostTradeDialog(parentFrame, post, clickedHex, mainController.getTradeController()).setVisible(true);
+                    }));
+                    return;
+                }
+            }
+
             if (bType == BuildingType.TRIBE_CAMP) {
-                // استفاده از isAttackable به جای isHostile برای رفع مصونیت قبایل
                 if (selectedUnit != null && selectedUnit.getAttackRange() > 0 && mainController.isAttackable(clickedHex)) {
                     panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
                     return;
