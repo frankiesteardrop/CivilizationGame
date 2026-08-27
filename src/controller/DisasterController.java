@@ -20,13 +20,11 @@ public class DisasterController {
         this.random = map.getRandom();
         this.disasterStrategies = new ArrayList<>();
 
-        // [OCP FIX]: Registering strategies instead of hardcoding methods
         disasterStrategies.add(new EarthquakeStrategy());
         disasterStrategies.add(new FloodStrategy());
         disasterStrategies.add(new BearSpawnStrategy());
     }
 
-    // ─── Strategy Interface ──────────────────────────────────────────────────
     private interface DisasterStrategy {
         boolean canTrigger(GameMap map, Season currentSeason);
         void trigger(GameMap map, Random random);
@@ -47,8 +45,6 @@ public class DisasterController {
             chosen.trigger(map, random);
         }
     }
-
-    // ─── Concrete Strategies ─────────────────────────────────────────────────
 
     private static class EarthquakeStrategy implements DisasterStrategy {
         @Override
@@ -203,7 +199,7 @@ public class DisasterController {
         }
     }
 
-    // ─── Bear AI (Unchanged logically, just kept clean) ──────────────────────
+    // ─── Bear AI with Safe BFS Pathfinding ───────────────────────────────────
 
     public void processBearAI() {
         List<Unit> bears = map.getUnits().stream()
@@ -266,6 +262,65 @@ public class DisasterController {
         }
     }
 
+    // ─── [GAMEPLAY FIX]: BFS algorithm with Visited Set to avoid Deadlocks ───
+    private Hex findNextStepBFS(int startQ, int startR, int targetQ, int targetR, int maxDepth) {
+        Queue<Hex> queue = new LinkedList<>();
+        Map<Hex, Hex> parentMap = new HashMap<>();
+        Set<Hex> visited = new HashSet<>();
+
+        Hex startHex = map.getHexAt(startQ, startR);
+        Hex targetHex = map.getHexAt(targetQ, targetR);
+        if (startHex == null || targetHex == null) return null;
+
+        queue.add(startHex);
+        visited.add(startHex);
+        boolean found = false;
+
+        while(!queue.isEmpty()) {
+            Hex current = queue.poll();
+            if (current.equals(targetHex)) {
+                found = true;
+                break;
+            }
+            if (map.getHexDistance(startQ, startR, current.getQ(), current.getR()) >= maxDepth) continue;
+
+            for (int i = 0; i < 6; i++) {
+                Hex neighbor = map.getNeighbor(current, i);
+                if (neighbor == null || visited.contains(neighbor)) continue;
+                if (neighbor.getTerrainType() == TerrainType.SEA || neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
+
+                visited.add(neighbor);
+                parentMap.put(neighbor, current);
+                queue.add(neighbor);
+            }
+        }
+
+        if (!found) {
+            Hex closest = null;
+            int minD = Integer.MAX_VALUE;
+            for (Hex h : visited) {
+                int d = map.getHexDistance(h.getQ(), h.getR(), targetQ, targetR);
+                if (d < minD) { minD = d; closest = h; }
+            }
+            targetHex = closest;
+        }
+
+        if (targetHex == null || targetHex.equals(startHex)) return null;
+
+        Hex step = targetHex;
+        while (parentMap.get(step) != null && !parentMap.get(step).equals(startHex)) {
+            step = parentMap.get(step);
+        }
+        return step;
+    }
+
+    private void moveBearTowardTarget(Unit bear, Unit target, int lairQ, int lairR) {
+        Hex bestHex = findNextStepBFS(bear.getQ(), bear.getR(), target.getQ(), target.getR(), 5);
+        if (bestHex != null && map.getHexDistance(lairQ, lairR, bestHex.getQ(), bestHex.getR()) <= BEAR_LAIR_RADIUS) {
+            bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
+        }
+    }
+
     private void retreatBear(Unit bear, int lairQ, int lairR) {
         int dist = map.getHexDistance(bear.getQ(), bear.getR(), lairQ, lairR);
         if (dist == 0) {
@@ -275,22 +330,10 @@ public class DisasterController {
         }
         if (bear.getCurrentAP() < 1) return;
 
-        int bestDist = Integer.MAX_VALUE;
-        Hex bestHex = null;
-        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{0,-1},{0,1}};
-
-        for (int[] dir : dirs) {
-            int nq = bear.getQ() + dir[0], nr = bear.getR() + dir[1];
-            Hex neighbor = map.getHexAt(nq, nr);
-            if (neighbor == null || neighbor.getTerrainType() == TerrainType.SEA || neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
-
-            int d = map.getHexDistance(nq, nr, lairQ, lairR);
-            if (d < bestDist) {
-                bestDist = d;
-                bestHex = neighbor;
-            }
+        Hex bestHex = findNextStepBFS(bear.getQ(), bear.getR(), lairQ, lairR, 5);
+        if (bestHex != null) {
+            bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
         }
-        if (bestHex != null) bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
     }
 
     private Unit findBearTarget(Unit bear, int lairQ, int lairR) {
@@ -304,26 +347,6 @@ public class DisasterController {
                 .filter(u -> u.isAlive() && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY) && map.getHexDistance(lairQ, lairR, u.getQ(), u.getR()) <= BEAR_DETECT_RADIUS)
                 .min(Comparator.comparingInt(u -> map.getHexDistance(bear.getQ(), bear.getR(), u.getQ(), u.getR())))
                 .orElse(null);
-    }
-
-    private void moveBearTowardTarget(Unit bear, Unit target, int lairQ, int lairR) {
-        Hex bestHex = null;
-        int bestDist = Integer.MAX_VALUE;
-        int[][] dirs = {{1,0},{1,-1},{0,-1},{-1,0},{-1,1},{0,1}};
-
-        for (int[] dir : dirs) {
-            int nq = bear.getQ() + dir[0], nr = bear.getR() + dir[1];
-            Hex neighbor = map.getHexAt(nq, nr);
-            if (neighbor == null || neighbor.getTerrainType() == TerrainType.SEA || neighbor.getTerrainType() == TerrainType.MOUNTAIN_RANGE) continue;
-            if (map.getHexDistance(lairQ, lairR, nq, nr) > BEAR_LAIR_RADIUS) continue;
-
-            int distToTarget = map.getHexDistance(nq, nr, target.getQ(), target.getR());
-            if (distToTarget < bestDist) {
-                bestDist = distToTarget;
-                bestHex  = neighbor;
-            }
-        }
-        if (bestHex != null) bear.moveTo(bestHex.getQ(), bestHex.getR(), 1);
     }
 
     private Hex findNearestForest(int q, int r) {

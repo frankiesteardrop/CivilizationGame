@@ -23,7 +23,8 @@ public class BazaarTradeDialog extends JDialog {
         gbc.insets = new Insets(8, 10, 8, 10);
 
         int level = bazaar.getLevel();
-        int amount = (level == 1) ? 10 : (level == 2) ? 100 : 500;
+        // ─── [MVC FIX]: Delegate value retrieval to Controller ───
+        int amount = tradeController.getBazaarTradeAmount(level);
 
         JLabel info = new JLabel("Trade Amount: " + amount + " units", SwingConstants.CENTER);
         info.setForeground(new Color(241, 196, 15));
@@ -56,7 +57,6 @@ public class BazaarTradeDialog extends JDialog {
         gbc.gridx = 1;
         content.add(getBox, gbc);
 
-        // لیبل پیش‌نمایش و هشدار زنده
         JLabel preview = new JLabel("You receive: ~", SwingConstants.CENTER);
         preview.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
@@ -69,7 +69,6 @@ public class BazaarTradeDialog extends JDialog {
         gbc.gridy = 4;
         content.add(confirmBtn, gbc);
 
-        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             ResourceType give = types[giveBox.getSelectedIndex()];
             ResourceType get = types[getBox.getSelectedIndex()];

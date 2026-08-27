@@ -132,10 +132,11 @@ public class TribeInteractionDialog extends JDialog {
 
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        boolean canTrade = tribe.canTrade() && !camp.hasTraded() && tribe.getType() != TribeType.WARRIOR;
-        String tradeDisabledReason = tribe.getType() == TribeType.WARRIOR
-                ? "Warrior tribe does not engage in commerce"
-                : (!tribe.canTrade() ? "Requires Friendly status (≥20 relation)" : "Already traded this turn");
+        // ─── [MVC FIX]: Logic moved to TribeType. View just requests boolean.
+        boolean canTrade = tribe.canTrade() && !camp.hasTraded() && tribe.getType().isTradeAllowed();
+        String tradeDisabledReason = !tribe.getType().isTradeAllowed()
+                ? tribe.getType().getTradeDisabledReason()
+                : (!tribe.canTrade() ? tribe.getType().getTradeDisabledReason() : "Already traded this turn");
 
         actionsPanel.add(buildActionButton(
                 "💱  Trade Resources",
@@ -402,7 +403,6 @@ public class TribeInteractionDialog extends JDialog {
 
         JButton confirmBtn = buildSubButton("✅ Confirm Trade", true);
 
-        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             int amt = (int) amountSpinner.getValue();
             ResourceType getRes = allRes[getBox.getSelectedIndex()];

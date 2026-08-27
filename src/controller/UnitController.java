@@ -34,7 +34,6 @@ public class UnitController {
         if (map != null) {
             Hex fromHex = map.getHexAt(unit.getQ(), unit.getR());
 
-            // اگر یونیت از خشکی قصد ورود به دریا را دارد، کل AP مصرف می‌شود اما حداقل به 1 AP نیاز دارد
             if (targetHex.getTerrainType() == TerrainType.SEA && fromHex != null && fromHex.getTerrainType() != TerrainType.SEA) {
                 return unit.getCurrentAP() >= 1;
             }
@@ -60,7 +59,6 @@ public class UnitController {
         int dr      = targetHex.getR() - unit.getR();
 
         int cost;
-        // اگر یونیت از خشکی وارد دریا می‌شود، طبق قانون داک تمام AP صفر می‌شود
         if (targetHex.getTerrainType() == TerrainType.SEA && fromHex != null && fromHex.getTerrainType() != TerrainType.SEA) {
             cost = unit.getCurrentAP();
         } else {
@@ -75,24 +73,16 @@ public class UnitController {
 
     private boolean hasCapacityForUnit(Unit unit, Hex targetHex, GameMap map) {
         UnitType type = unit.getType();
-        if (type != UnitType.SWORDSMAN
-                && type != UnitType.ARCHER
-                && type != UnitType.CAVALRY) {
+        if (type != UnitType.SWORDSMAN && type != UnitType.ARCHER && type != UnitType.CAVALRY) {
             return true;
         }
 
         int tq = targetHex.getQ();
         int tr = targetHex.getR();
 
-        long swords  = map.getUnits().stream()
-                .filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr
-                        && u.getType() == UnitType.SWORDSMAN).count();
-        long archers = map.getUnits().stream()
-                .filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr
-                        && u.getType() == UnitType.ARCHER).count();
-        long cavs    = map.getUnits().stream()
-                .filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr
-                        && u.getType() == UnitType.CAVALRY).count();
+        long swords  = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.SWORDSMAN).count();
+        long archers = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.ARCHER).count();
+        long cavs    = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CAVALRY).count();
 
         return switch (type) {
             case SWORDSMAN -> swords  < 2;
@@ -105,29 +95,32 @@ public class UnitController {
     private int calculateMoveCost(Hex fromHex, Hex toHex, int dq, int dr, Season season) {
         int cost = toHex.getTerrainType().getMovementCost();
 
-        // عبور از دریا در صورت داشتن تکنولوژی ۱ AP است (مگر اینکه از خشکی وارد شود که کل AP می‌رود)
-        if (toHex.getTerrainType() == TerrainType.SEA) {
-            cost = 1;
-        }
+        if (toHex.getTerrainType() == TerrainType.SEA) cost = 1;
 
         boolean roadConnected = fromHex.hasRoad() && toHex.hasRoad();
         if (roadConnected) cost = 1;
 
         int dir = getDirection(dq, dr);
-        if (dir >= 0 && fromHex.hasRiver(dir)) {
-            if (!roadConnected) cost += 1;
+        boolean crossesRiver = false;
+
+        // ─── [GAMEPLAY FIX]: Double check river crossing ───
+        if (dir >= 0) {
+            if (fromHex.hasRiver(dir) || toHex.hasRiver((dir + 3) % 6)) {
+                crossesRiver = true;
+            }
+        }
+
+        if (crossesRiver && !roadConnected) {
+            cost += 1;
         }
 
         return applySeasonalPenalty(cost, toHex, season);
     }
 
     private int applySeasonalPenalty(int baseCost, Hex toHex, Season season) {
-        if (season == Season.WINTER
-                && toHex.getTerrainType() != TerrainType.SEA
-                && toHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+        if (season == Season.WINTER && toHex.getTerrainType() != TerrainType.SEA && toHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
             return baseCost + 1;
-        } else if (season == Season.AUTUMN
-                && toHex.getTerrainType() == TerrainType.SEA) {
+        } else if (season == Season.AUTUMN && toHex.getTerrainType() == TerrainType.SEA) {
             return baseCost + 1;
         }
         return baseCost;
@@ -155,8 +148,7 @@ public class UnitController {
         if (worker.getCurrentAP() < Worker.getStationApCost()) return false;
 
         Building building = hex.getBuilding();
-        if (building == null || building.isDestroyed()
-                || building.getType() == BuildingType.TOWN_HALL) return false;
+        if (building == null || building.isDestroyed() || building.getType() == BuildingType.TOWN_HALL) return false;
 
         ResourceType res = building.getType().getProducedResource();
 
@@ -165,8 +157,7 @@ public class UnitController {
             boolean hasFish = false;
             for (int i = 0; i < 6; i++) {
                 Hex neighbor = map.getNeighbor(hex, i);
-                if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA
-                        && neighbor.hasResource(ResourceType.FOOD)) {
+                if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA && neighbor.hasResource(ResourceType.FOOD)) {
                     hasFish = true;
                     break;
                 }
@@ -206,9 +197,7 @@ public class UnitController {
 
     public Unit selectUnitAt(Hex hex, GameMap map) {
         java.util.List<Unit> unitsOnHex = map.getUnits().stream()
-                .filter(u -> u.isAlive()
-                        && u.getQ() == hex.getQ()
-                        && u.getR() == hex.getR())
+                .filter(u -> u.isAlive() && u.getQ() == hex.getQ() && u.getR() == hex.getR())
                 .collect(java.util.stream.Collectors.toList());
 
         if (unitsOnHex.isEmpty()) { lastClickedHex = null; return null; }

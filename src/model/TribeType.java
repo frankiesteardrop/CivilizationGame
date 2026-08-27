@@ -8,21 +8,7 @@ public enum TribeType {
 
     FARMER(40, "Farmer", "کشاورز",
             (give, get, bonus) -> get == ResourceType.FOOD ? (int)(give * (0.75 + (bonus ? 0.1 : 0))) : 0,
-            new MissionGoal() {
-                public int getInitialTurns() { return 5; }
-                public boolean isCompleted(GameMap map, TribeCamp camp) {
-                    Inventory inv = map.getTownHall().getInventory();
-                    return inv.hasEnough(ResourceType.WOOD, 20) && inv.hasEnough(ResourceType.STONE, 10);
-                }
-                public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
-                    Inventory inv = map.getTownHall().getInventory();
-                    inv.consumeResource(ResourceType.WOOD, 20);
-                    inv.consumeResource(ResourceType.STONE, 10);
-                    inv.addResource(ResourceType.FOOD, 30);
-                    tribe.addRelationship(15);
-                }
-                public String getDescription() { return "Mission: Build Food Storage\n──────────────────────\nRequirement: Pay 20 Wood + 10 Stone to the tribe.\nReward: 30 Food + 15 relation\nDeadline: 5 turns"; }
-            },
+            new FarmerMissionGoal(),
             (map, hex) -> {
                 map.getTownHall().getInventory().addResource(ResourceType.FOOD, 40);
                 GameEventDispatcher.fireNotification("⛺ Farmer tribe defeated! Looted: 40 Food.");
@@ -32,21 +18,7 @@ public enum TribeType {
 
     WARRIOR(70, "Warrior", "جنگجو",
             (give, get, bonus) -> 0,
-            new MissionGoal() {
-                public int getInitialTurns() { return 8; }
-                public boolean isCompleted(GameMap map, TribeCamp camp) { return false; /* Handled by progress */ }
-                public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
-                    Hex hex = map.getHexOfBuilding(camp);
-                    if (hex != null) {
-                        for (int i=0; i<3; i++) {
-                            Hex spawn = map.findEmptySpawnHex(hex.getQ(), hex.getR());
-                            if (spawn != null) map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawn.getQ(), spawn.getR()));
-                        }
-                    }
-                    tribe.addRelationship(20);
-                }
-                public String getDescription() { return "Mission: Military Aid\n──────────────────────\nRequirement: Defeat 2 enemy or barbarian units\nwithin 5 hexes of this camp.\nReward: 3 Swordsmen + 20 relation\nDeadline: 8 turns"; }
-            },
+            new WarriorMissionGoal(),
             (map, hex) -> {
                 map.getTownHall().getInventory().addResource(ResourceType.IRON, 30);
                 GameEventDispatcher.fireNotification("⛺ Warrior tribe defeated! Looted: 30 Iron.");
@@ -56,21 +28,7 @@ public enum TribeType {
 
     MOUNTAIN(50, "Mountain", "کوهستانی",
             (give, get, bonus) -> (get == ResourceType.STONE || get == ResourceType.IRON) ? (int)(give * (0.75 + (bonus ? 0.1 : 0))) : 0,
-            new MissionGoal() {
-                public int getInitialTurns() { return 6; }
-                public boolean isCompleted(GameMap map, TribeCamp camp) {
-                    Inventory inv = map.getTownHall().getInventory();
-                    return inv.hasEnough(ResourceType.WOOD, 15) && inv.hasEnough(ResourceType.IRON, 10);
-                }
-                public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
-                    Inventory inv = map.getTownHall().getInventory();
-                    inv.consumeResource(ResourceType.WOOD, 15);
-                    inv.consumeResource(ResourceType.IRON, 10);
-                    inv.addResource(ResourceType.STONE, 20);
-                    tribe.addRelationship(15);
-                }
-                public String getDescription() { return "Mission: Mining Tools\n──────────────────────\nRequirement: Pay 15 Wood + 10 Iron to the tribe.\nReward: 20 Stone + 15 relation\nDeadline: 6 turns"; }
-            },
+            new MountainMissionGoal(),
             (map, hex) -> {
                 map.getTownHall().getInventory().addResource(ResourceType.STONE, 25);
                 map.getTownHall().getInventory().addResource(ResourceType.IRON, 15);
@@ -81,15 +39,7 @@ public enum TribeType {
 
     COMMERCIAL(50, "Commercial", "تجاری",
             (give, get, bonus) -> (int)(give * (0.80 + (bonus ? 0.1 : 0))),
-            new MissionGoal() {
-                public int getInitialTurns() { return 10; }
-                public boolean isCompleted(GameMap map, TribeCamp camp) { return map.isRoadConnectedToCamp(camp); }
-                public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
-                    tribe.setTradeBonus(true);
-                    tribe.addRelationship(20);
-                }
-                public String getDescription() { return "Mission: Connect Trade Route\n──────────────────────\nRequirement: Build a continuous road from one of your buildings\nto a hex adjacent to this camp.\nReward: +10% trade rate + 20 relation\nDeadline: 10 turns"; }
-            },
+            new CommercialMissionGoal(),
             (map, hex) -> {
                 map.getTownHall().getInventory().addResource(ResourceType.FOOD, 15);
                 map.getTownHall().getInventory().addResource(ResourceType.WOOD, 15);
@@ -102,15 +52,7 @@ public enum TribeType {
 
     COASTAL(50, "Coastal", "ساحلی",
             (give, get, bonus) -> get == ResourceType.FOOD ? (int)(give * (0.75 + (bonus ? 0.1 : 0))) : 0,
-            new MissionGoal() {
-                public int getInitialTurns() { return 10; }
-                public boolean isCompleted(GameMap map, TribeCamp camp) { return map.hasDockWithinRadius(camp, 4); }
-                public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
-                    map.getTownHall().getInventory().addResource(ResourceType.FOOD, 30);
-                    map.getTownHall().addDiscountedDock();
-                }
-                public String getDescription() { return "Mission: Coastal Development\n──────────────────────\nRequirement: Build a Dock within 4 hexes of this camp.\nReward: 30 Food + discounted Dock cost\nDeadline: 10 turns"; }
-            },
+            new CoastalMissionGoal(),
             (map, hex) -> {
                 map.getTownHall().getInventory().addResource(ResourceType.FOOD, 25);
                 map.getTownHall().getInventory().addResource(ResourceType.WOOD, 25);
@@ -147,8 +89,85 @@ public enum TribeType {
     public String getAlliedRewardDescription() { return alliedRewardDescription; }
 
     public void grantLoot(GameMap map, Hex campHex) {
-        if (lootStrategy != null) {
-            lootStrategy.accept(map, campHex);
+        if (lootStrategy != null) lootStrategy.accept(map, campHex);
+    }
+
+    // ─── [MVC FIX]: Encapsulating logic inside Model ───
+    public boolean isTradeAllowed() {
+        return this != WARRIOR;
+    }
+
+    public String getTradeDisabledReason() {
+        if (this == WARRIOR) return "Warrior tribe does not engage in commerce";
+        return "Requires Friendly status (≥20 relation)";
+    }
+
+    // ─── [SERIALIZATION FIX]: Static Nested Classes for MissionGoals ───
+    public static class FarmerMissionGoal implements MissionGoal {
+        public int getInitialTurns() { return 5; }
+        public boolean isCompleted(GameMap map, TribeCamp camp) {
+            Inventory inv = map.getTownHall().getInventory();
+            return inv.hasEnough(ResourceType.WOOD, 20) && inv.hasEnough(ResourceType.STONE, 10);
         }
+        public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
+            Inventory inv = map.getTownHall().getInventory();
+            inv.consumeResource(ResourceType.WOOD, 20);
+            inv.consumeResource(ResourceType.STONE, 10);
+            inv.addResource(ResourceType.FOOD, 30);
+            tribe.addRelationship(15);
+        }
+        public String getDescription() { return "Mission: Build Food Storage\n──────────────────────\nRequirement: Pay 20 Wood + 10 Stone to the tribe.\nReward: 30 Food + 15 relation\nDeadline: 5 turns"; }
+    }
+
+    public static class WarriorMissionGoal implements MissionGoal {
+        public int getInitialTurns() { return 8; }
+        public boolean isCompleted(GameMap map, TribeCamp camp) { return false; }
+        public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
+            Hex hex = map.getHexOfBuilding(camp);
+            if (hex != null) {
+                for (int i=0; i<3; i++) {
+                    Hex spawn = map.findEmptySpawnHex(hex.getQ(), hex.getR());
+                    if (spawn != null) map.addUnit(UnitFactory.createUnit(UnitType.SWORDSMAN, spawn.getQ(), spawn.getR()));
+                }
+            }
+            tribe.addRelationship(20);
+        }
+        public String getDescription() { return "Mission: Military Aid\n──────────────────────\nRequirement: Defeat 2 enemy or barbarian units\nwithin 5 hexes of this camp.\nReward: 3 Swordsmen + 20 relation\nDeadline: 8 turns"; }
+    }
+
+    public static class MountainMissionGoal implements MissionGoal {
+        public int getInitialTurns() { return 6; }
+        public boolean isCompleted(GameMap map, TribeCamp camp) {
+            Inventory inv = map.getTownHall().getInventory();
+            return inv.hasEnough(ResourceType.WOOD, 15) && inv.hasEnough(ResourceType.IRON, 10);
+        }
+        public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
+            Inventory inv = map.getTownHall().getInventory();
+            inv.consumeResource(ResourceType.WOOD, 15);
+            inv.consumeResource(ResourceType.IRON, 10);
+            inv.addResource(ResourceType.STONE, 20);
+            tribe.addRelationship(15);
+        }
+        public String getDescription() { return "Mission: Mining Tools\n──────────────────────\nRequirement: Pay 15 Wood + 10 Iron to the tribe.\nReward: 20 Stone + 15 relation\nDeadline: 6 turns"; }
+    }
+
+    public static class CommercialMissionGoal implements MissionGoal {
+        public int getInitialTurns() { return 10; }
+        public boolean isCompleted(GameMap map, TribeCamp camp) { return map.isRoadConnectedToCamp(camp); }
+        public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
+            tribe.setTradeBonus(true);
+            tribe.addRelationship(20);
+        }
+        public String getDescription() { return "Mission: Connect Trade Route\n──────────────────────\nRequirement: Build a continuous road from one of your buildings\nto a hex adjacent to this camp.\nReward: +10% trade rate + 20 relation\nDeadline: 10 turns"; }
+    }
+
+    public static class CoastalMissionGoal implements MissionGoal {
+        public int getInitialTurns() { return 10; }
+        public boolean isCompleted(GameMap map, TribeCamp camp) { return map.hasDockWithinRadius(camp, 4); }
+        public void grantReward(GameMap map, Tribe tribe, TribeCamp camp) {
+            map.getTownHall().getInventory().addResource(ResourceType.FOOD, 30);
+            map.getTownHall().addDiscountedDock();
+        }
+        public String getDescription() { return "Mission: Coastal Development\n──────────────────────\nRequirement: Build a Dock within 4 hexes of this camp.\nReward: 30 Food + discounted Dock cost\nDeadline: 10 turns"; }
     }
 }

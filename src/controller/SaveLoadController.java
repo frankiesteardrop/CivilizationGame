@@ -23,8 +23,6 @@ public class SaveLoadController {
     private static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    // ─── DTO برای metadata هر Slot ────────────────────────────────────────────
-
     public static class SaveMetadata {
         public boolean isEmpty    = true;
         public String  slotName   = "";
@@ -163,7 +161,6 @@ public class SaveLoadController {
                 }
             }
 
-            // ─── ترمیم زنجیره ارجاع قبایل (Post-Load Reference Restoration) ───
             for (Unit unit : loadedMap.getUnits()) {
                 if (unit.getOwnerTribe() != null) {
                     TribeType type = unit.getOwnerTribe().getType();

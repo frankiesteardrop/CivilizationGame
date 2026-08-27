@@ -1,4 +1,3 @@
-// 1. EconomyController.java
 package controller;
 
 import model.*;
@@ -109,7 +108,6 @@ public class EconomyController implements TurnListener, BuildingListener {
         return isStarving;
     }
 
-    // ─── Single Source of Truth for Resource Extraction (DRY) ───
     private Hex resolveExtractionHex(GameMap map, Hex hex, Building b, ResourceType targetRes) {
         if (b.getType() == BuildingType.DOCK && targetRes == ResourceType.FOOD) {
             for (int i = 0; i < 6; i++) {
@@ -123,7 +121,6 @@ public class EconomyController implements TurnListener, BuildingListener {
         return hex.hasResource(targetRes) ? hex : null;
     }
 
-    // ─── Single Source of Truth for Farm Synergy (DRY) ───
     private int calculateFarmSynergy(GameMap map) {
         int farmPairs = 0;
         for (Hex hex : map.getHexes()) {
@@ -227,7 +224,8 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     public void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
-            if (u instanceof Worker w) {
+            // ─── [GAMEPLAY FIX]: Only eject alive workers to prevent Phantom Workers ───
+            if (u.isAlive() && u instanceof Worker w) {
                 if (w.isStationed() && w.getQ() == buildingHex.getQ() && w.getR() == buildingHex.getR()) {
                     w.eject(map);
                 }
@@ -291,7 +289,6 @@ public class EconomyController implements TurnListener, BuildingListener {
             production -= 1;
         }
 
-        // [OCP FIX]: حذف هاردکدها. منطق محاسبه مجاورت به Model (BuildingType) واگذار شد.
         production += b.getType().calculateAdjacencyBonus(hex, map, coastalAllied);
 
         if (happiness <= -3) production -= b.getStationedWorkers();

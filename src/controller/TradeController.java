@@ -22,7 +22,11 @@ public class TradeController implements TurnListener {
         return false;
     }
 
-    // ─── کلاس نگهدارنده اطلاعات پیش‌نمایش تجارت (MVC Fix) ───
+    // ─── [MVC FIX]: Centralized Trade Value ───
+    public int getBazaarTradeAmount(int level) {
+        return (level == 1) ? 10 : (level == 2) ? 100 : 500;
+    }
+
     public static class TradePreview {
         public final boolean isValid;
         public final String errorMessage;
@@ -35,12 +39,11 @@ public class TradeController implements TurnListener {
         }
     }
 
-    // ─── منطق پیش‌نمایش بازار ───
     public TradePreview previewBazaarTrade(Bazaar bazaar, ResourceType give, ResourceType get) {
         if (give == get) return new TradePreview(false, "Cannot trade a resource for itself!", 0);
 
         int currentLevel = bazaar.getLevel();
-        int amountToGive = (currentLevel == 1) ? 10 : (currentLevel == 2) ? 100 : 500;
+        int amountToGive = getBazaarTradeAmount(currentLevel);
 
         Inventory inv = map.getTownHall().getInventory();
         if (!inv.hasEnough(give, amountToGive)) {
@@ -63,7 +66,6 @@ public class TradeController implements TurnListener {
         return new TradePreview(true, null, received);
     }
 
-    // ─── منطق پیش‌نمایش مرکز تجارت ───
     public TradePreview previewTradingPostTrade(ResourceType give, int amountToGive, ResourceType get) {
         if (give == get) return new TradePreview(false, "Cannot trade a resource for itself!", 0);
 
@@ -88,7 +90,6 @@ public class TradeController implements TurnListener {
         return new TradePreview(true, null, received);
     }
 
-    // ─── منطق پیش‌نمایش تجارت با قبیله ───
     public TradePreview previewTribeTrade(Tribe tribe, ResourceType give, int amountToGive, ResourceType get) {
         if (give == get) return new TradePreview(false, "Cannot trade same resource!", 0);
 
@@ -115,7 +116,7 @@ public class TradeController implements TurnListener {
     public boolean tradeWithBazaar(Bazaar bazaar, ResourceType give, ResourceType get) {
         if (bazaar.hasTraded()) return false;
         int currentLevel = bazaar.getLevel();
-        int amountToGive = (currentLevel == 1) ? 10 : (currentLevel == 2) ? 100 : 500;
+        int amountToGive = getBazaarTradeAmount(currentLevel);
         TradeStrategy strategy = new BazaarTradeStrategy(currentLevel);
         return executeTrade(give, amountToGive, get, strategy, () -> bazaar.setTraded(true));
     }
