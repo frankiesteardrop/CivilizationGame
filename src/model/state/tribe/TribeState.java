@@ -12,7 +12,6 @@ public interface TribeState {
     boolean canFormAlliance();
     boolean canRequestPeace();
 
-    // اصلاح کلیدی گام سوم: اضافه شدن متدهای اختصاصی برای جلوگیری از String comparison
     boolean isHostile();
     boolean canDeclareWar();
 

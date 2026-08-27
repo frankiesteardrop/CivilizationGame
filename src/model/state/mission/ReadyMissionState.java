@@ -26,17 +26,13 @@ public class ReadyMissionState implements MissionState {
 
     @Override
     public void checkConditions(Mission mission, TribeCamp camp, GameMap map) {
-        // اصلاح C2: قبیله جنگجو — isCompleted() همیشه false است؛ progress چک می‌شود
         if (camp.getTribe().getType() == TribeType.WARRIOR) {
-            // اگر به هر دلیلی progress از دست رفت (مثل load قدیمی)، به Active برگرد
             if (mission.getProgress() < 2) {
                 mission.setState(new ActiveMissionState());
             }
-            // اگر progress >= 2 باشد، در ReadyMissionState باقی می‌مانیم
             return;
         }
 
-        // سایر قبیله‌ها: اگر شرط از دست رفت (مثلاً منابع خرج شد)، به Active برگرد
         if (!mission.getGoal().isCompleted(map, camp)) {
             mission.setState(new ActiveMissionState());
         }
@@ -44,7 +40,6 @@ public class ReadyMissionState implements MissionState {
 
     @Override
     public boolean deliver(Mission mission, TribeCamp camp, GameMap map) {
-        // اصلاح C2: قبیله جنگجو — isCompleted() همیشه false است؛ progress چک می‌شود
         boolean isCompleted;
         if (camp.getTribe().getType() == TribeType.WARRIOR) {
             isCompleted = (mission.getProgress() >= 2);

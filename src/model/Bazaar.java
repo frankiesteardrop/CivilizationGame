@@ -3,13 +3,12 @@ package model;
 public class Bazaar extends Building {
 
     private boolean hasTradedThisTurn;
-    // [M1] Fix: اضافه شدن فیلد سطح (Level) برای حفظ State در Model
     private int level;
 
     public Bazaar() {
         super(BuildingType.BAZAAR.getMaxWorkers());
         this.hasTradedThisTurn = false;
-        this.level = 1; // مقدار اولیه بازار
+        this.level = 1;
     }
 
     @Override
@@ -25,7 +24,6 @@ public class Bazaar extends Building {
         this.hasTradedThisTurn = traded;
     }
 
-    // [M1] Fix: متدهای مدیریت کپسوله‌شده‌ی سطح بازار
     public int getLevel() {
         return level;
     }

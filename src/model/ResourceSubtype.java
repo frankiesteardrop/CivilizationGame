@@ -6,7 +6,7 @@ public enum ResourceSubtype {
     RICE("Rice", "Ri"),
     CATTLE("Cattle", "Ca"),
     SHEEP("Sheep", "Sh"),
-    FISH("Fish", "Fi"); // اضافه شده برای هکس‌های دریایی
+    FISH("Fish", "Fi");
 
     private final String displayName;
     private final String shortSymbol;

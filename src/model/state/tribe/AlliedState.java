@@ -24,7 +24,6 @@ public class AlliedState implements TribeState {
     @Override
     public boolean canRequestPeace() { return false; }
 
-    // اصلاح گام سوم
     @Override public boolean isHostile() { return false; }
     @Override public boolean canDeclareWar() { return true; }
 
@@ -36,7 +35,6 @@ public class AlliedState implements TribeState {
             case COMMERCIAL -> map.getTownHall().getInventory().addResource(ResourceType.WOOD, 3);
             case COASTAL -> map.getTownHall().getInventory().addResource(ResourceType.FOOD, 3);
             case WARRIOR -> {
-                // قبیله جنگجو در پایان ترن منبعی نمی‌دهد
             }
         }
     }

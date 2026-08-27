@@ -36,12 +36,10 @@ public abstract class ProductionCommand {
     public abstract void execute();
     public abstract String getCommandType();
 
-    // ─── Concrete Commands ────────────────────────────────────────────────────
 
     public static class TechCommand extends ProductionCommand {
         private final String techId;
 
-        // [OCP FIX]: Registry Pattern for Tech actions to avoid huge Switch statement
         private static final Map<String, java.util.function.Consumer<GameMap>> registry = new HashMap<>();
 
         public static void registerTechExecution(String techId, java.util.function.Consumer<GameMap> action) {

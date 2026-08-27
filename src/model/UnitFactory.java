@@ -17,8 +17,7 @@ public class UnitFactory {
         registry.put(UnitType.SWORDSMAN,       Swordsman::new);
         registry.put(UnitType.ARCHER,          Archer::new);
         registry.put(UnitType.CAVALRY,         Cavalry::new);
-        // F-39: Bear به registry اضافه شد تا UnitFactory.createUnit(UnitType.BEAR, q, r)
-        // بدون IllegalArgumentException کار کند
+
         registry.put(UnitType.BEAR,            Bear::new);
     }
 

@@ -183,8 +183,7 @@ public enum BuildingType {
         return false;
     }
 
-    // متد کلیدی برای اعمال OCP در پاداش مجاورت
     public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
-        return 0; // پیاده‌سازی پیش‌فرض (بدون پاداش)
+        return 0;
     }
 }

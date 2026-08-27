@@ -53,11 +53,8 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         hex.setBuilding(newBuilding);
 
-        // لاجیک هاردکد شده کسر رضایت از اینجا حذف شد تا در EconomyController مدیریت شود.
-
         gameMap.updateFogOfWar();
 
-        // فراخوانی فوری حذف یگان‌های مرده برای از بین بردن اشباح بیلدر (Phantom Builder)
         gameMap.removeDeadUnits();
 
         GameEventDispatcher.fireBuildingConstructed(hex);
@@ -77,7 +74,7 @@ public class BuildController {
         builder.useCharge();
         hex.setRoad(true);
 
-        gameMap.removeDeadUnits(); // جلوگیری از اشباح بیلدر
+        gameMap.removeDeadUnits();
 
         GameEventDispatcher.fireUnitStateChanged(builder);
         GameEventDispatcher.fireBuildingConstructed(hex);
@@ -126,7 +123,7 @@ public class BuildController {
         Hex neighbor = gameMap.getNeighbor(hex, dir);
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
 
-        gameMap.removeDeadUnits(); // جلوگیری از اشباح بیلدر
+        gameMap.removeDeadUnits();
 
         GameEventDispatcher.fireUnitStateChanged(builder);
         GameEventDispatcher.fireBuildingConstructed(hex);

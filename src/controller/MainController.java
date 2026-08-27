@@ -70,7 +70,6 @@ public class MainController {
     public boolean isCapturable(Unit unit, Hex hex) {
         if (unit == null || hex == null) return false;
 
-        // کمپ قبیله با Capture تسخیر نمی‌شود، بلکه باید در نبرد تخریب شود
         if (hex.getBuilding() instanceof TribeCamp) return false;
 
         int dist = gameMap.getHexDistance(unit.getQ(), unit.getR(), hex.getQ(), hex.getR());
@@ -79,8 +78,6 @@ public class MainController {
             return false;
         }
 
-        // سیستم ضدتقلب: نیروی نظامی فقط و فقط می‌تواند هکس‌های خالی‌ای را تصرف کند
-        // که در مجاورت مستقیم کمپ قبیله دشمن هستند (طبق محدودیت‌های داک).
         for (int i = 0; i < 6; i++) {
             Hex neighbor = gameMap.getNeighbor(hex, i);
             if (neighbor != null && neighbor.getBuilding() instanceof TribeCamp camp) {

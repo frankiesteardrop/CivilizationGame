@@ -1,7 +1,6 @@
 package model;
 
 public class GameConfig {
-    // ظرفیت پایه طبق داک فاز دوم: ۱۰۰ واحد
     public static final int DEFAULT_FOOD_CAPACITY  = 100;
     public static final int DEFAULT_WOOD_CAPACITY  = 100;
     public static final int DEFAULT_STONE_CAPACITY = 100;
@@ -9,7 +8,6 @@ public class GameConfig {
     public static final int TH_UPGRADE2_CAPACITY = 500;
     public static final int TH_UPGRADE3_CAPACITY = 1000;
 
-    // هزینه‌های ارتقای Town Hall
     public static final int TH_UPGRADE_LVL2_WOOD = 50;
     public static final int TH_UPGRADE_LVL2_STONE = 50;
     public static final int TH_UPGRADE_LVL2_TURN = 3;
@@ -18,7 +16,6 @@ public class GameConfig {
     public static final int TH_UPGRADE_LVL3_IRON = 50;
     public static final int TH_UPGRADE_LVL3_TURN = 5;
 
-    // تکنولوژی‌های جدید فاز دوم
     public static final int TECH_SEAFARING_WOOD = 80;
     public static final int TECH_SEAFARING_TURN = 4;
 
@@ -28,7 +25,6 @@ public class GameConfig {
     public static final int TECH_DEFENSIVE_ARCH_STONE = 100;
     public static final int TECH_DEFENSIVE_ARCH_TURN = 4;
 
-    // هزینه‌های فاز اول
     public static final int TECH_STONE_MINE_WOOD = 50;
     public static final int TECH_IRON_MINE_WOOD = 100;
     public static final int TECH_IRON_MINE_STONE = 50;
@@ -68,8 +64,6 @@ public class GameConfig {
     public static final int STARTING_STONE = 40;
     public static final int STARTING_IRON = 0;
 
-    // سقف یونیت نظامی بر اساس سطح Town Hall — طبق spec فاز دوم
-    // سطح ۱: ۵ یونیت، سطح ۲: ۱۰ یونیت، سطح ۳: ۱۵ یونیت
     public static final int UNIT_CAP_TH_LEVEL_1 = 5;
     public static final int UNIT_CAP_TH_LEVEL_2 = 10;
     public static final int UNIT_CAP_TH_LEVEL_3 = 15;

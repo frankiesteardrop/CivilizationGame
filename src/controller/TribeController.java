@@ -128,7 +128,6 @@ public class TribeController implements UnitListener {
         CombatController cc = new CombatController(map);
 
         for (Unit guard : guards) {
-            // اصلاح حیاتی (تأمین AP هوش مصنوعی در ابتدای رفتار آن)
             guard.resetAP();
 
             boolean hasMoved = false;

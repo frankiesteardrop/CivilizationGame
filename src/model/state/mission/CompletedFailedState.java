@@ -15,7 +15,6 @@ public class CompletedFailedState implements MissionState {
 
     @Override public String getDisplayName() { return finalState; }
 
-    // ─── پیاده‌سازی قراردادهای جامانده اینترفیس ───
     @Override public boolean canAccept() { return false; }
     @Override public boolean canDeliver() { return false; }
 

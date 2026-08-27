@@ -6,8 +6,6 @@ import model.state.mission.MissionState;
 public class Mission {
     private MissionState state;
 
-    // اصلاح C1: goal باید transient باشد چون MissionGoal یک anonymous inner class است
-    // که Gson نمی‌تواند آن را serialize کند. پس از Load در SaveLoadController بازسازی می‌شود.
     private transient MissionGoal goal;
 
     private int turnsRemaining;
@@ -15,7 +13,7 @@ public class Mission {
 
     public Mission(MissionGoal goal) {
         this.goal = goal;
-        this.state = new AvailableState(); // پترن استیت
+        this.state = new AvailableState();
         this.turnsRemaining = goal.getInitialTurns();
         this.progress = 0;
     }
@@ -24,7 +22,6 @@ public class Mission {
     public void setState(MissionState state) { this.state = state; }
     public MissionGoal getGoal() { return goal; }
 
-    // اصلاح C1: متد جدید برای بازسازی goal پس از Load (چون transient است)
     public void setGoal(MissionGoal goal) { this.goal = goal; }
 
     public int getTurnsRemaining() { return turnsRemaining; }

@@ -199,7 +199,6 @@ public class DisasterController {
         }
     }
 
-    // ─── Bear AI with Safe BFS Pathfinding ───────────────────────────────────
 
     public void processBearAI() {
         List<Unit> bears = map.getUnits().stream()
@@ -262,7 +261,6 @@ public class DisasterController {
         }
     }
 
-    // ─── [GAMEPLAY FIX]: BFS algorithm with Visited Set to avoid Deadlocks ───
     private Hex findNextStepBFS(int startQ, int startR, int targetQ, int targetR, int maxDepth) {
         Queue<Hex> queue = new LinkedList<>();
         Map<Hex, Hex> parentMap = new HashMap<>();

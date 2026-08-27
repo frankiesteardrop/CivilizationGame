@@ -6,12 +6,10 @@ public abstract class Building {
     protected boolean isDestroyed;
     protected int consecutiveUnpaidTurns;
 
-    // المان‌های جدید برای سیستم جنگ فاز دوم
     protected int hp;
     protected int maxHp;
     protected int defense;
 
-    // رفع باگ 24: اضافه شدن تایمر توقف تولید ناشی از سیل
     protected int floodHaltTurns;
 
     public Building(int baseWorkerCapacity) {
@@ -19,7 +17,7 @@ public abstract class Building {
         this.stationedWorkers = 0;
         this.isDestroyed = false;
         this.consecutiveUnpaidTurns = 0;
-        this.maxHp = 100; // مقدار پیش‌فرض
+        this.maxHp = 100;
         this.hp = 100;
         this.defense = 0;
         this.floodHaltTurns = 0;
@@ -53,13 +51,11 @@ public abstract class Building {
         }
     }
 
-    // رفع باگ 24: متد اختصاصی برای آسیب سیل که تایمر توقف را فعال می‌کند
     public void takeFloodDamage(int amount) {
         takeDamage(amount);
-        this.floodHaltTurns = 2; // نوبت فعلی و نوبت بعد
+        this.floodHaltTurns = 2;
     }
 
-    // متد کمکی برای کاهش تایمر در پایان هر نوبت
     public void decrementFloodHalt() {
         if (floodHaltTurns > 0) floodHaltTurns--;
     }
@@ -74,7 +70,6 @@ public abstract class Building {
 
     public int calculateProduction(TownHall townHall) {
         if (isDestroyed) return 0;
-        // رفع باگ 24: صفر شدن تولید در صورت آسیب‌دیدگی از سیل
         if (floodHaltTurns > 0) return 0;
 
         return stationedWorkers * getType().getBaseProduction();

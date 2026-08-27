@@ -15,10 +15,9 @@ public class CivilianDamageHandler extends DamageHandler {
                     u.getType() == UnitType.EXPLORER ||
                     u.getType() == UnitType.BORDER_EXPANDER) && u.isAlive()) {
 
-                while (u.isAlive() && damageAmount > 0) {
-                    u.takeDamage(1);
-                    damageAmount--;
-                }
+                int damageToDeal = Math.min(u.getHp(), damageAmount);
+                u.takeDamage(damageToDeal);
+                damageAmount -= damageToDeal;
                 if (damageAmount == 0) return;
             }
         }

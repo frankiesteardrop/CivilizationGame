@@ -13,19 +13,9 @@ public class DispleasedState implements TribeState {
     @Override public boolean isHostile()         { return false; }
     @Override public boolean canDeclareWar()     { return true;  }
 
-    /**
-     * I8: اصلاح شعاع چک حضور نظامی از ۳ به ۱.
-     *
-     * طبق spec: «محدوده‌ی ممنوعه شامل هکس کمپ و شش هکس اطراف آن است»
-     * = camp hex + ۶ مجاور = شعاع ۱.
-     *
-     * همچنین اضافه شد: فیلتر !u.isEnemy() تا گاردهای خود قبیله (که isEnemy=true دارند)
-     * trigger نکنند.
-     */
     @Override
     public void executeTurnBehavior(Tribe tribe, TribeCamp camp, Hex campHex,
                                     GameMap map, List<Runnable> deferredActions) {
-        // I8: شعاع اصلاح‌شده از 3 به 1 + فیلتر !u.isEnemy()
         boolean hasMilitaryNearby = map.getUnits().stream().anyMatch(u ->
                 u.isAlive()
                         && !u.isEnemy()
@@ -37,7 +27,6 @@ public class DispleasedState implements TribeState {
 
         if (hasMilitaryNearby) {
             camp.incrementDispleasedMilTurns();
-            // هر ۲ ترن حضور نظامی → کاهش رابطه
             if (camp.getDispleasedMilitaryTurns() % 2 == 0) {
                 tribe.addRelationship(-1);
                 if (campHex.isVisible()) {

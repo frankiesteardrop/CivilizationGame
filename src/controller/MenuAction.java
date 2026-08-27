@@ -6,7 +6,6 @@ public class MenuAction {
     private final String disabledReason;
     private final Runnable action;
 
-    // متغیر جدید برای رعایت MVC و واگذاری دیالوگ به View
     private String confirmationMessage = null;
 
     public MenuAction(String label, boolean isEnabled, Runnable action) {
@@ -20,7 +19,6 @@ public class MenuAction {
         this.action = action;
     }
 
-    // متد Builder برای اضافه کردن پیام تایید
     public MenuAction setConfirmation(String message) {
         this.confirmationMessage = message;
         return this;

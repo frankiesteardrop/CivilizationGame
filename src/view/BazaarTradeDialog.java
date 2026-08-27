@@ -23,7 +23,6 @@ public class BazaarTradeDialog extends JDialog {
         gbc.insets = new Insets(8, 10, 8, 10);
 
         int level = bazaar.getLevel();
-        // ─── [MVC FIX]: Delegate value retrieval to Controller ───
         int amount = tradeController.getBazaarTradeAmount(level);
 
         JLabel info = new JLabel("Trade Amount: " + amount + " units", SwingConstants.CENTER);

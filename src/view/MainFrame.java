@@ -77,7 +77,6 @@ public class MainFrame extends JFrame {
         gamePanel.requestFocusInWindow();
     }
 
-    // اصلاح گام سوم: متد بارگذاری مستقیم بازی از منوی اصلی
     public void loadGameFromMenu(String slot) {
         GameMap loadedMap = SaveLoadController.loadGameMap(slot);
         if (loadedMap == null) {
@@ -91,8 +90,6 @@ public class MainFrame extends JFrame {
             mainContainer.remove(gameWrapper);
             gameWrapper = null;
         }
-
-        // ساخت کنترلر جدید با مپ بارگذاری شده (جلوگیری از ساخت مپ اضافی)
         this.mainController = new MainController(loadedMap);
         this.gamePanel = new GamePanel(mainController);
 

@@ -17,7 +17,6 @@ public abstract class Unit {
 
     protected boolean isEnemy;
 
-    // اصلاح گام نهایی: اضافه شدن مرجع قبیله سازنده برای پیگیری افت رابطه
     protected Tribe ownerTribe;
 
     public Unit(int q, int r, UnitType type) {
@@ -87,7 +86,6 @@ public abstract class Unit {
     public boolean isEnemy() { return isEnemy; }
     public void setEnemy(boolean enemy) { this.isEnemy = enemy; }
 
-    // متدهای مربوط به مالکیت قبیله
     public Tribe getOwnerTribe() { return ownerTribe; }
     public void setOwnerTribe(Tribe ownerTribe) { this.ownerTribe = ownerTribe; }
 

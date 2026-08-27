@@ -6,7 +6,58 @@
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/BuildController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/BuildController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/DisasterController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/DisasterController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MainController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/MenuAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MenuAction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TribeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TribeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TurnController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TurnController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UnitController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UnitController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/UpgradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UpgradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Bazaar.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Bazaar.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Builder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Builder.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Building.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Building.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/BuildingType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/BuildingType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Hex.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Hex.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Inventory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/ProductionCommand.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/ProductionCommand.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/ResourceSubtype.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/ResourceSubtype.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TerrainType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TerrainType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TownHall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TownHall.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Tribe.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Tribe.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/TribeCamp.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TribeCamp.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/model/TribeType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TribeType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Unit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Unit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/UnitFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitFactory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/UnitType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Worker.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Worker.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/mission/Mission.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/mission/Mission.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/mission/MissionGoal.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/mission/MissionGoal.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/mission/ActiveMissionState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/mission/ActiveMissionState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/mission/AvailableState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/mission/AvailableState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/mission/CompletedFailedState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/mission/CompletedFailedState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/mission/ReadyMissionState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/mission/ReadyMissionState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/AlliedState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/AlliedState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/DispleasedState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/DispleasedState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/EnemyState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/EnemyState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/FriendlyState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/FriendlyState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/NeutralState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/NeutralState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/state/tribe/TribeState.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/state/tribe/TribeState.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/trade/BazaarTradeStrategy.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/trade/BazaarTradeStrategy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/trade/TradingPostTradeStrategy.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/trade/TradingPostTradeStrategy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/BazaarTradeDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/BazaarTradeDialog.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/CombatVisualizerDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/CombatVisualizerDialog.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/GameInputHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GameInputHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/GamePanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GamePanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HexRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/LoadGameDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/LoadGameDialog.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/MainFrame.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainFrame.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/MainMenuPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainMenuPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/PauseMenuDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/PauseMenuDialog.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/UIConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/UIConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/UnitRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/UnitRenderer.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

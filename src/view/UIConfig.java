@@ -106,7 +106,6 @@ public class UIConfig {
     public static final Color BUILDING_TRADING_POST = new Color(155, 198, 158);
     public static final Color BUILDING_TRIBE_CAMP   = new Color(198,  75,  75);
 
-    // رنگ جذاب و متمایز برای Outpost
     public static final Color BUILDING_OUTPOST      = new Color(140,  95, 185);
 
     public static final Color RESOURCE_FOOD         = new Color(118, 198,  75);

@@ -139,7 +139,6 @@ public class GameInputHandler extends MouseAdapter {
                 }
             }
 
-            // اصلاح حیاتی: هندلر جدید برای اتصال Trading Post به UI
             if (bType == BuildingType.TRADING_POST) {
                 if (selectedUnit == null || selectedUnit.getAttackRange() <= 0) {
                     panel.setSelectedUnit(null);

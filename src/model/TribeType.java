@@ -92,7 +92,6 @@ public enum TribeType {
         if (lootStrategy != null) lootStrategy.accept(map, campHex);
     }
 
-    // ─── [MVC FIX]: Encapsulating logic inside Model ───
     public boolean isTradeAllowed() {
         return this != WARRIOR;
     }
@@ -102,7 +101,6 @@ public enum TribeType {
         return "Requires Friendly status (≥20 relation)";
     }
 
-    // ─── [SERIALIZATION FIX]: Static Nested Classes for MissionGoals ───
     public static class FarmerMissionGoal implements MissionGoal {
         public int getInitialTurns() { return 5; }
         public boolean isCompleted(GameMap map, TribeCamp camp) {

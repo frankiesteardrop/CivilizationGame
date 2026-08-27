@@ -31,8 +31,7 @@ public class CombatController {
                              boolean isSiegeAttack, boolean isTargetAnimal,
                              boolean targetHasWall) {
 
-        int dist = map.getHexDistance(sourceHex.getQ(), sourceHex.getR(),
-                targetHex.getQ(), targetHex.getR());
+        int dist = map.getHexDistance(sourceHex.getQ(), sourceHex.getR(), targetHex.getQ(), targetHex.getR());
         if (dist > 2 || dist < 1) return -1;
 
         List<Unit> validAttackers = attackers.stream()
@@ -88,69 +87,12 @@ public class CombatController {
         }
 
         if (isSiegeAttack) {
-            int siegeDmg = validAttackers.stream().mapToInt(Unit::getSiegeDamage).sum();
-
-            int dir = getDirection(sourceHex, targetHex);
-            if (dir >= 0 && targetHasWall) {
-                targetHex.damageWall((dir + 3) % 6, siegeDmg);
-                sourceHex.damageWall(dir, siegeDmg);
-
-                if (!targetHex.hasWall((dir + 3) % 6) || !sourceHex.hasWall(dir)) {
-                    targetHex.setWall((dir + 3) % 6, false, 0);
-                    sourceHex.setWall(dir, false, 0);
-                    GameEventDispatcher.fireNotification("🧱 Wall destroyed!");
-                } else {
-                    GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
-                }
-
-            } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
-                Building b = targetHex.getBuilding();
-
-                if (b instanceof TribeCamp camp) {
-                    if (!camp.getTribe().getState().getName().equals("Enemy")) {
-                        camp.getTribe().setAllied(false);
-                        camp.getTribe().addRelationship(-200);
-                        GameEventDispatcher.fireNotification("⚔️ You attacked a Tribe Camp! War declared automatically.");
-                    }
-                }
-
-                b.takeDamage(siegeDmg);
-                GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
-
-                if (b.isDestroyed()) {
-                    if (b instanceof TribeCamp camp) {
-                        targetHex.setInsideBorder(true);
-                        targetHex.setExplored(true);
-
-                        for (int i = 0; i < 6; i++) {
-                            Hex neighbor = map.getNeighbor(targetHex, i);
-                            if (neighbor != null
-                                    && neighbor.getTerrainType() != TerrainType.SEA
-                                    && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
-                                neighbor.setInsideBorder(true);
-                                neighbor.setExplored(true);
-                            }
-                        }
-
-                        targetHex.setBuilding(BuildingFactory.createBuilding(BuildingType.OUTPOST));
-                        GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
-                        camp.getTribe().getType().grantLoot(map, targetHex);
-                    } else {
-                        targetHex.setBuilding(null);
-                    }
-
-                    GameEventDispatcher.fireBuildingDestroyed(targetHex);
-                }
-            }
-
-            GameEventDispatcher.fireCombatTriggered(new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
-            map.removeDeadUnits();
-            return siegeDmg;
+            return handleSiegeAttack(validAttackers, sourceHex, targetHex, targetHasWall);
         }
 
-        int attackerDiceCount = (dist == 2) ? 1
-                : (int) validAttackers.stream().map(Unit::getType).distinct().count();
+        if (validDefenders.isEmpty()) return 0;
 
+        int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
         int defenderDiceCount = isTargetAnimal ? 1 : 2;
         int wallModifier      = (dist == 1 && targetHasWall) ? 2 : 0;
 
@@ -193,10 +135,65 @@ public class CombatController {
         }
 
         map.removeDeadUnits();
-
-        GameEventDispatcher.fireCombatTriggered(
-                attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
+        GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
         return defenderTakesDmg;
+    }
+
+    private int handleSiegeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex, boolean targetHasWall) {
+        int siegeDmg = attackers.stream().mapToInt(Unit::getSiegeDamage).sum();
+        int dir = getDirection(sourceHex, targetHex);
+
+        if (dir >= 0 && targetHasWall) {
+            targetHex.damageWall((dir + 3) % 6, siegeDmg);
+            sourceHex.damageWall(dir, siegeDmg);
+
+            if (!targetHex.hasWall((dir + 3) % 6) || !sourceHex.hasWall(dir)) {
+                targetHex.setWall((dir + 3) % 6, false, 0);
+                sourceHex.setWall(dir, false, 0);
+                GameEventDispatcher.fireNotification("🧱 Wall destroyed!");
+            } else {
+                GameEventDispatcher.fireNotification("🧱 Wall took " + siegeDmg + " damage!");
+            }
+        } else if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
+            Building b = targetHex.getBuilding();
+
+            if (b instanceof TribeCamp camp) {
+                if (!camp.getTribe().getState().getName().equals("Enemy")) {
+                    camp.getTribe().setAllied(false);
+                    camp.getTribe().addRelationship(-200);
+                    GameEventDispatcher.fireNotification("⚔️ You attacked a Tribe Camp! War declared automatically.");
+                }
+            }
+
+            b.takeDamage(siegeDmg);
+            GameEventDispatcher.fireNotification("🏰 Structure took " + siegeDmg + " damage!");
+
+            if (b.isDestroyed()) {
+                if (b instanceof TribeCamp camp) {
+                    targetHex.setInsideBorder(true);
+                    targetHex.setExplored(true);
+
+                    for (int i = 0; i < 6; i++) {
+                        Hex neighbor = map.getNeighbor(targetHex, i);
+                        if (neighbor != null && neighbor.getTerrainType() != TerrainType.SEA && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                            neighbor.setInsideBorder(true);
+                            neighbor.setExplored(true);
+                        }
+                    }
+
+                    targetHex.setBuilding(BuildingFactory.createBuilding(BuildingType.OUTPOST));
+                    GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
+                    camp.getTribe().getType().grantLoot(map, targetHex);
+                } else {
+                    targetHex.setBuilding(null);
+                }
+                GameEventDispatcher.fireBuildingDestroyed(targetHex);
+            }
+        }
+
+        GameEventDispatcher.fireCombatTriggered(new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
+        map.removeDeadUnits();
+        return siegeDmg;
     }
 
     private int getDirection(Hex source, Hex target) {

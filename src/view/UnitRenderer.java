@@ -6,10 +6,6 @@ import model.*;
 import java.awt.*;
 import java.awt.geom.*;
 
-/**
- * رندرر حرفه‌ای یونیت‌ها — سپر نظامی برای ارتش، دایره نقش‌دار برای غیرنظامی،
- * قایق برای شناور، خرس واقعی برای بلای طبیعی، همراه با انیمیشن‌های روان و قدم‌زنی (Bobbing).
- */
 public class UnitRenderer {
 
     public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map) {
@@ -57,16 +53,13 @@ public class UnitRenderer {
 
         int px, py;
         int shadowOffset = 0;
-
-        // ─── [VFX] اعمال انیمیشن روان و سیستم قدم‌زنی (Bobbing Effect) ───
         if (u == panel.getAnimatingUnit()) {
             double progress = panel.getAnimProgress();
-            double ease = 1.0 - Math.pow(1.0 - progress, 3); // Cubic ease-out
+            double ease = 1.0 - Math.pow(1.0 - progress, 3);
 
             px = (int)(panel.getAnimStartX() + (panel.getAnimTargetX() - panel.getAnimStartX()) * ease);
             py = (int)(panel.getAnimStartY() + (panel.getAnimTargetY() - panel.getAnimStartY()) * ease);
 
-            // Bobbing effect: حرکت سینوسی برای القای حس راه رفتن
             if (!isFloating) {
                 int bounceHeight = (int)(8 * zoom);
                 shadowOffset = (int)(Math.abs(Math.sin(progress * Math.PI * 4)) * bounceHeight);
@@ -110,10 +103,9 @@ public class UnitRenderer {
             g2d.setStroke(new BasicStroke(1f));
         }
 
-        // Draw Shadow first (داینامیک شده با توجه به پرش قدم‌زنی)
         if (!isFloating) {
             g2d.setColor(new Color(0, 0, 0, 100));
-            int sr = baseR - (shadowOffset / 2); // وقتی می‌پرد سایه کوچکتر می‌شود
+            int sr = baseR - (shadowOffset / 2);
             g2d.fillOval(px - sr + 2, py + shadowOffset - sr + 2 + (int)(rToShadowOffset(baseR)), sr*2, sr);
         }
 
@@ -128,7 +120,6 @@ public class UnitRenderer {
         }
 
         if (!isStationed && zoom >= 0.75) {
-            // AP در زمان انیمیشن روی زمین ثابت می‌ماند
             drawAPIndicator(g2d, u, px, py + shadowOffset, baseR, zoom);
         }
 
@@ -140,8 +131,6 @@ public class UnitRenderer {
     private int rToShadowOffset(int r) {
         return (int)(r * 0.6);
     }
-
-    // ─── Military Unit — Shield Design ───────────────────────────────────────
 
     private void drawMilitaryUnit(Graphics2D g2d, Unit u, int px, int py,
                                   int r, double zoom, boolean stationed) {
@@ -220,8 +209,6 @@ public class UnitRenderer {
         };
     }
 
-    // ─── Civilian Unit — Circle Design ───────────────────────────────────────
-
     private void drawCivilianUnit(Graphics2D g2d, Unit u, int px, int py,
                                   int r, double zoom, boolean stationed) {
         Color mainColor = getCivilianColor(u.getType());
@@ -280,9 +267,6 @@ public class UnitRenderer {
             default             -> "?";
         };
     }
-
-    // ─── Bear Unit ────────────────────────────────────────────────────────────
-
     private void drawBearUnit(Graphics2D g2d, Unit u, int px, int py,
                               int r, double zoom) {
         Color body   = UIConfig.UNIT_BEAR;
@@ -311,7 +295,6 @@ public class UnitRenderer {
         drawUnitHPBar(g2d, u, px, py, r, zoom);
     }
 
-    // ─── Boat Unit (Seafaring) ────────────────────────────────────────────────
 
     private void drawBoatUnit(Graphics2D g2d, Unit u, GamePanel panel,
                               int px, int py, double zoom) {
@@ -319,16 +302,12 @@ public class UnitRenderer {
         int h  = (int)(13 * zoom);
         int mH = (int)(17 * zoom);
 
-        // Bobbing on water effect (امواج ملایم بالا و پایین)
         long time = System.currentTimeMillis() + u.hashCode();
         int waterBob = (int)(Math.sin(time / 400.0) * (3 * zoom));
         py += waterBob;
-
-        // Wake (wave behind boat)
         g2d.setColor(new Color(180, 220, 255, 80));
         g2d.fillOval(px - w/2 - 3, py - (int)(h*0.2) + h/2, w + 6, (int)(h*0.5));
 
-        // Hull
         GradientPaint hullGp = new GradientPaint(
                 px, py - h/2, new Color(130, 80, 45),
                 px, py + h/2, new Color(75, 45, 20));
@@ -336,24 +315,20 @@ public class UnitRenderer {
         g2d.fillArc(px - w/2, py - h/2, w, h, 0, -180);
         g2d.setPaint(null);
 
-        // Hull border
         g2d.setColor(new Color(40, 20, 10));
         g2d.setStroke(new BasicStroke((float)(1.2 * zoom)));
         g2d.drawArc(px - w/2, py - h/2, w, h, 0, -180);
         g2d.drawLine(px - w/2, py - h/2, px + w/2, py - h/2);
         g2d.setStroke(new BasicStroke(1f));
 
-        // Mast (vertical line)
         g2d.setColor(new Color(60, 30, 15));
         g2d.setStroke(new BasicStroke((float)(2.0 * zoom)));
         g2d.drawLine(px, py - h/2, px, py - h/2 - mH);
         g2d.setStroke(new BasicStroke(1f));
 
-        // Sail
         int[] sailX = {px, px, px + (int)(w * 0.5)};
         int[] sailY = {py - h/2 - mH, py - h/2 - (int)(mH * 0.18), py - h/2 - (int)(mH * 0.52)};
 
-        // بادبان‌ها رنگ لباس یونیت را می‌گیرند
         Color unitColor = isMilitary(u.getType()) ? getMilitaryColor(u.getType()) : getCivilianColor(u.getType());
 
         GradientPaint sailGp = new GradientPaint(
@@ -385,8 +360,6 @@ public class UnitRenderer {
         drawAPIndicator(g2d, u, px, py + h/2 + (int)(4*zoom), (int)(8 * zoom), zoom);
     }
 
-    // ─── AP Indicator ─────────────────────────────────────────────────────────
-
     private void drawAPIndicator(Graphics2D g2d, Unit u, int px, int py,
                                  int r, double zoom) {
         int maxAP = u.getMaxAP();
@@ -415,8 +388,6 @@ public class UnitRenderer {
         }
     }
 
-    // ─── Unit HP Bar ──────────────────────────────────────────────────────────
-
     private void drawUnitHPBar(Graphics2D g2d, Unit u, int px, int py,
                                int r, double zoom) {
         int bw = (int)(r * 2.0);
@@ -439,8 +410,6 @@ public class UnitRenderer {
         g2d.fillRoundRect(bx, by, (int)(bw * pct), bh / 2, 2, 2);
     }
 
-    // ─── Stack Badge ──────────────────────────────────────────────────────────
-
     private void drawStackBadge(Graphics2D g2d, int count, int cx, int cy, double zoom) {
         int bx = cx + (int)(12 * zoom);
         int by = cy - (int)(12 * zoom);
@@ -460,8 +429,6 @@ public class UnitRenderer {
         FontMetrics fm = g2d.getFontMetrics();
         g2d.drawString(txt, bx - fm.stringWidth(txt)/2, by + fm.getAscent()/2 - 1);
     }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private boolean isMilitary(UnitType type) {
         return type == UnitType.SWORDSMAN || type == UnitType.ARCHER || type == UnitType.CAVALRY;

@@ -10,7 +10,6 @@ public class FriendlyState implements TribeState {
     @Override public boolean canFormAlliance() { return false; }
     @Override public boolean canRequestPeace() { return false; }
 
-    // اصلاح گام سوم
     @Override public boolean isHostile() { return false; }
     @Override public boolean canDeclareWar() { return true; }
 

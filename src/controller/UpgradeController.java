@@ -32,8 +32,6 @@ public class UpgradeController {
     }
 
     private void initStrategies() {
-        // ─── [OCP FIX]: تزریق استراتژی‌های اجرایی به Command ───────────────────────
-        // با این روش، کلاس Command هیچ نیازی به دانستن لاجیک تکنولوژی‌ها ندارد (حذف Switch)
         ProductionCommand.TechCommand.registerTechExecution("STONE_MINE", map -> map.getTownHall().setStoneMineUnlocked(true));
         ProductionCommand.TechCommand.registerTechExecution("IRON_MINE", map -> map.getTownHall().setIronMineUnlocked(true));
         ProductionCommand.TechCommand.registerTechExecution("PROF_TOOLS", map -> map.getTownHall().setSteelToolsUnlocked(true));

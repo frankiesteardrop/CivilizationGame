@@ -53,7 +53,6 @@ public class HexRenderer {
 
         List<Hex> hexes = map.getHexes();
 
-        // ── Pass 1: Base Terrain ──────────────────────────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isExplored() && !hex.isVisible()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -61,15 +60,12 @@ public class HexRenderer {
             drawTerrainBase(g2d, hex, pt.x, pt.y, size, season, zoom);
         }
 
-        // ── Pass 2: Territory fill ────────────────────────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isVisible() || !hex.isInsideBorder()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             drawTerritoryFill(g2d, hex, pt.x, pt.y, size);
         }
-
-        // ── Pass 3-6: Rivers, Roads, Walls, Borders ───────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isVisible() && !hex.isExplored()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -80,8 +76,6 @@ public class HexRenderer {
             drawWalls(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
             if (hex.isInsideBorder()) drawTerritoryBorder(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
         }
-
-        // ── Pass 7: Buildings ─────────────────────────────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isVisible()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -92,7 +86,6 @@ public class HexRenderer {
             }
         }
 
-        // ── Pass 8: Resource Icons ────────────────────────────────────────────
         for (Hex hex : hexes) {
             if (!hex.isVisible()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
@@ -100,11 +93,9 @@ public class HexRenderer {
             if (zoom >= 0.75) drawResourceIcons(g2d, hex, pt.x, pt.y, size, zoom);
         }
 
-        // ── Pass 9 & 10: Highlights & Disasters ───────────────────────────────
         drawHighlights(g2d, panel, map, unitController, clip, size, zoom);
         drawDisasterOverlays(g2d, panel, clip, size);
 
-        // ── Pass 11 & 12: Advanced Fog of War ─────────────────────────────────
         for (Hex hex : hexes) {
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
@@ -115,7 +106,6 @@ public class HexRenderer {
             }
         }
 
-        // ── Pass 13 & 14: Hover & UI Overlays ─────────────────────────────────
         Hex hovered = panel.getHoveredHex();
         if (hovered != null && hovered.isVisible()) {
             Point pt = panel.getHexPixelCoords(hovered.getQ(), hovered.getR());
@@ -141,7 +131,6 @@ public class HexRenderer {
         g2d.translate(-cx, -cy);
     }
 
-    // ─── Terrain Base ─────────────────────────────────────────────────────────
 
     private void drawTerrainBase(Graphics2D g2d, Hex hex, int cx, int cy,
                                  int size, Season season, double zoom) {
@@ -730,13 +719,11 @@ public class HexRenderer {
                 int[] ety = {(int)(s*0.65) + oy, (int)(s*0.0) + oy, (int)(s*0.65) + oy};
                 g2d.fillPolygon(etx, ety, 3);
             }
-            // اصلاح فاز 2: گرافیک اختصاصی Outpost (برجک دیده‌بانی)
             case OUTPOST -> {
-                // برجک پایه چوبی
                 g2d.fillRect(-(int)(s*0.35) + ox, -(int)(s*0.8) + oy, (int)(s*0.7), (int)(s*1.6));
-                // بالکن چوبی
+
                 g2d.fillRect(-(int)(s*0.5) + ox, -(int)(s*0.8) + oy, (int)(s*1.0), (int)(s*0.3));
-                // پرچم بالا
+
                 g2d.setColor(UIConfig.UNIT_SWORDSMAN);
                 int[] px = {ox, ox + (int)(s*0.6), ox};
                 int[] py = {-(int)(s*0.8) + oy, -(int)(s*0.6) + oy, -(int)(s*0.4) + oy};
@@ -808,7 +795,6 @@ public class HexRenderer {
         g2d.setStroke(new BasicStroke(1f));
     }
 
-    // ─── Pass 8: Resource Icons ───────────────────────────────────────────────
 
     private void drawResourceIcons(Graphics2D g2d, Hex hex, int cx, int cy,
                                    int size, double zoom) {
@@ -881,8 +867,6 @@ public class HexRenderer {
         };
     }
 
-    // ─── Pass 9: Highlights ───────────────────────────────────────────────────
-
     private void drawHighlights(Graphics2D g2d, GamePanel panel, GameMap map,
                                 UnitController unitController, Rectangle clip,
                                 int size, double zoom) {
@@ -938,7 +922,6 @@ public class HexRenderer {
         g2d.translate(-cx, -cy);
     }
 
-    // ─── Pass 10: Disaster Overlays ───────────────────────────────────────────
 
     private void drawDisasterOverlays(Graphics2D g2d, GamePanel panel,
                                       Rectangle clip, int size) {
@@ -1038,7 +1021,6 @@ public class HexRenderer {
                 (int)(a.getBlue()  + (b.getBlue()  - a.getBlue())  * t));
     }
 
-    // ─── UI Overlays (Hover Info) ────────────────────────────────────────────
 
     private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
         if (hex == null || !hex.isExplored()) return;
@@ -1092,21 +1074,17 @@ public class HexRenderer {
         g2d.setColor(new Color(0, 0, 0, 150));
         g2d.fillRoundRect(x + 4, y + 4, boxW, boxH, 12, 12);
 
-        // Background
         g2d.setColor(new Color(25, 28, 35, 230));
         g2d.fillRoundRect(x, y, boxW, boxH, 12, 12);
 
-        // Border (Accent glow)
         g2d.setColor(new Color(65, 165, 255, 180));
         g2d.setStroke(new BasicStroke(1.5f));
         g2d.drawRoundRect(x, y, boxW, boxH, 12, 12);
         g2d.setStroke(new BasicStroke(1f));
 
-        // Text Line 1
         g2d.setColor(Color.WHITE);
         g2d.drawString(line1, x + 15, y + 25);
 
-        // Text Line 2
         g2d.setColor(new Color(180, 190, 200));
         g2d.setFont(new Font(UIConfig.FONT_SANS_SERIF, Font.PLAIN, 12));
         g2d.drawString(line2, x + 15, y + 45);

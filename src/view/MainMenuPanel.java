@@ -54,16 +54,8 @@ public class MainMenuPanel extends JPanel {
         add(exitButton, gbc);
     }
 
-    /**
-     * I1: باز کردن LoadGameDialog با نمایش کامل metadata هر Slot.
-     *
-     * قبلاً از JOptionPane.showInputDialog استفاده می‌شد که فقط اسم Slot را نشان می‌داد.
-     * حالا LoadGameDialog اطلاعات کامل (Turn، Season، TH Level، زمان ذخیره) را نمایش می‌دهد.
-     *
-     * اگر تمام Slot‌ها خالی باشند، یک پیام راهنما نشان داده می‌شود.
-     */
+
     private void openLoadGameDialog() {
-        // بررسی سریع: آیا حداقل یک Slot غیرخالی وجود دارد؟
         boolean hasAnySave = false;
         for (String slot : new String[]{"autosave", "slot1", "slot2", "slot3"}) {
             SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata(slot);
@@ -74,7 +66,6 @@ public class MainMenuPanel extends JPanel {
         }
 
         if (!hasAnySave) {
-            // هیچ فایل ذخیره‌ای وجود ندارد
             JOptionPane.showMessageDialog(
                     mainFrame,
                     "<html><center><b style='font-size:14px;'>No Save Files Found</b><br/><br/>"
@@ -86,9 +77,8 @@ public class MainMenuPanel extends JPanel {
             return;
         }
 
-        // I1: نمایش dialog با metadata کامل
         LoadGameDialog dialog = new LoadGameDialog(mainFrame);
-        dialog.setVisible(true); // modal — اینجا block می‌کند تا dialog بسته شود
+        dialog.setVisible(true);
 
         String chosenSlot = dialog.getSelectedSlot();
         if (chosenSlot != null && !chosenSlot.isBlank()) {

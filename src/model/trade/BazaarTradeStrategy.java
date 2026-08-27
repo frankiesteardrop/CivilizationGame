@@ -11,7 +11,6 @@ public class BazaarTradeStrategy implements TradeStrategy {
     @Override
     public int calculateReceivedAmount(int giveAmount, ResourceType getResource, boolean hasTradeBonus) {
         double baseRate = (level == 1) ? 0.5 : (level == 2) ? 0.6 : 0.7;
-        // بازار یک سازه مستقل است و پاداش قبیله تجاری نباید روی آن اعمال شود
         return (int) Math.floor(giveAmount * baseRate);
     }
 }

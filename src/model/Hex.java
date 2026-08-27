@@ -16,11 +16,10 @@ public class Hex {
     private boolean isInsideBorder;
     private Building building;
 
-    // زیرساخت‌های جدید فاز دوم
     private boolean hasRoad;
-    private final boolean[] rivers;  // 6 جهت
-    private final boolean[] walls;   // 6 جهت
-    private final int[] wallHp;      // میزان سلامتی دیوار در هر جهت
+    private final boolean[] rivers;
+    private final boolean[] walls;
+    private final int[] wallHp;
 
     public Hex(int q, int r, TerrainType terrainType) {
         this.q = q;
@@ -53,15 +52,12 @@ public class Hex {
     public Building getBuilding() { return building; }
     public void setBuilding(Building building) { this.building = building; }
 
-    // متدهای جاده
     public boolean hasRoad() { return hasRoad; }
     public void setRoad(boolean hasRoad) { this.hasRoad = hasRoad; }
 
-    // متدهای رودخانه (0 تا 5)
     public boolean hasRiver(int dir) { return rivers[dir]; }
     public void setRiver(int dir, boolean hasRiver) { rivers[dir] = hasRiver; }
 
-    // متدهای دیوار (0 تا 5)
     public boolean hasWall(int dir) { return walls[dir]; }
     public void setWall(int dir, boolean hasWall, int hp) {
         walls[dir] = hasWall;

@@ -33,11 +33,8 @@ public class ActiveMissionState implements MissionState {
 
     @Override
     public void onUnitKilled(Mission mission, TribeCamp camp, Unit unit, GameMap map) {
-        // منطق خاص قبیله جنگجو
         if (camp.getTribe().getType() != TribeType.WARRIOR) return;
 
-        // فقط یونیت‌های دشمن (isEnemy) یا حیوانات وحشی (BEAR) محاسبه می‌شوند
-        // کشتن یونیت‌های خودی نباید count شود
         if (!unit.isEnemy() && unit.getType() != UnitType.BEAR) return;
 
         Hex campHex = map.getHexOfBuilding(camp);
@@ -46,8 +43,6 @@ public class ActiveMissionState implements MissionState {
         int distToKill = map.getHexDistance(unit.getQ(), unit.getR(), campHex.getQ(), campHex.getR());
         if (distToKill > 5) return;
 
-        // ─── سیستم ضد-تقلب مکان‌محور (Spatial Anti-Cheat Heuristic) ───
-        // بررسی اینکه آیا کشته شدن این یونیت کار نیروی نظامی بازیکن بوده است؟
         boolean playerCausedKill = map.getUnits().stream()
                 .anyMatch(u -> u.isAlive()
                         && !u.isEnemy()
@@ -56,15 +51,12 @@ public class ActiveMissionState implements MissionState {
                         && map.getHexDistance(u.getQ(), u.getR(), unit.getQ(), unit.getR()) <= u.getAttackRange());
 
         if (!playerCausedKill) {
-            // مرگ بر اثر عوامل دیگر (مثل درگیری خرس با گارد قبیله) بوده است
             return;
         }
-        // ─────────────────────────────────────────────────────────────
 
         mission.addProgress(1);
         GameEventDispatcher.fireNotification("⚔️ Warrior Mission: " + mission.getProgress() + "/2 enemies defeated near camp.");
 
-        // بررسی مستقیم progress بجای isCompleted()
         if (mission.getProgress() >= 2) {
             mission.setState(new ReadyMissionState());
             GameEventDispatcher.fireNotification("✅ Mission for Warrior Tribe is ready to deliver!");

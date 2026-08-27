@@ -10,9 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * پنل اصلی بازی با موتور رندرینگ پیشرفته (Parallax Particle System و Cinematic VFX).
- */
 public class GamePanel extends JPanel implements UnitListener, TurnListener, BuildingListener, MapListener, DisasterListener, CombatListener {
 
     private final MainController mainController;
@@ -48,13 +45,12 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
     private float     bearAlpha       = 0f;
     private int       bearFlashTimer  = 0;
 
-    // ─── سیستم پارتیکل فیزیک‌محور پیشرفته (Advanced Particle System) ───
     private static class AdvancedParticle {
-        float x, y, z;          // z برای عمق Parallax
+        float x, y, z;
         float speedX, speedY;
         float size, alpha;
-        float phase, swing;     // برای رقص و آشفتگی سینوسی
-        int type;               // 0: برف، 1: باران، 2: برگ پاییزی، 3: شکوفه بهاری
+        float phase, swing;
+        int type;
         Color color;
 
         AdvancedParticle(int type, float x, float y, float z, float spX, float spY, float sz, float a, float sw, Color c) {
@@ -94,7 +90,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             if (animatingUnit != null) { updateAnimation();    needsRepaint = true; }
             if (selectedUnit  != null) { updatePulseEffect();  needsRepaint = true; }
 
-            // افکت لرزش دوربین (زلزله) با کاهش شدت تدریجی
             if (shakeDuration > 0) {
                 double intensity = (double) shakeDuration / 30.0;
                 shakeX = (int)((Math.random() - 0.5) * 18 * intensity);
@@ -118,7 +113,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
                 needsRepaint = true;
             }
 
-            // افکت هاله خطر خرس (Red Vignette)
             if (bearFlashTimer > 0) {
                 bearAlpha = Math.min(0.65f, bearAlpha + 0.05f);
                 bearFlashTimer--;
@@ -132,7 +126,7 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
 
             Season currentSeason = mainController.getGameMap().getCurrentSeason();
             updateAdvancedParticles(currentSeason);
-            needsRepaint = true; // ذرات همیشه حرکت می‌کنند
+            needsRepaint = true;
 
             if (needsRepaint) repaint();
         });
@@ -156,7 +150,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         repaint();
     }
 
-    // ─── موتور تولید ذرات آب و هوا (Procedural Weather Engine) ───
 
     private void updateAdvancedParticles(Season season) {
         if (season != lastParticleSeason) {
@@ -165,65 +158,55 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         }
 
         int maxParticles = switch (season) {
-            case WINTER -> 250; // برف سنگین
-            case AUTUMN -> 350; // باران و برگ
-            case SPRING -> 80;  // شکوفه‌های کم‌تراکم
+            case WINTER -> 250;
+            case AUTUMN -> 350;
+            case SPRING -> 80;
             default     -> 0;
         };
 
         int panelW = Math.max(getWidth(), 100);
         int panelH = Math.max(getHeight(), 100);
 
-        // تولید ذرات جدید
         while (particles.size() < maxParticles) {
             boolean firstFrame = (lastParticleSeason == null);
             float startX = particleRandom.nextFloat() * (panelW + 200) - 100;
             float startY = firstFrame ? particleRandom.nextFloat() * panelH : -particleRandom.nextFloat() * 50;
 
-            float z = 0.5f + particleRandom.nextFloat() * 1.0f; // Parallax Depth
+            float z = 0.5f + particleRandom.nextFloat() * 1.0f;
 
             if (season == Season.WINTER) {
-                // دانه برف
                 float sz = (1.5f + particleRandom.nextFloat() * 3f) * z;
                 float spY = (0.8f + particleRandom.nextFloat() * 1.2f) * z;
                 particles.add(new AdvancedParticle(0, startX, startY, z, 0, spY, sz,
                         0.4f + particleRandom.nextFloat() * 0.4f, 1.5f * z, Color.WHITE));
             } else if (season == Season.AUTUMN) {
                 if (particleRandom.nextFloat() > 0.15f) {
-                    // باران پاییزی (سریع و زاویه‌دار)
                     float spY = (15.0f + particleRandom.nextFloat() * 10.0f) * z;
                     float spX = -3.0f - particleRandom.nextFloat() * 2.0f; // باد شدید به چپ
                     particles.add(new AdvancedParticle(1, startX, startY, z, spX, spY, 2.0f * z,
                             0.3f + particleRandom.nextFloat() * 0.3f, 0, new Color(150, 180, 210)));
                 } else {
-                    // برگ پاییزی
                     Color leafColor = particleRandom.nextBoolean() ? new Color(210, 100, 30) : new Color(180, 50, 20);
                     float spY = (1.5f + particleRandom.nextFloat() * 2.0f) * z;
                     particles.add(new AdvancedParticle(2, startX, startY, z, -2.0f * z, spY, 4.0f * z,
                             0.7f, 3.0f * z, leafColor));
                 }
             } else if (season == Season.SPRING) {
-                // شکوفه بهاری (آرام و رقصان)
                 float spY = (0.5f + particleRandom.nextFloat() * 1.0f) * z;
                 particles.add(new AdvancedParticle(3, startX, startY, z, 1.0f * z, spY, 3.5f * z,
                         0.6f, 2.0f * z, new Color(255, 180, 200)));
             }
         }
-
-        // حرکت ذرات فیزیک‌محور
         for (AdvancedParticle p : particles) {
             p.phase += 0.05f;
             if (p.type == 0 || p.type == 2 || p.type == 3) {
-                // رقص سینوسی برای برف، برگ و شکوفه
                 p.x += p.speedX + Math.sin(p.phase) * p.swing;
             } else {
-                // خط مستقیم برای باران
                 p.x += p.speedX;
             }
             p.y += p.speedY;
         }
 
-        // حذف ذرات خارج از کادر
         particles.removeIf(p -> p.y > panelH + 20 || p.x < -150 || p.x > panelW + 150);
     }
 
@@ -299,13 +282,11 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        // اعمال لرزش زلزله روی نقشه بازی
         g2d.translate(shakeX, shakeY);
         hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
         unitRenderer.renderAll(g2d, this, mainController.getGameMap());
-        g2d.translate(-shakeX, -shakeY); // بازگشت برای رسم افکت‌های روی صفحه (Screen-Space)
+        g2d.translate(-shakeX, -shakeY);
 
-        // رندر سیستم پارتیکل و افکت‌های سینمایی
         drawAdvancedParticles(g2d);
         drawCinematicOverlays(g2d);
     }
@@ -354,7 +335,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         if (campHex == null || !(campHex.getBuilding() instanceof TribeCamp)) return;
         if (campHex.getBuilding().isDestroyed()) return;
 
-        // ─── گام نهایی: رفع باگ تله‌پاتی (Exploit مه جنگ) ───
         if (!campHex.isVisible()) {
             GameEventDispatcher.fireNotification(
                     "⚠️ This tribe is currently hidden in the Fog of War! You need active vision to interact.");
@@ -450,7 +430,7 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             if (center == null || !center.isVisible()) return;
             switch (type) {
                 case "EARTHQUAKE"  -> {
-                    shakeDuration = 45; // افزایش زمان لرزش
+                    shakeDuration = 45;
                     earthquakeHexes = new ArrayList<>(affected);
                     earthquakeTimer = 100;
                 }
@@ -458,7 +438,7 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
                 case "BEAR_ATTACK" -> {
                     bearAttackHexes = new ArrayList<>(affected);
                     bearAlpha = 0f;
-                    bearFlashTimer = 60; // افزایش زمان تپش صفحه
+                    bearFlashTimer = 60;
                 }
             }
         });

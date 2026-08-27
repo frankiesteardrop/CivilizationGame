@@ -103,7 +103,6 @@ public class UnitController {
         int dir = getDirection(dq, dr);
         boolean crossesRiver = false;
 
-        // ─── [GAMEPLAY FIX]: Double check river crossing ───
         if (dir >= 0) {
             if (fromHex.hasRiver(dir) || toHex.hasRiver((dir + 3) % 6)) {
                 crossesRiver = true;

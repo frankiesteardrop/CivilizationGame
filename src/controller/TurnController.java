@@ -32,17 +32,14 @@ public class TurnController {
     }
 
     private void executeEndTurnLogic() {
-        // 1. کاهش تایمر توقف تولید سیل
         for (Hex hex : gameMap.getHexes()) {
             if (hex.getBuilding() != null) {
                 hex.getBuilding().decrementFloodHalt();
             }
         }
 
-        // 2. پاکسازی ایمن واحدهای مرده
         gameMap.removeDeadUnits();
 
-        // 3. تغییر فصل
         Season seasonBefore = gameMap.getCurrentSeason();
         gameMap.incrementTurn();
         gameMap.updateFogOfWar();
@@ -51,7 +48,6 @@ public class TurnController {
             fireSeasonChangeNotification(seasonAfter);
         }
 
-        // 4. تجدید AP خرس‌ها برای هوش مصنوعی
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive() && unit.getType() == UnitType.BEAR) {
                 unit.resetAP();
@@ -61,20 +57,16 @@ public class TurnController {
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // 5. رویدادهای پایان نوبت (تولید منابع، آپگریدها، اعمال قحطی اولیه)
         GameEventDispatcher.fireTurnEnded(gameMap.getCurrentTurn());
 
-        // 6. هوش مصنوعی قبایل (حملات دشمن روی AP قبلی بازیکن اثر می‌گذارد)
         mainController.getTribeController().processTribesTurn();
 
-        // 7. تجدید AP بازیکن در شروع نوبت جدید و اعمال دقیق جریمه‌ها (Sequence Fix)
         int effectiveHappiness = mainController.getEconomyController().getEffectiveHappiness(gameMap);
         for (Unit unit : gameMap.getUnits()) {
             if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
 
-                unit.resetAP(); // پر کردن کامل AP برای نوبت جدید
+                unit.resetAP();
 
-                // اعمال جریمه شورش (Rebellion)
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();
                     if (t == UnitType.WORKER || t == UnitType.SWORDSMAN
@@ -83,14 +75,12 @@ public class TurnController {
                     }
                 }
 
-                // جبران جریمه قحطی (Starvation) روی AP جدید
                 if (gameMap.isStarving()) {
                     unit.consumeAP(1);
                 }
             }
         }
 
-        // 8. ذخیره خودکار وضعیت پایدار
         mainController.getSaveLoadController().autosave();
     }
 

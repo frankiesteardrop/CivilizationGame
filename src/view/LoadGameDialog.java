@@ -8,28 +8,8 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/**
- * Dialog نمایش Slot‌های ذخیره با metadata کامل برای بارگذاری از منوی اصلی.
- *
- * [I1]: طبق spec، هر Slot باید نمایش دهد:
- *   - نام ذخیره (Slot name)
- *   - شماره Turn
- *   - فصل فعلی (Season)
- *   - زمان واقعی ذخیره
- *   - سطح Town Hall
- *   - خلاصه متنی از وضعیت بازی
- *
- * این کلاس از MainMenuPanel استفاده می‌شود.
- * PauseMenuDialog بصورت مستقل اطلاعات مشابهی نمایش می‌دهد (گام ۲).
- *
- * استفاده:
- *   LoadGameDialog dlg = new LoadGameDialog(parentFrame);
- *   dlg.setVisible(true);
- *   String slot = dlg.getSelectedSlot(); // null اگر cancel شد
- */
 public class LoadGameDialog extends JDialog {
 
-    // ─── رنگ‌بندی (هماهنگ با تم کلی بازی) ──────────────────────────────────
     private static final Color BG_DARK        = new Color(15, 17, 24);
     private static final Color BG_CARD        = new Color(28, 32, 42);
     private static final Color BG_CARD_HOVER  = new Color(35, 40, 54);
@@ -57,14 +37,12 @@ public class LoadGameDialog extends JDialog {
     private static final String[] SLOT_KEYS   = {"autosave", "slot1", "slot2", "slot3"};
     private static final String[] SLOT_LABELS = {"🔄  Autosave", "📁  Slot 1", "📁  Slot 2", "📁  Slot 3"};
 
-    // ─── State ────────────────────────────────────────────────────────────────
     private String        selectedSlot    = null;  // null = cancelled
     private JPanel        selectedCard    = null;
     private String        selectedKey     = null;
     private final JButton loadBtn;
     private final JPanel  slotListPanel;
 
-    // ─── Constructor ─────────────────────────────────────────────────────────
 
     public LoadGameDialog(Frame parent) {
         super(parent, "Load Game", true);
@@ -73,15 +51,12 @@ public class LoadGameDialog extends JDialog {
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        // ── Root ──────────────────────────────────────────────────────────────
         JPanel root = new JPanel(new BorderLayout(0, 0));
         root.setBackground(BG_DARK);
         root.setBorder(BorderFactory.createLineBorder(ACCENT_GOLD, 2));
 
-        // ── Header ────────────────────────────────────────────────────────────
         root.add(buildHeader(), BorderLayout.NORTH);
 
-        // ── Slot List ─────────────────────────────────────────────────────────
         slotListPanel = new JPanel();
         slotListPanel.setLayout(new BoxLayout(slotListPanel, BoxLayout.Y_AXIS));
         slotListPanel.setBackground(BG_DARK);
@@ -102,7 +77,6 @@ public class LoadGameDialog extends JDialog {
         scroll.getVerticalScrollBar().setUnitIncrement(16);
         root.add(scroll, BorderLayout.CENTER);
 
-        // ── Footer ────────────────────────────────────────────────────────────
         loadBtn = new JButton("📂   Load Selected");
         JButton cancelBtn = new JButton("✕   Cancel");
         root.add(buildFooter(loadBtn, cancelBtn), BorderLayout.SOUTH);
@@ -120,17 +94,10 @@ public class LoadGameDialog extends JDialog {
         );
     }
 
-    // ─── Result Getter ────────────────────────────────────────────────────────
 
-    /**
-     * Slot انتخاب‌شده توسط کاربر را برمی‌گرداند.
-     * @return نام Slot (مثل "slot1") یا null اگر Cancel زده شده باشد
-     */
     public String getSelectedSlot() {
         return selectedSlot;
     }
-
-    // ─── Header ──────────────────────────────────────────────────────────────
 
     private JPanel buildHeader() {
         JPanel panel = new JPanel(new BorderLayout(8, 0));
@@ -156,21 +123,10 @@ public class LoadGameDialog extends JDialog {
         return panel;
     }
 
-    // ─── Slot Card ────────────────────────────────────────────────────────────
 
-    /**
-     * کارت یک Slot ذخیره با metadata کامل [I1].
-     *
-     * حالت‌های ممکن:
-     *   - خالی: نمایش "[ EMPTY ]" — دکمه Load غیرفعال
-     *   - فرمت قدیم (1.x): نمایش اطلاعات محدود با badge "Legacy"
-     *   - فرمت جدید (2.0): نمایش Turn، Season، TH Level، زمان ذخیره
-     *   - خراب: نمایش "⚠ Corrupted" با استایل قرمز
-     */
     private JPanel buildSlotCard(String slotKey, String slotLabel, boolean isAutosave) {
         SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata(slotKey);
 
-        // تعیین رنگ‌بندی پایه
         Color baseBg    = isAutosave ? BG_AUTOSAVE : BG_CARD;
         Color hoverBg   = isAutosave ? BG_AUTO_HOVER : BG_CARD_HOVER;
         Color selBg     = isAutosave ? BG_AUTO_SEL : BG_CARD_SEL;
@@ -187,12 +143,10 @@ public class LoadGameDialog extends JDialog {
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
         card.setMinimumSize(new Dimension(0, 88));
 
-        // ── چپ: اطلاعات ──────────────────────────────────────────────────────
         JPanel infoPanel = new JPanel();
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
         infoPanel.setOpaque(false);
 
-        // عنوان Slot
         JLabel titleLbl = new JLabel(slotLabel);
         titleLbl.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 14));
         titleLbl.setForeground(titleColor);
@@ -201,7 +155,6 @@ public class LoadGameDialog extends JDialog {
         infoPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
         if (meta == null || meta.isEmpty) {
-            // ── خالی ─────────────────────────────────────────────────────────
             card.setBackground(BG_EMPTY);
             titleLbl.setForeground(TEXT_DIM);
             JLabel emptyLbl = new JLabel("[ EMPTY — No save file ]");
@@ -211,7 +164,6 @@ public class LoadGameDialog extends JDialog {
             infoPanel.add(emptyLbl);
 
         } else if ("Legacy".equals(meta.season)) {
-            // ── فرمت قدیم ────────────────────────────────────────────────────
             JPanel row1 = buildMetaRow(
                     buildMetaPill("v1.x", new Color(100, 90, 40)),
                     (meta.turnNumber > 0) ? buildMetaItem("⏳", "Turn " + meta.turnNumber) : null,
@@ -227,9 +179,7 @@ public class LoadGameDialog extends JDialog {
             infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
             infoPanel.add(legacyNote);
 
-            // در متد buildSlotCard این بخش را جایگزین فرمت جدید (2.0) کنید:
         } else {
-            // ── فرمت جدید (2.0) — نمایش کامل [I1, M1] ───────────────────────────
             JPanel row1 = buildMetaRow(
                     buildMetaItem("⏳", "Turn " + meta.turnNumber),
                     buildMetaItem(getSeasonEmoji(meta.season), meta.season),
@@ -240,7 +190,6 @@ public class LoadGameDialog extends JDialog {
 
             infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
 
-            // ردیف خلاصه وضعیت [M1]
             JPanel rowSummary = buildMetaRow(
                     buildMetaItem("📊", meta.gameSummary)
             );
@@ -249,7 +198,6 @@ public class LoadGameDialog extends JDialog {
 
             infoPanel.add(Box.createRigidArea(new Dimension(0, 3)));
 
-            // ردیف دوم: زمان ذخیره + نسخه
             JPanel row2 = buildMetaRow(
                     buildMetaItem("🕐", meta.saveTime),
                     buildMetaPill("v" + meta.saveVersion, new Color(40, 60, 100))
@@ -260,7 +208,6 @@ public class LoadGameDialog extends JDialog {
 
         card.add(infoPanel, BorderLayout.CENTER);
 
-        // ── راست: دکمه Load ───────────────────────────────────────────────────
         boolean canLoad = (meta != null && !meta.isEmpty);
         JButton loadCardBtn = buildCardLoadButton(canLoad);
         if (canLoad) {
@@ -272,14 +219,12 @@ public class LoadGameDialog extends JDialog {
         rightPanel.add(loadCardBtn);
         card.add(rightPanel, BorderLayout.EAST);
 
-        // ── کلیک روی کارت → انتخاب ───────────────────────────────────────────
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (!canLoad) return;
-                // تک‌کلیک: انتخاب کارت
                 selectCard(card, slotKey, baseBg, selBg, baseBorder, isAutosave);
-                // دبل‌کلیک: لود مستقیم
+
                 if (e.getClickCount() == 2) {
                     loadSlot(slotKey);
                 }
@@ -296,17 +241,14 @@ public class LoadGameDialog extends JDialog {
             }
         });
 
-        // کلیک‌های child component‌ها هم کارت را انتخاب کنند
         propagateMouseToCard(infoPanel, card, canLoad, slotKey, baseBg, selBg, hoverBg, baseBorder, isAutosave);
 
         return card;
     }
 
-    // ─── Card Selection ───────────────────────────────────────────────────────
-
     private void selectCard(JPanel card, String slotKey,
                             Color baseBg, Color selBg, Color baseBorder, boolean isAutosave) {
-        // رنگ قبلی را بازگردانیم
+
         if (selectedCard != null && selectedCard != card) {
             selectedCard.setBackground(isAutosave ? BG_AUTOSAVE : BG_CARD);
             selectedCard.setBorder(BorderFactory.createCompoundBorder(
@@ -318,27 +260,21 @@ public class LoadGameDialog extends JDialog {
         selectedCard = card;
         selectedKey  = slotKey;
 
-        // هایلایت انتخاب
         card.setBackground(selBg);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_SEL, 2),
                 new EmptyBorder(12, 15, 12, 15)
         ));
 
-        // فعال کردن دکمه Load اصلی
         loadBtn.setEnabled(true);
         loadBtn.setBackground(BTN_LOAD);
         loadBtn.setText("📂   Load  — " + slotKey);
     }
 
-    // ─── Load Action ─────────────────────────────────────────────────────────
-
     private void loadSlot(String slotKey) {
         selectedSlot = slotKey;
         dispose();
     }
-
-    // ─── Footer ───────────────────────────────────────────────────────────────
 
     private JPanel buildFooter(JButton loadBtn, JButton cancelBtn) {
         JPanel panel = new JPanel(new BorderLayout(0, 0));
@@ -347,10 +283,8 @@ public class LoadGameDialog extends JDialog {
                 BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(42, 48, 62)),
                 new EmptyBorder(12, 20, 14, 20)
         ));
-
-        // استایل Load Button
         loadBtn.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 14));
-        loadBtn.setBackground(new Color(35, 45, 65)); // غیرفعال در ابتدا
+        loadBtn.setBackground(new Color(35, 45, 65));
         loadBtn.setForeground(TEXT_DIM);
         loadBtn.setFocusPainted(false);
         loadBtn.setOpaque(true);
@@ -369,7 +303,6 @@ public class LoadGameDialog extends JDialog {
             }
         });
 
-        // استایل Cancel Button
         cancelBtn.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 13));
         cancelBtn.setBackground(BTN_CANCEL);
         cancelBtn.setForeground(TEXT_DIM);
@@ -393,11 +326,6 @@ public class LoadGameDialog extends JDialog {
         return panel;
     }
 
-    // ─── UI Helpers ──────────────────────────────────────────────────────────
-
-    /**
-     * ردیف metadata — چند آیتم کنار هم با gap.
-     */
     private JPanel buildMetaRow(JComponent... items) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         row.setOpaque(false);
@@ -407,9 +335,6 @@ public class LoadGameDialog extends JDialog {
         return row;
     }
 
-    /**
-     * یک آیتم metadata: icon + text در یک پیل کوچک.
-     */
     private JLabel buildMetaItem(String icon, String text) {
         JLabel lbl = new JLabel(icon + "  " + text);
         lbl.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 12));
@@ -423,9 +348,7 @@ public class LoadGameDialog extends JDialog {
         return lbl;
     }
 
-    /**
-     * Pill برای نمایش نسخه یا برچسب‌های خاص.
-     */
+
     private JLabel buildMetaPill(String text, Color bg) {
         JLabel lbl = new JLabel(text);
         lbl.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 10));
@@ -436,9 +359,6 @@ public class LoadGameDialog extends JDialog {
         return lbl;
     }
 
-    /**
-     * دکمه Load کوچک داخل هر کارت Slot.
-     */
     private JButton buildCardLoadButton(boolean enabled) {
         JButton btn = new JButton(enabled ? "Load" : "—");
         btn.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 12));
@@ -459,10 +379,6 @@ public class LoadGameDialog extends JDialog {
         return btn;
     }
 
-    /**
-     * انتقال event کلیک از child component‌ها به کارت parent.
-     * بدون این، کلیک روی JLabel‌های داخل کارت کارت را انتخاب نمی‌کند.
-     */
     private void propagateMouseToCard(JPanel source, JPanel card, boolean canLoad,
                                       String slotKey, Color baseBg, Color selBg,
                                       Color hoverBg, Color baseBorder, boolean isAutosave) {
@@ -487,9 +403,6 @@ public class LoadGameDialog extends JDialog {
         }
     }
 
-    /**
-     * تبدیل نام فصل به emoji.
-     */
     private String getSeasonEmoji(String season) {
         return switch (season) {
             case "SPRING" -> "🌸";

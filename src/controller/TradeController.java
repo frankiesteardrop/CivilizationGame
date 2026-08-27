@@ -22,7 +22,6 @@ public class TradeController implements TurnListener {
         return false;
     }
 
-    // ─── [MVC FIX]: Centralized Trade Value ───
     public int getBazaarTradeAmount(int level) {
         return (level == 1) ? 10 : (level == 2) ? 100 : 500;
     }

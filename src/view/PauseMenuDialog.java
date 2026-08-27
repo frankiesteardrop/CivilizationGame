@@ -8,16 +8,8 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 
-/**
- * منوی Pause — طبق spec فاز دوم:
- * - ذخیره دستی فقط از این منو (با تأیید Overwrite) [I2]
- * - دکمه Save در حین پردازش Turn یا Animation غیرفعال است [I3]
- * - با کلید Escape قابل باز و بسته شدن است [I4]
- * - نمایش اطلاعات کامل هر Slot (Turn، Season، TH Level، زمان) [I1]
- */
 public class PauseMenuDialog extends JDialog {
 
-    // ─── رنگ‌بندی (هماهنگ با تم کلی بازی) ──────────────────────────────────
     private static final Color BG_DARK      = new Color(15, 17, 24);
     private static final Color BG_CARD      = new Color(28, 32, 42);
     private static final Color BG_AUTOSAVE  = new Color(18, 32, 22);
@@ -37,7 +29,7 @@ public class PauseMenuDialog extends JDialog {
 
     private final MainController mainController;
     private final MainFrame      mainFrame;
-    private final boolean        isLocked; // true در هنگام animation یا processing
+    private final boolean        isLocked;
 
     public PauseMenuDialog(JFrame parent, MainController mainController, boolean isLocked) {
         super(parent, "Game Paused", true);
@@ -50,7 +42,6 @@ public class PauseMenuDialog extends JDialog {
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        // بستن با Escape
         getRootPane().registerKeyboardAction(
                 e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
@@ -60,7 +51,6 @@ public class PauseMenuDialog extends JDialog {
         buildUI();
     }
 
-    // ─── ساخت UI ─────────────────────────────────────────────────────────────
 
     private void buildUI() {
         JPanel root = new JPanel(new BorderLayout(0, 0));
@@ -84,7 +74,6 @@ public class PauseMenuDialog extends JDialog {
         title.setForeground(ACCENT_GOLD);
         panel.add(title, BorderLayout.CENTER);
 
-        // خط جداکننده پایین header
         JPanel sep = new JPanel();
         sep.setBackground(new Color(ACCENT_GOLD.getRed(), ACCENT_GOLD.getGreen(), ACCENT_GOLD.getBlue(), 100));
         sep.setPreferredSize(new Dimension(0, 1));
@@ -98,12 +87,10 @@ public class PauseMenuDialog extends JDialog {
         outer.setBackground(BG_DARK);
         outer.setBorder(new EmptyBorder(16, 20, 12, 20));
 
-        // دکمه Resume — برجسته‌ترین المان
         JButton resumeBtn = buildWideButton("▶   RESUME GAME", BTN_RESUME, Color.WHITE, 16);
         resumeBtn.addActionListener(e -> dispose());
         outer.add(resumeBtn, BorderLayout.NORTH);
 
-        // بخش Save/Load
         JPanel savesSection = new JPanel(new BorderLayout(0, 8));
         savesSection.setOpaque(false);
 
@@ -113,7 +100,6 @@ public class PauseMenuDialog extends JDialog {
         slotsLabel.setBorder(new EmptyBorder(12, 2, 4, 0));
         savesSection.add(slotsLabel, BorderLayout.NORTH);
 
-        // I3: هشدار قفل بودن Save هنگام animation/processing
         if (isLocked) {
             JLabel lockWarn = new JLabel("⚠️  Cannot save during unit movement or turn processing.");
             lockWarn.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 11));
@@ -122,7 +108,6 @@ public class PauseMenuDialog extends JDialog {
             savesSection.add(lockWarn, BorderLayout.SOUTH);
         }
 
-        // ۳ کارت Save Slot کنار هم
         JPanel slotsRow = new JPanel(new GridLayout(1, 3, 10, 0));
         slotsRow.setOpaque(false);
         for (int i = 0; i < SLOTS.length; i++) {
@@ -130,7 +115,6 @@ public class PauseMenuDialog extends JDialog {
         }
         savesSection.add(slotsRow, BorderLayout.CENTER);
 
-        // کارت Autosave (read-only info + Load)
         JPanel autosaveCard = buildAutosaveCard();
 
         JPanel center = new JPanel(new BorderLayout(0, 10));
@@ -142,9 +126,6 @@ public class PauseMenuDialog extends JDialog {
         return outer;
     }
 
-    /**
-     * کارت یک Manual Save Slot با اطلاعات کامل [I1] و تأیید Overwrite [I2].
-     */
     private JPanel buildSlotCard(String slotName, String slotLabel) {
         JPanel card = new JPanel(new BorderLayout(0, 6));
         card.setBackground(BG_CARD);
@@ -152,27 +133,22 @@ public class PauseMenuDialog extends JDialog {
                 BorderFactory.createLineBorder(SLOT_BORDER, 1),
                 new EmptyBorder(12, 12, 12, 12)
         ));
-
-        // عنوان Slot
         JLabel title = new JLabel(slotLabel, SwingConstants.CENTER);
         title.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 13));
         title.setForeground(ACCENT_GOLD);
         card.add(title, BorderLayout.NORTH);
 
-        // خواندن metadata بدون لود کامل
         SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata(slotName);
 
-        // نمایش اطلاعات Slot [I1]
         JPanel infoPanel = new JPanel(new GridLayout(0, 1, 0, 2));
         infoPanel.setOpaque(false);
         infoPanel.setBorder(new EmptyBorder(4, 0, 4, 0));
 
-        // در متد buildSlotCard این بخش را جایگزین کنید:
         if (meta != null && !meta.isEmpty) {
             addInfoRow(infoPanel, "⏳", "Turn " + meta.turnNumber);
             addInfoRow(infoPanel, "🌍", meta.season);
             addInfoRow(infoPanel, "🏰", "TH Level " + meta.thLevel);
-            addInfoRow(infoPanel, "📊", meta.gameSummary); // اضافه شده برای نمایش summary [M1]
+            addInfoRow(infoPanel, "📊", meta.gameSummary);
             addInfoRow(infoPanel, "🕐", meta.saveTime);
         } else {
             JLabel emptyLabel = new JLabel("[ EMPTY ]", SwingConstants.CENTER);
@@ -183,13 +159,11 @@ public class PauseMenuDialog extends JDialog {
         }
         card.add(infoPanel, BorderLayout.CENTER);
 
-        // دکمه‌ها
         JPanel btnPanel = new JPanel(new GridLayout(2, 1, 0, 4));
         btnPanel.setOpaque(false);
         btnPanel.setBorder(new EmptyBorder(6, 0, 0, 0));
 
-        // ── دکمه Save ─────────────────────────────────────────────────────────
-        // I3: غیرفعال در هنگام animation/processing
+
         boolean canSave = !isLocked;
         JButton saveBtn = buildCardButton("💾  Save", canSave ? ACCENT_BLUE : new Color(45, 52, 65), canSave);
         if (!canSave) {
@@ -199,7 +173,6 @@ public class PauseMenuDialog extends JDialog {
             final String slot  = slotName;
             final String label = slotLabel;
             saveBtn.addActionListener(e -> {
-                // I2: تأیید Overwrite اگر Slot خالی نیست
                 if (existingMeta != null && !existingMeta.isEmpty) {
                     String msg = String.format(
                             "<html><center><b>Overwrite %s?</b><br/><br/>"
@@ -215,11 +188,10 @@ public class PauseMenuDialog extends JDialog {
                     if (confirm != JOptionPane.YES_OPTION) return;
                 }
                 boolean success = mainController.getSaveLoadController().saveGame(slot);
-                if (success) dispose(); // بستن پس از Save تا Slot info refresh شود
+                if (success) dispose();
             });
         }
 
-        // ── دکمه Load ─────────────────────────────────────────────────────────
         boolean canLoad = (meta != null && !meta.isEmpty);
         JButton loadBtn = buildCardButton("📂  Load", canLoad ? ACCENT_GREEN : new Color(45, 52, 65), canLoad);
         if (!canLoad) {
@@ -227,7 +199,6 @@ public class PauseMenuDialog extends JDialog {
         } else if (mainFrame != null) {
             final String slot = slotName;
             loadBtn.addActionListener(e -> {
-                // I2: هشدار از دست رفتن progress ذخیره‌نشده
                 int confirm = JOptionPane.showConfirmDialog(
                         this,
                         "<html><center><b>Load " + slotLabel + "?</b><br/><br/>"
@@ -250,9 +221,7 @@ public class PauseMenuDialog extends JDialog {
         return card;
     }
 
-    /**
-     * کارت اطلاعات Autosave (فقط نمایش + Load).
-     */
+
     private JPanel buildAutosaveCard() {
         JPanel card = new JPanel(new BorderLayout(10, 0));
         card.setBackground(BG_AUTOSAVE);

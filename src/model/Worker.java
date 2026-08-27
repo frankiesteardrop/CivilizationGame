@@ -38,7 +38,6 @@ public class Worker extends Unit {
         this.isStationed = false;
         this.stationedBuilding = null;
 
-        // [تغییرات گام ۱]: خط مربوط به استرداد AP حذف شد تا باگ Infinite AP برطرف شده و با داک همگام شود.
 
         if (map != null) {
             Hex currentHex = map.getHexAt(this.q, this.r);

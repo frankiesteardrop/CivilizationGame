@@ -3,17 +3,8 @@ package model;
 import java.util.LinkedList;
 import java.util.Queue;
 
-/**
- * ساختمان مرکزی (Town Hall).
- *
- * F-36: Happiness دارای soft cap در محدوده -20 تا +20 است.
- * این از overflow بی‌معنی جلوگیری می‌کند (مثلاً با ۱۰ Monument).
- * بازه‌های spec همچنان درست کار می‌کنند:
- *   ≥+3 Golden Age، -2 تا +2 Normal، -3 تا -4 Discontent، ≤-5 Rebellion
- */
 public class TownHall extends Building {
 
-    // ─── Happiness bounds (F-36) ──────────────────────────────────────────────
     private static final int HAPPINESS_MIN = -20;
     private static final int HAPPINESS_MAX = +20;
 
@@ -23,14 +14,12 @@ public class TownHall extends Building {
     private final Inventory inventory;
     private final Queue<ProductionCommand> productionQueue;
 
-    // ─── Technology flags ─────────────────────────────────────────────────────
     private boolean stoneMineUnlocked;
     private boolean ironMineUnlocked;
     private boolean steelToolsUnlocked;
     private boolean seafaringUnlocked;
     private boolean defensiveArchUnlocked;
 
-    // ─── Happiness ────────────────────────────────────────────────────────────
     private int happiness;
 
     public TownHall(int q, int r) {
@@ -42,7 +31,6 @@ public class TownHall extends Building {
         this.productionQueue = new LinkedList<>();
         this.happiness       = 0;
 
-        // [I4] Fix: مقدار اولیه دفاع تالار شهر طبق داکیومنت فاز دوم باید 10 باشد
         this.setDefense(10);
         this.maxHp = 200;
         this.hp    = 200;
@@ -66,13 +54,10 @@ public class TownHall extends Building {
         inventory.addResource(ResourceType.WOOD, GameConfig.SAFEGUARD_WOOD_AMOUNT);
     }
 
-    // ─── Level ────────────────────────────────────────────────────────────────
 
     public int getLevel() { return level; }
 
-    /**
-     * F-16: ارتقا به سطح ۲ باعث heal +50 HP می‌شود.
-     */
+
     public void upgradeLevel() {
         level++;
         if (level == 2) {
@@ -83,7 +68,6 @@ public class TownHall extends Building {
         }
     }
 
-    // ─── Production Queue ─────────────────────────────────────────────────────
 
     public Queue<ProductionCommand> getProductionQueue() { return productionQueue; }
     public boolean isProductionQueueEmpty()              { return productionQueue.isEmpty(); }
@@ -100,7 +84,6 @@ public class TownHall extends Building {
             if (cmd != null) {
                 cmd.cancel();
                 productionQueue.poll();
-                // اصلاح گام چهارم: فایر کردن Notification برای اطلاع‌رسانی به View
                 GameEventDispatcher.fireNotification("🚫 Production Canceled! Resources lost.");
             }
         }
@@ -120,7 +103,6 @@ public class TownHall extends Building {
         }
     }
 
-    // ─── Happiness (F-36) ─────────────────────────────────────────────────────
 
     public int getHappiness() { return happiness; }
 
@@ -129,7 +111,6 @@ public class TownHall extends Building {
                 Math.min(HAPPINESS_MAX, this.happiness + amount));
     }
 
-    // ─── Technology flags ─────────────────────────────────────────────────────
 
     public boolean isStoneMineUnlocked()            { return stoneMineUnlocked; }
     public void    setStoneMineUnlocked(boolean v)  { this.stoneMineUnlocked = v; }
@@ -154,12 +135,10 @@ public class TownHall extends Building {
         this.setDefense(30);
         this.heal(350);
 
-        // اصلاح [I5]: شلیک رویداد جهت نمایش ارتقای دفاعی در UI بدون نقض معماری MVC
         GameEventDispatcher.fireNotification(
                 "🏰 Defensive Architecture active! TH defense: 10→30, max HP: 200→350");
     }
 
-    // ─── جوایز مأموریت قبیله ساحلی ─────────────────────────────────────────────────────
     private int discountedDocks = 0;
 
     public int getDiscountedDocks() { return discountedDocks; }

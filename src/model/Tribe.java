@@ -7,7 +7,7 @@ public class Tribe {
     private final TribeType type;
     private int relationship;
     private boolean isAllied;
-    private TribeState state; // State Pattern
+    private TribeState state;
     private Mission mission;
     private int missionCooldown;
     private boolean tradeBonus;
@@ -56,15 +56,10 @@ public class Tribe {
         else this.state = new NeutralState();
     }
 
-    /**
-     * اصلاح C1: فراخوانی پس از Load برای بازسازی TribeState از روی مقادیر primitive.
-     * TribeStateAdapter این کار را انجام می‌دهد، اما این متد به عنوان safety net باقی می‌ماند.
-     */
     public void postLoad() {
         updateState();
     }
 
-    // Delegation to State
     public boolean canTrade() { return state.canTrade(); }
     public boolean canReceiveGift() { return state.canReceiveGift(); }
     public boolean canFormAlliance() { return state.canFormAlliance(); }

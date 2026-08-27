@@ -18,7 +18,6 @@ public class EnemyState implements TribeState {
         int currentCount = camp.getAndIncrementGuardCounter();
         if (currentCount > 0 && currentCount % 3 == 0) {
 
-            // اصلاح حیاتی (Unit Cap Exploit): شمارش یگان‌های این قبیله در کل مپ به جای شعاع 3 هکسی
             long currentGuards = map.getUnits().stream()
                     .filter(u -> u.isAlive()
                             && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER)

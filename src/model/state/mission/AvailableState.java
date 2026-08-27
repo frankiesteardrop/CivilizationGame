@@ -15,7 +15,6 @@ public class AvailableState implements MissionState {
 
     @Override
     public boolean canAccept() {
-        // در این وضعیت، بازیکن اجازه دارد مأموریت را قبول کند
         return true;
     }
 
@@ -26,12 +25,10 @@ public class AvailableState implements MissionState {
 
     @Override
     public void handleTurn(Mission mission, Tribe tribe) {
-        // تا زمانی که مأموریت اکسپت (Accept) نشده، ترن از آن کم نمی‌شود
     }
 
     @Override
     public void checkConditions(Mission mission, TribeCamp camp, GameMap map) {
-        // نیازی به چک کردن شرایط نیست چون هنوز مأموریت آغاز نشده است
     }
 
     @Override
@@ -41,6 +38,5 @@ public class AvailableState implements MissionState {
 
     @Override
     public void onUnitKilled(Mission mission, TribeCamp camp, Unit unit, GameMap map) {
-        // هیچ اثری ندارد
     }
 }

@@ -31,7 +31,6 @@ public class Inventory {
         int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
 
-        // رفع باگ 29: فقط اگر تغییری صورت گرفت، رویداد شلیک شود
         if (updated != current) {
             resources.put(type, updated);
             GameEventDispatcher.fireResourceChanged(type, updated);
