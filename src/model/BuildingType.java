@@ -9,6 +9,14 @@ public enum BuildingType {
         public boolean isValidTerrain(Hex hex, GameMap map) {
             return hex.getTerrainType() == TerrainType.FOREST && hex.hasResource(ResourceType.WOOD);
         }
+        @Override
+        public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
+            for (int i = 0; i < 6; i++) {
+                Hex n = map.getNeighbor(hex, i);
+                if (n != null && n.getTerrainType() == TerrainType.SEA) return 2;
+            }
+            return 0;
+        }
     },
 
     STONE_MINE(2, 30, 0, 0, ResourceType.STONE, 2, 4, ResourceType.WOOD, 1, 1) {
@@ -20,6 +28,15 @@ public enum BuildingType {
         public boolean isValidTerrain(Hex hex, GameMap map) {
             return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.STONE);
         }
+        @Override
+        public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
+            int mCount = 0;
+            for (int i = 0; i < 6; i++) {
+                Hex n = map.getNeighbor(hex, i);
+                if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
+            }
+            return mCount >= 2 ? 1 : 0;
+        }
     },
 
     IRON_MINE(2, 40, 15, 0, ResourceType.IRON, 2, 2, ResourceType.WOOD, 2, 1) {
@@ -30,6 +47,15 @@ public enum BuildingType {
         @Override
         public boolean isValidTerrain(Hex hex, GameMap map) {
             return hex.getTerrainType() == TerrainType.MOUNTAIN && hex.hasResource(ResourceType.IRON);
+        }
+        @Override
+        public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
+            int mCount = 0;
+            for (int i = 0; i < 6; i++) {
+                Hex n = map.getNeighbor(hex, i);
+                if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
+            }
+            return mCount >= 2 ? 1 : 0;
         }
     },
 
@@ -50,7 +76,6 @@ public enum BuildingType {
         }
     },
 
-    // اصلاح حیاتی: تغییر هزینه AP شهرک از 3 به 2 برای جلوگیری از قفل شدن بازی
     SETTLEMENT(2, 100, 80, 40, ResourceType.NONE, 0, 0, ResourceType.STONE, 3, 1) {
         @Override
         public boolean hasRequiredTech(TownHall th) {
@@ -79,6 +104,10 @@ public enum BuildingType {
                 if (neighbor != null && neighbor.getTerrainType() == TerrainType.SEA) return true;
             }
             return false;
+        }
+        @Override
+        public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
+            return coastalAllied ? 2 : 0;
         }
     },
 
@@ -152,5 +181,10 @@ public enum BuildingType {
 
     public boolean isValidTerrain(Hex hex, GameMap map) {
         return false;
+    }
+
+    // متد کلیدی برای اعمال OCP در پاداش مجاورت
+    public int calculateAdjacencyBonus(Hex hex, GameMap map, boolean coastalAllied) {
+        return 0; // پیاده‌سازی پیش‌فرض (بدون پاداش)
     }
 }

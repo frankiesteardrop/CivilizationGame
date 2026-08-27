@@ -1,6 +1,8 @@
 package model;
 
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
 
 public abstract class ProductionCommand {
@@ -39,6 +41,13 @@ public abstract class ProductionCommand {
     public static class TechCommand extends ProductionCommand {
         private final String techId;
 
+        // [OCP FIX]: Registry Pattern for Tech actions to avoid huge Switch statement
+        private static final Map<String, java.util.function.Consumer<GameMap>> registry = new HashMap<>();
+
+        public static void registerTechExecution(String techId, java.util.function.Consumer<GameMap> action) {
+            registry.put(techId, action);
+        }
+
         public TechCommand(String name, int turnsRemaining, String techId) {
             super(name, turnsRemaining, false);
             this.techId = techId;
@@ -50,29 +59,10 @@ public abstract class ProductionCommand {
 
         @Override
         public void execute() {
-            TownHall th = contextMap.getTownHall();
-            switch (techId) {
-                case "STONE_MINE"     -> th.setStoneMineUnlocked(true);
-                case "IRON_MINE"      -> th.setIronMineUnlocked(true);
-                case "PROF_TOOLS"     -> th.setSteelToolsUnlocked(true);
-                case "SEAFARING"      -> th.setSeafaringUnlocked(true);
-                case "DEFENSIVE_ARCH" -> {
-                    th.applyDefensiveArchitecture();
-                    buildWallsAroundTownHall();
-                }
+            var action = registry.get(techId);
+            if (action != null) {
+                action.accept(contextMap);
             }
-        }
-
-        private void buildWallsAroundTownHall() {
-            TownHall th    = contextMap.getTownHall();
-            Hex      thHex = contextMap.getHexAt(th.getQ(), th.getR());
-            if (thHex == null) return;
-            for (int i = 0; i < 6; i++) {
-                thHex.setWall(i, true, 100);
-                Hex neighbor = contextMap.getNeighbor(thHex, i);
-                if (neighbor != null) neighbor.setWall((i + 3) % 6, true, 100);
-            }
-            GameEventDispatcher.fireNotification("🏰 Defensive walls built around Town Hall!");
         }
     }
 
@@ -96,9 +86,6 @@ public abstract class ProductionCommand {
             int tr = spawnHex != null ? spawnHex.getR() : th.getR();
 
             contextMap.addUnit(UnitFactory.createUnit(unitType, tq, tr));
-
-            // بلوک جریمه سقف ارتش از اینجا پاک شد.
-            // اکنون به صورت مرکزی در EconomyController.updateHappinessState مدیریت می‌شود.
         }
     }
 

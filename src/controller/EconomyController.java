@@ -291,28 +291,8 @@ public class EconomyController implements TurnListener, BuildingListener {
             production -= 1;
         }
 
-        if (b.getType() == BuildingType.LUMBER_MILL && targetRes == ResourceType.WOOD) {
-            boolean nearSea = false;
-            for (int i = 0; i < 6; i++) {
-                Hex n = map.getNeighbor(hex, i);
-                if (n != null && n.getTerrainType() == TerrainType.SEA) {
-                    nearSea = true;
-                    break;
-                }
-            }
-            if (nearSea) production += 2;
-        } else if (b.getType() == BuildingType.STONE_MINE || b.getType() == BuildingType.IRON_MINE) {
-            int mCount = 0;
-            for (int i = 0; i < 6; i++) {
-                Hex n = map.getNeighbor(hex, i);
-                if (n != null && n.getTerrainType() == TerrainType.MOUNTAIN) mCount++;
-            }
-            if (mCount >= 2) production += 1;
-        }
-
-        if (b.getType() == BuildingType.DOCK && coastalAllied) {
-            production += 2;
-        }
+        // [OCP FIX]: حذف هاردکدها. منطق محاسبه مجاورت به Model (BuildingType) واگذار شد.
+        production += b.getType().calculateAdjacencyBonus(hex, map, coastalAllied);
 
         if (happiness <= -3) production -= b.getStationedWorkers();
         if (happiness >= 3) {

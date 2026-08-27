@@ -32,6 +32,26 @@ public class UpgradeController {
     }
 
     private void initStrategies() {
+        // ─── [OCP FIX]: تزریق استراتژی‌های اجرایی به Command ───────────────────────
+        // با این روش، کلاس Command هیچ نیازی به دانستن لاجیک تکنولوژی‌ها ندارد (حذف Switch)
+        ProductionCommand.TechCommand.registerTechExecution("STONE_MINE", map -> map.getTownHall().setStoneMineUnlocked(true));
+        ProductionCommand.TechCommand.registerTechExecution("IRON_MINE", map -> map.getTownHall().setIronMineUnlocked(true));
+        ProductionCommand.TechCommand.registerTechExecution("PROF_TOOLS", map -> map.getTownHall().setSteelToolsUnlocked(true));
+        ProductionCommand.TechCommand.registerTechExecution("SEAFARING", map -> map.getTownHall().setSeafaringUnlocked(true));
+        ProductionCommand.TechCommand.registerTechExecution("DEFENSIVE_ARCH", map -> {
+            TownHall th = map.getTownHall();
+            th.applyDefensiveArchitecture();
+            Hex thHex = map.getHexAt(th.getQ(), th.getR());
+            if (thHex == null) return;
+            for (int i = 0; i < 6; i++) {
+                thHex.setWall(i, true, 100);
+                Hex neighbor = map.getNeighbor(thHex, i);
+                if (neighbor != null) neighbor.setWall((i + 3) % 6, true, 100);
+            }
+            GameEventDispatcher.fireNotification("🏰 Defensive walls built around Town Hall!");
+        });
+        // ─────────────────────────────────────────────────────────────────────────────
+
         techStrategies.put("STONE_MINE", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) {
                 return !th.isStoneMineUnlocked() && inv.hasEnough(ResourceType.WOOD, GameConfig.TECH_STONE_MINE_WOOD);
