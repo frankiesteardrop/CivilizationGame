@@ -5,6 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/network/messages/ActionRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/messages/Message.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/server/ClientHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/server/GameServer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -22,7 +26,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="phase2-development" />
+        <entry key="$PROJECT_DIR$" value="main" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -72,7 +76,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.ToggleCodyToolWindowAfterMigration": "true",
     "com.intellij.ide.FileNotInSourceRootChecker.no.check": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "phase3-developement",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/HP/Downloads/claude-code-jetbrains-plugin-0.1.14-beta.zip",
