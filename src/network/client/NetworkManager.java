@@ -2,23 +2,25 @@ package network.client;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import network.udp.UdpHeartbeatClient;
 
 import javax.swing.SwingUtilities;
 import java.io.*;
 import java.net.Socket;
 
 /**
- * Manages the TCP connection to the game server.
+ * Manages the TCP connection to the game server plus a UDP heartbeat client.
  *
- * <p>Architecture:
- * <ul>
- *   <li>Sending: UI actions are sent from EDT via controller; writing to the socket happens
- *       on a short-lived thread so the EDT is never blocked.</li>
- *   <li>Receiving: a dedicated daemon ListenerTask thread reads from the socket continuously.
- *       When a message arrives it extracts the "type" field and delegates to the registered
- *       {@link ServerMessageHandler} via {@code SwingUtilities.invokeLater} so all UI
- *       updates happen safely on the EDT.</li>
- * </ul>
+ * <p>Sending: UI actions are dispatched to the server on a short-lived thread,
+ * so the EDT is never blocked by socket I/O.
+ *
+ * <p>Receiving: a dedicated daemon {@link ListenerTask} thread reads from the
+ * TCP socket continuously. Each arriving message is parsed for its "type" field
+ * and handed to the registered {@link ServerMessageHandler} via
+ * {@code SwingUtilities.invokeLater} (EDT-safe delivery).
+ *
+ * <p>Heartbeat (B6): after {@link #connect} succeeds, a {@link UdpHeartbeatClient}
+ * is started. The server uses the UDP pings to detect if this client is still alive.
  */
 public class NetworkManager {
 
@@ -27,16 +29,23 @@ public class NetworkManager {
     private BufferedReader in;
     private boolean isConnected = false;
 
-    /**
-     * Dispatcher registered by the client-side coordinator.
-     * Must be set before or immediately after {@link #connect} is called.
-     */
+    /** Dispatches received messages to the appropriate client-side controller. */
     private ServerMessageHandler messageHandler;
+
+    /** UDP heartbeat client — started after TCP connection succeeds. */
+    private UdpHeartbeatClient udpHeartbeat;
+
+    /** The client's own TCP-assigned ID (set after JOIN_LOBBY acknowledgement). */
+    private String myClientId = "unknown";
 
     // ─── Configuration ────────────────────────────────────────────────────────
 
     public void setMessageHandler(ServerMessageHandler handler) {
         this.messageHandler = handler;
+    }
+
+    public void setMyClientId(String clientId) {
+        this.myClientId = clientId;
     }
 
     // ─── Connection ───────────────────────────────────────────────────────────
@@ -48,10 +57,15 @@ public class NetworkManager {
             in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             isConnected = true;
 
+            // Start TCP listener thread
             Thread listenerThread = new Thread(new ListenerTask());
-            listenerThread.setDaemon(true);       // پایان خودکار با بستن برنامه
+            listenerThread.setDaemon(true);
             listenerThread.setName("network-listener");
             listenerThread.start();
+
+            // Start UDP heartbeat client (B6)
+            udpHeartbeat = new UdpHeartbeatClient(host, myClientId);
+            udpHeartbeat.start();
 
             System.out.println("✅ [Client] Connected to server at " + host + ":" + port);
         } catch (IOException e) {
@@ -60,7 +74,8 @@ public class NetworkManager {
     }
 
     /**
-     * ارسال پیام روی thread مجزا تا در صورت پر شدن بافر، EDT قفل نشود.
+     * Sends a JSON message to the server on a short-lived thread so that
+     * EDT is never blocked by socket backpressure.
      */
     public void sendRequest(String jsonMessage) {
         if (isConnected && out != null) {
@@ -70,12 +85,23 @@ public class NetworkManager {
 
     public boolean isConnected() { return isConnected; }
 
-    // ─── Listener Thread (کاملاً مجزا از EDT) ─────────────────────────────────
+    /** Returns true if the server has recently responded to UDP pings. */
+    public boolean isServerAlive() {
+        return udpHeartbeat == null || udpHeartbeat.isServerAlive();
+    }
+
+    public void disconnect() {
+        isConnected = false;
+        if (udpHeartbeat != null) udpHeartbeat.stop();
+        try { if (socket != null) socket.close(); } catch (IOException ignored) {}
+    }
+
+    // ─── Listener Thread ──────────────────────────────────────────────────────
 
     /**
-     * نخ شنونده دائمی.
-     * پیام دریافتی را parse کرده و از طریق invokeLater به EDT و handler تحویل می‌دهد.
-     * با این طراحی UI هیچ‌وقت فریز نمی‌شود و هیچ پیامی از سرور از دست نمی‌رود.
+     * Daemon thread that blocks on the TCP socket.
+     * Wakes up for each arriving line, extracts the "type" field, and
+     * delivers the message to {@link #messageHandler} on the EDT.
      */
     private class ListenerTask implements Runnable {
         @Override
@@ -86,19 +112,18 @@ public class NetworkManager {
                     final String msg  = incomingJson;
                     final String type = extractMessageType(msg);
 
-                    // انتقال ایمن به نخ گرافیک (EDT)
                     SwingUtilities.invokeLater(() -> {
                         if (messageHandler != null) {
                             messageHandler.onMessage(type, msg);
                         } else {
-                            System.out.println("[Client] No handler registered. Dropped type: " + type);
+                            System.out.println("[Client] No handler registered. Dropped: " + type);
                         }
                     });
                 }
             } catch (IOException e) {
                 isConnected = false;
+                if (udpHeartbeat != null) udpHeartbeat.stop();
                 System.out.println("⚠️ [Client] Disconnected from server.");
-                // اطلاع‌رسانی قطع اتصال به handler تا UI بتواند پنجره خطا نمایش دهد
                 SwingUtilities.invokeLater(() -> {
                     if (messageHandler != null) {
                         messageHandler.onMessage("DISCONNECTED", "{}");
@@ -110,16 +135,10 @@ public class NetworkManager {
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /**
-     * فیلد "type" را از JSON خوانده و برمی‌گرداند.
-     * در صورت خطا "UNKNOWN" برمی‌گردد تا handler بتواند gracefully آن را مدیریت کند.
-     */
     private String extractMessageType(String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            if (obj.has("type")) {
-                return obj.get("type").getAsString();
-            }
+            if (obj.has("type")) return obj.get("type").getAsString();
         } catch (Exception e) {
             System.err.println("[Client] Failed to parse message type. Raw: " + json);
         }

@@ -3,6 +3,8 @@ package network.server;
 import com.google.gson.Gson;
 import controller.CombatController;
 import model.*;
+import model.maps.MapDefinition;
+import model.maps.PreDesignedMaps;
 import network.messages.game.AttackRequest;
 import network.messages.game.DiplomacyRequest;
 import network.messages.game.ErrorResponse;
@@ -18,15 +20,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Server-side authority over the game state.
- * All game logic is executed here; clients only send requests and render results.
- *
- * <p>This class is the Single Source of Truth for:
- * <ul>
- *   <li>The master {@link GameMap} (with all unit, building, and resource data).</li>
- *   <li>Whose turn it currently is.</li>
- *   <li>Diplomatic relationships between players.</li>
- * </ul>
+ * Server-side authority over the game state (Single Source of Truth).
  *
  * <p>All public methods are {@code synchronized} to prevent race conditions
  * when multiple client threads call them concurrently.
@@ -36,52 +30,84 @@ public class GameStateManager {
     private final GameServer server;
     private final Gson gson;
 
-    /** The authoritative game map — never sent raw to clients; always Fog-of-War filtered. */
     private GameMap masterMap;
-
-    /** Ordered list of players (determines turn order). */
     private final List<LobbyPlayer> players;
-
-    /** Index into {@code players} for the currently active player. */
     private int currentPlayerIndex;
 
-    /**
-     * Diplomatic state matrix: outer key = player A, inner key = player B,
-     * value = "Neutral" | "Enemy" | "Allied".
-     */
+    /** Diplomatic state: outer = attacker, inner = defender, value = "Neutral"|"Enemy"|"Allied" */
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> diplomacyStates =
             new ConcurrentHashMap<>();
 
-    /**
-     * Handles all end-of-turn game logic (economy, disasters, tribes, AP resets).
-     * Initialized in {@link #initializeGame()}.
-     */
+    /** Handles all end-of-turn game logic (economy, disasters, tribes, AP resets). */
     private ServerTurnProcessor serverTurnProcessor;
+
+    /**
+     * The ID of the pre-designed map to load when the game starts.
+     * Set by the constructor using the host's lobby selection.
+     */
+    private final String selectedMapId;
+
+    /** Fog-of-War filter — reused across turns for efficiency. */
+    private FogOfWarFilter fogOfWarFilter;
 
     // ─── Construction ─────────────────────────────────────────────────────────
 
-    public GameStateManager(GameServer server, ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers) {
+    public GameStateManager(GameServer server,
+                            ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers,
+                            String selectedMapId) {
         this.server             = server;
         this.gson               = new Gson();
         this.players            = new ArrayList<>(lobbyPlayers.values());
         this.currentPlayerIndex = 0;
+        this.selectedMapId      = selectedMapId;
     }
 
-    // ─── Game Initialization (B5) ─────────────────────────────────────────────
+    // ─── Game Initialization (B5 + B10) ──────────────────────────────────────
 
     /**
-     * Initializes the game map, sets up diplomacy, creates the turn processor,
-     * then broadcasts {@link GameStartBroadcast} to all clients so they switch
-     * from the LobbyPanel to the GamePanel, followed by the initial game state.
+     * Initializes the game using the host-selected pre-designed map.
+     * <ol>
+     *   <li>Loads the {@link MapDefinition} from {@link PreDesignedMaps}.</li>
+     *   <li>Creates a reproducible {@link GameMap} with the map's fixed seed.</li>
+     *   <li>Clears the default single-player setup (TH at 0,0).</li>
+     *   <li>Places each player's Town Hall and initial units at their spawn point.</li>
+     *   <li>Broadcasts {@link GameStartBroadcast} so clients switch to game view.</li>
+     *   <li>Sends the initial Fog-of-War-filtered state to each client.</li>
+     * </ol>
      */
     public synchronized void initializeGame() {
-        // Create the authoritative game map
-        this.masterMap = new GameMap(20);
+        // ── Load pre-designed map definition ──────────────────────────────────
+        MapDefinition mapDef = PreDesignedMaps.getMap(selectedMapId);
+        System.out.println("[Server] Loading map: " + mapDef.getDisplayName()
+                + " | seed=" + mapDef.getRandomSeed());
 
-        // Create the server-side turn processor (economy, disasters, tribes, AP resets)
+        // ── Create reproducible map (B10) ─────────────────────────────────────
+        this.masterMap = new GameMap(mapDef.getRadius(), mapDef.getRandomSeed());
+
+        // Remove the default single-player Town Hall and units at (0,0)
+        masterMap.clearCenterSetup();
+
+        // ── Assign player spawns (B10) ────────────────────────────────────────
+        List<int[]> spawnPoints = mapDef.getSpawnPoints();
+        for (int i = 0; i < players.size(); i++) {
+            if (i >= spawnPoints.size()) {
+                System.err.println("[Server] Warning: more players than spawn points on this map!");
+                break;
+            }
+            String playerId = players.get(i).getId();
+            int[] spawn = spawnPoints.get(i);
+            masterMap.placePlayerSpawn(playerId, spawn[0], spawn[1]);
+            System.out.println("[Server] Player " + players.get(i).getUsername()
+                    + " spawned at (" + spawn[0] + ", " + spawn[1] + ")");
+        }
+
+        // ── Initialize Fog-of-War filter (B3) ────────────────────────────────
+        this.fogOfWarFilter = new FogOfWarFilter(gson);
+
+        // ── Create server turn processor ──────────────────────────────────────
         this.serverTurnProcessor = new ServerTurnProcessor(masterMap);
 
-        // Initialize diplomatic relationships: everyone starts Neutral
+        // ── Initialize diplomatic relationships ───────────────────────────────
         for (LobbyPlayer p1 : players) {
             ConcurrentHashMap<String, String> relations = new ConcurrentHashMap<>();
             for (LobbyPlayer p2 : players) {
@@ -94,26 +120,15 @@ public class GameStateManager {
 
         System.out.println("✅ [Server] Game initialized with " + players.size() + " players.");
 
-        // ── B5: signal all clients to switch from LobbyPanel to GamePanel ──────
+        // ── Signal all clients to switch from LobbyPanel to GamePanel (B5) ────
         server.broadcast(gson.toJson(new GameStartBroadcast()));
 
-        // Send the initial game state to each client (with Fog of War per player)
+        // ── Send initial Fog-of-War-filtered state to each client ─────────────
         broadcastCustomizedStates();
     }
 
-    // ─── Turn Management (B7) ─────────────────────────────────────────────────
+    // ─── Turn Management ─────────────────────────────────────────────────────
 
-    /**
-     * Processes an "End Turn" request from a client.
-     *
-     * <p>Validates that it is indeed this client's turn, then:
-     * <ol>
-     *   <li>Runs all end-of-turn game logic via {@link ServerTurnProcessor}.</li>
-     *   <li>Advances the player index to the next player.</li>
-     *   <li>Increments the global turn counter when a full round completes.</li>
-     *   <li>Broadcasts the updated, filtered game state to all clients.</li>
-     * </ol>
-     */
     public synchronized void handleEndTurn(String clientId) {
         String activeId = players.get(currentPlayerIndex).getId();
 
@@ -125,23 +140,17 @@ public class GameStateManager {
 
         System.out.println("[Server] Processing end-of-turn for player: " + clientId);
 
-        // ── B7: run full turn logic (economy, disasters, tribes, AP resets) ────
         serverTurnProcessor.processTurn(masterMap);
 
-        // Advance to the next player
         currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
 
-        // When all players have had a turn, increment the global turn counter
         if (currentPlayerIndex == 0) {
             masterMap.incrementTurn();
-            System.out.println("[Server] Round complete. Global turn is now: "
+            System.out.println("[Server] Round complete. Global turn: "
                     + masterMap.getCurrentTurn());
         }
 
-        String nextPlayerId = players.get(currentPlayerIndex).getId();
-        System.out.println("[Server] Next player's turn: " + nextPlayerId);
-
-        // Broadcast updated, Fog-of-War-filtered state to every client
+        System.out.println("[Server] Next turn: " + players.get(currentPlayerIndex).getUsername());
         broadcastCustomizedStates();
     }
 
@@ -181,8 +190,6 @@ public class GameStateManager {
         switch (req.getItemName()) {
             case "TELEPORT" -> {
                 Hex dest = masterMap.getHexAt(req.getDestQ(), req.getDestR());
-                // Validate: destination must exist, be unoccupied, explored (no FoW),
-                // and passable terrain for this unit
                 if (dest != null
                         && !masterMap.hasUnitAt(dest.getQ(), dest.getR())
                         && dest.isExplored()
@@ -251,7 +258,7 @@ public class GameStateManager {
             String diploStatus = getDiplomaticStatus(clientId, targetOwnerId);
             if (!"Enemy".equals(diploStatus)) {
                 server.sendToClient(clientId, gson.toJson(new ErrorResponse(
-                        "You must declare war first! Current diplomatic status: " + diploStatus)));
+                        "You must declare war first! Current status: " + diploStatus)));
                 return;
             }
         }
@@ -303,13 +310,11 @@ public class GameStateManager {
     // ─── Trade Stubs (B12) ────────────────────────────────────────────────────
 
     public synchronized void handleTradeOffer(String clientId, TradeOfferRequest req) {
-        // TODO (B12): validate resources, lock them, deliver to target's inbox
         server.sendToClient(clientId, gson.toJson(
                 new ErrorResponse("Trade inbox will be implemented in step B12.")));
     }
 
     public synchronized void handleTradeResponse(String clientId, TradeResponseRequest req) {
-        // TODO (B12): accept / reject pending trade offer
         server.sendToClient(clientId, gson.toJson(
                 new ErrorResponse("Trade response will be implemented in step B12.")));
     }
@@ -329,52 +334,45 @@ public class GameStateManager {
         }
 
         if (!hasActiveTH) {
-            // Kill all units belonging to this player using takeDamage
-            // (avoids UnsupportedOperationException on unmodifiable list — B4 fix)
+            // Kill all units using takeDamage to avoid unmodifiable-list crash (B4/B32 fix)
             masterMap.getUnits().stream()
                     .filter(u -> playerId.equals(u.getOwnerId()))
                     .forEach(u -> u.takeDamage(u.getMaxHp() + 1));
             masterMap.removeDeadUnits();
 
-            // Raze all buildings belonging to this player
             for (Hex h : masterMap.getHexes()) {
                 if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
                     h.getBuilding().takeDamage(9999);
                     h.setBuilding(null);
                 }
             }
-
             server.broadcast(gson.toJson(
                     new ErrorResponse("💀 Player " + playerId + " has been eliminated!")));
         }
     }
 
-    // ─── Broadcast ────────────────────────────────────────────────────────────
+    // ─── Broadcast (B3 — Fog of War per player) ───────────────────────────────
 
+    /**
+     * Sends a customized, Fog-of-War-filtered game state to each connected client.
+     * Each player only receives data about hexes within their vision radius.
+     */
     public synchronized void broadcastCustomizedStates() {
         String activePlayerId = players.get(currentPlayerIndex).getId();
 
         for (LobbyPlayer player : players) {
             String clientId = player.getId();
-            GameMap playerSpecificMap = filterMapForPlayer(masterMap, clientId);
 
-            String mapJson = gson.toJson(playerSpecificMap);
+            // B3: apply Fog-of-War filter — each client gets only what they can see
+            String filteredMapJson = fogOfWarFilter.filterForPlayer(masterMap, clientId);
+
             GameStateBroadcast update = new GameStateBroadcast(
-                    activePlayerId, masterMap.getCurrentTurn(), mapJson);
+                    activePlayerId, masterMap.getCurrentTurn(), filteredMapJson);
             server.sendToClient(clientId, gson.toJson(update));
         }
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    /**
-     * Returns a version of the map filtered by Fog of War for the given player.
-     * TODO (B3): implement proper per-player FoW filtering.
-     */
-    private GameMap filterMapForPlayer(GameMap master, String playerId) {
-        // TODO (B3): return only hexes visible within this player's vision radius
-        return master;
-    }
 
     private Inventory getPlayerInventory(String ownerId) {
         for (Hex h : masterMap.getHexes()) {

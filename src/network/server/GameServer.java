@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import network.messages.game.*;
 import network.messages.lobby.*;
+import network.udp.UdpHeartbeatServer;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -12,43 +13,33 @@ import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * هسته مرکزی سرور بازی.
- *
- * <p>مسئولیت‌ها (Single Responsibility در سطح کلاس):
- * <ul>
- *   <li>قبول اتصالات جدید — یک thread اختصاصی per connection</li>
- *   <li>مسیردهی (routing) پیام‌های JSON ورودی به LobbyManager یا GameStateManager</li>
- *   <li>ارسال پیام به یک یا همه کلاینت‌ها (broadcast / sendToClient)</li>
- * </ul>
- *
- * <p>منطق لابی در LobbyManager و منطق بازی در GameStateManager قرار دارند.
- * GameServer هیچ منطق بازی مستقیمی ندارد.
+ * Core game server — accepts TCP connections, routes messages, and manages
+ * the UDP heartbeat server for connection health monitoring.
  */
 public class GameServer {
 
     private static final int PORT = 8080;
 
-    /** نگهداری Thread-safe از همه اتصالات فعال */
     private final ConcurrentHashMap<String, ClientHandler> clients = new ConcurrentHashMap<>();
+    private final LobbyManager   lobbyManager   = new LobbyManager(this);
+    private final Gson            gson           = new Gson();
 
-    /** مدیریت وضعیت لابی — از همان ابتدا موجود است */
-    private final LobbyManager lobbyManager = new LobbyManager(this);
+    /** Started in {@link #start()} alongside the TCP accept loop. */
+    private final UdpHeartbeatServer udpHeartbeat = new UdpHeartbeatServer();
 
-    /**
-     * مدیریت وضعیت بازی — null است تا زمانی که هاست "Start Game" را فشار دهد.
-     * volatile برای دیده شدن صحیح توسط همه thread‌ها.
-     */
     private volatile GameStateManager gameStateManager = null;
-
-    private final Gson gson = new Gson();
     private boolean isRunning = false;
 
     // ─── Server Lifecycle ─────────────────────────────────────────────────────
 
     public void start() {
         isRunning = true;
+
+        // Start UDP heartbeat server on a daemon thread (B6)
+        udpHeartbeat.start();
+
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("✅ [Server] Started on port " + PORT);
+            System.out.println("✅ [Server] TCP server started on port " + PORT);
             while (isRunning) {
                 Socket clientSocket = serverSocket.accept();
                 ClientHandler handler = new ClientHandler(clientSocket, this);
@@ -62,16 +53,14 @@ public class GameServer {
     // ─── Message Routing ──────────────────────────────────────────────────────
 
     /**
-     * مرکزی‌ترین متد سرور.
-     * پیام JSON ورودی را parse کرده و بر اساس فیلد "type" به handler مناسب می‌فرستد.
-     * اگر بازی شروع نشده باشد پیام به handleLobbyMessage می‌رود؛ در غیر این صورت handleGameMessage.
-     * چت در هر دو مرحله پشتیبانی می‌شود.
+     * Parses the "type" field and dispatches to the appropriate handler.
+     * Chat is handled at all stages; game messages are only accepted after
+     * the game has started.
      */
     public void routeMessage(String clientId, String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             if (!obj.has("type")) {
-                System.err.println("[Server] Message without 'type' from: " + clientId);
                 sendToClient(clientId, gson.toJson(
                         new ErrorResponse("Invalid message: missing 'type' field.")));
                 return;
@@ -80,7 +69,6 @@ public class GameServer {
             String type = obj.get("type").getAsString();
             System.out.println("[Server] Routing '" + type + "' from " + clientId);
 
-            // چت در هر دو مرحله لابی و بازی از طریق LobbyManager broadcast می‌شود
             if ("CHAT_SEND".equals(type)) {
                 ChatSendRequest req = gson.fromJson(json, ChatSendRequest.class);
                 lobbyManager.processChatMessage(clientId, req.getText());
@@ -94,23 +82,28 @@ public class GameServer {
             }
 
         } catch (Exception e) {
-            System.err.println("[Server] Error routing message from " + clientId + ": " + e.getMessage());
+            System.err.println("[Server] Error routing message from " + clientId
+                    + ": " + e.getMessage());
             sendToClient(clientId, gson.toJson(new ErrorResponse("Internal server error.")));
         }
     }
 
-    /** مسیردهی پیام‌های مرحله لابی */
     private void handleLobbyMessage(String clientId, String type, String json) {
         switch (type) {
-            case "JOIN_LOBBY" -> {
+            case "JOIN_LOBBY"  -> {
                 JoinLobbyRequest req = gson.fromJson(json, JoinLobbyRequest.class);
                 lobbyManager.addPlayer(clientId, req.getUsername());
             }
             case "TOGGLE_READY" -> lobbyManager.toggleReady(clientId);
+            case "SELECT_MAP"   -> {
+                SelectMapRequest req = gson.fromJson(json, SelectMapRequest.class);
+                lobbyManager.setSelectedMap(clientId, req.getMapId());
+            }
             case "START_GAME"   -> {
                 if (lobbyManager.canStartGame(clientId)) {
-                    // انتقال از لابی به بازی — ساخت GameStateManager
-                    this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers());
+                    String mapId = lobbyManager.getSelectedMapId();
+                    this.gameStateManager = new GameStateManager(
+                            this, lobbyManager.getLobbyPlayers(), mapId);
                     lobbyManager.notifyGameStarted();
                     gameStateManager.initializeGame();
                 } else {
@@ -118,11 +111,10 @@ public class GameServer {
                             "Cannot start game: not all players are ready, or you are not the host.")));
                 }
             }
-            default -> System.out.println("[Server] Unknown lobby message type: " + type + " from " + clientId);
+            default -> System.out.println("[Server] Unknown lobby message: " + type);
         }
     }
 
-    /** مسیردهی پیام‌های مرحله بازی */
     private void handleGameMessage(String clientId, String type, String json) {
         switch (type) {
             case "END_TURN"         -> gameStateManager.handleEndTurn(clientId);
@@ -136,7 +128,7 @@ public class GameServer {
                     gson.fromJson(json, TradeOfferRequest.class));
             case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId,
                     gson.fromJson(json, TradeResponseRequest.class));
-            default -> System.out.println("[Server] Unknown game message type: " + type + " from " + clientId);
+            default -> System.out.println("[Server] Unknown game message: " + type);
         }
     }
 
@@ -144,17 +136,16 @@ public class GameServer {
 
     public void addClient(String clientId, ClientHandler handler) {
         clients.put(clientId, handler);
-        System.out.println("✅ [Server] Client connected: " + clientId + " | Total: " + clients.size());
+        System.out.println("✅ [Server] Client connected: " + clientId
+                + " | Total: " + clients.size());
     }
 
-    /**
-     * هنگام قطع اتصال کلاینت:
-     * از map حذف شده و لابی از قطعی مطلع می‌شود.
-     */
     public void removeClient(String clientId) {
         clients.remove(clientId);
         lobbyManager.removePlayer(clientId);
-        System.out.println("⚠️ [Server] Client disconnected: " + clientId + " | Total: " + clients.size());
+        udpHeartbeat.removeClient(clientId); // (B6) clean up UDP tracking
+        System.out.println("⚠️ [Server] Client disconnected: " + clientId
+                + " | Total: " + clients.size());
     }
 
     // ─── Messaging ────────────────────────────────────────────────────────────
@@ -165,19 +156,18 @@ public class GameServer {
 
     public void broadcastExcept(String jsonMessage, String excludeClientId) {
         clients.entrySet().stream()
-                .filter(entry -> !entry.getKey().equals(excludeClientId))
-                .forEach(entry -> entry.getValue().sendMessage(jsonMessage));
+                .filter(e -> !e.getKey().equals(excludeClientId))
+                .forEach(e -> e.getValue().sendMessage(jsonMessage));
     }
 
     public void sendToClient(String clientId, String jsonMessage) {
         ClientHandler handler = clients.get(clientId);
-        if (handler != null) {
-            handler.sendMessage(jsonMessage);
-        }
+        if (handler != null) handler.sendMessage(jsonMessage);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────
 
-    public GameStateManager getGameStateManager() { return gameStateManager; }
-    public LobbyManager     getLobbyManager()     { return lobbyManager; }
+    public GameStateManager      getGameStateManager() { return gameStateManager; }
+    public LobbyManager          getLobbyManager()     { return lobbyManager; }
+    public UdpHeartbeatServer    getUdpHeartbeat()     { return udpHeartbeat; }
 }

@@ -1,6 +1,7 @@
 package model;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 public class GameMap {
 
@@ -19,13 +20,31 @@ public class GameMap {
             {1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}
     };
 
+    // ─── Constructors ─────────────────────────────────────────────────────────
+
+    /**
+     * Single-player constructor — uses a randomly generated seed each time,
+     * so the map layout differs between sessions.
+     */
     public GameMap(int radius) {
+        this(radius, new Random().nextLong());
+    }
+
+    /**
+     * Pre-designed map constructor (B10) — uses a fixed seed so the same
+     * terrain is generated every time. Used by {@link network.server.GameStateManager}
+     * when initializing a multiplayer session from a {@link model.maps.MapDefinition}.
+     *
+     * @param radius     map radius (number of hex rings from center)
+     * @param randomSeed fixed seed for reproducible procedural generation
+     */
+    public GameMap(int radius, long randomSeed) {
         this.radius   = radius;
         this.hexes    = new Repository<>();
         this.hexMap   = new HashMap<>();
         this.units    = new Repository<>();
         this.townHall = new TownHall(0, 0);
-        this.random   = new Random();
+        this.random   = new Random(randomSeed);
 
         generateMap();
         generateRivers();
@@ -35,6 +54,8 @@ public class GameMap {
         spawnInitialUnits();
         updateFogOfWar();
     }
+
+    // ─── Map Generation ───────────────────────────────────────────────────────
 
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
@@ -233,6 +254,117 @@ public class GameMap {
         addUnit(new Worker(0, 0));
     }
 
+    // ─── Multiplayer Setup Methods (B10) ─────────────────────────────────────
+
+    /**
+     * Places a player's starting Town Hall at the given hex coordinates and
+     * spawns their initial units (Explorer, 2 Builders, 2 Workers) — all with
+     * {@code ownerId} set to {@code playerId}.
+     *
+     * <p>Called by {@link network.server.GameStateManager#initializeGame()} for
+     * each player after {@link #clearCenterSetup()} has been called.
+     *
+     * @param playerId the unique client ID of the player
+     * @param spawnQ   axial Q coordinate of the spawn hex
+     * @param spawnR   axial R coordinate of the spawn hex
+     */
+    public void placePlayerSpawn(String playerId, int spawnQ, int spawnR) {
+        Hex spawnHex = getHexAt(spawnQ, spawnR);
+        if (spawnHex == null) {
+            // Fall back to nearest accessible hex if exact spawn is blocked
+            spawnHex = findNearbyEmptyHex(spawnQ, spawnR, 3);
+            if (spawnHex == null) {
+                System.err.println("[GameMap] Could not find valid spawn hex for player: " + playerId);
+                return;
+            }
+        }
+
+        // Ensure terrain is passable (not sea or mountain range)
+        if (spawnHex.getTerrainType() == TerrainType.SEA
+                || spawnHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) {
+            spawnHex.setTerrainType(TerrainType.PLAINS);
+        }
+
+        // Create and place the player's Town Hall (its constructor adds starting resources)
+        TownHall playerTH = new TownHall(spawnHex.getQ(), spawnHex.getR());
+        playerTH.setOwnerId(playerId);
+        spawnHex.setBuilding(playerTH);
+
+        // Establish initial territory (radius 1 around spawn)
+        for (Hex hex : hexes.getAll()) {
+            if (getHexDistance(spawnHex.getQ(), spawnHex.getR(),
+                    hex.getQ(), hex.getR()) <= 1) {
+                hex.setInsideBorder(true);
+                hex.setExplored(true);
+            }
+        }
+
+        // Spawn initial units with ownerId set
+        Explorer explorer = new Explorer(spawnHex.getQ(), spawnHex.getR());
+        explorer.setOwnerId(playerId);
+        addUnit(explorer);
+
+        Builder b1 = new Builder(spawnHex.getQ(), spawnHex.getR());
+        b1.setOwnerId(playerId);
+        addUnit(b1);
+
+        Builder b2 = new Builder(spawnHex.getQ(), spawnHex.getR());
+        b2.setOwnerId(playerId);
+        addUnit(b2);
+
+        Worker w1 = new Worker(spawnHex.getQ(), spawnHex.getR());
+        w1.setOwnerId(playerId);
+        addUnit(w1);
+
+        Worker w2 = new Worker(spawnHex.getQ(), spawnHex.getR());
+        w2.setOwnerId(playerId);
+        addUnit(w2);
+
+        updateFogOfWar();
+    }
+
+    /**
+     * Removes the default single-player setup (Town Hall at (0,0) plus initial
+     * unowned units) so that multiplayer spawns can be placed cleanly.
+     *
+     * <p>Call this immediately after constructing the map and before any
+     * {@link #placePlayerSpawn(String, int, int)} calls.
+     */
+    public void clearCenterSetup() {
+        // Remove the default Town Hall building from (0,0)
+        Hex center = getHexAt(0, 0);
+        if (center != null) {
+            center.setBuilding(null);
+        }
+
+        // Remove all units that have no ownerId (the single-player default units)
+        units.removeIf(u -> u.getOwnerId() == null);
+
+        // Reset initial territory marks around center
+        for (Hex hex : hexes.getAll()) {
+            if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
+                hex.setInsideBorder(false);
+                hex.setExplored(false);
+            }
+        }
+    }
+
+    // ─── B32 — Thread-safe unit removal API ───────────────────────────────────
+
+    /**
+     * Removes all units that match the given predicate by delegating to
+     * {@link Repository#removeIf(Predicate)} — which operates on the underlying
+     * mutable list, not the unmodifiable view returned by {@link #getUnits()}.
+     *
+     * <p>This avoids the {@link UnsupportedOperationException} that occurs when
+     * callers mistakenly call {@code getUnits().removeIf(...)}.
+     */
+    public void removeUnitsWhere(Predicate<Unit> predicate) {
+        units.removeIf(predicate);
+    }
+
+    // ─── Existing Methods (unchanged) ─────────────────────────────────────────
+
     public void addUnit(Unit unit) {
         if (unit != null) {
             units.add(unit);
@@ -251,9 +383,8 @@ public class GameMap {
         }
 
         if (!hasActiveTH) {
-            // حذف تمامی یونیت‌های بازیکن
+            // Use Repository.removeIf (safe — operates on underlying mutable list)
             units.removeIf(u -> playerId.equals(u.getOwnerId()));
-            // متروکه کردن تمامی ساختمان‌های بازیکن
             for (Hex h : hexes.getAll()) {
                 if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
                     h.getBuilding().takeDamage(9999);
@@ -368,7 +499,6 @@ public class GameMap {
         return units.stream().anyMatch(u -> u.isAlive() && u.getQ() == q && u.getR() == r);
     }
 
-    // اصلاح گام ۵: محاسبه سقف ارتش بر اساس سطح Town Hall و تعداد شهرک‌های ساخته شده
     public int getMilitaryUnitCap() {
         int baseCap = switch (townHall.getLevel()) {
             case 1  -> GameConfig.UNIT_CAP_TH_LEVEL_1;
@@ -380,7 +510,7 @@ public class GameMap {
                 .filter(h -> h.getBuilding() != null
                         && h.getBuilding().getType() == BuildingType.SETTLEMENT
                         && !h.getBuilding().isDestroyed())
-                .count() * 5; // هر شهرک ۵ واحد به سقف ارتش اضافه می‌کند
+                .count() * 5;
 
         return baseCap + settlementBonus;
     }

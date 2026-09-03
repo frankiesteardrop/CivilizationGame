@@ -5,10 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/network/messages/game/GameStartBroadcast.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/network/server/ServerTurnProcessor.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/maps/MapDefinition.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/model/maps/PreDesignedMaps.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/messages/lobby/SelectMapRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatClient.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatServer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/LobbyUpdateBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/LobbyUpdateBroadcast.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

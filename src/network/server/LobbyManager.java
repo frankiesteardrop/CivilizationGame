@@ -1,5 +1,6 @@
 package network.server;
 
+import model.maps.PreDesignedMaps;
 import network.messages.lobby.LobbyPlayer;
 import network.messages.lobby.LobbyUpdateBroadcast;
 import network.messages.lobby.ChatMessageBroadcast;
@@ -12,8 +13,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * مدیریت وضعیت لابی قبل از شروع بازی.
- * لیست بازیکنان، وضعیت Ready، انتخاب هاست و سیستم چت در این کلاس قرار دارند.
+ * Manages the pre-game lobby: player list, ready status, host assignment,
+ * map selection, and chat.
  */
 public class LobbyManager {
 
@@ -21,6 +22,9 @@ public class LobbyManager {
     private final ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers;
     private final Gson gson;
     private boolean isGameStarted = false;
+
+    /** The map ID selected by the host. Defaults to the first available map. */
+    private String selectedMapId = PreDesignedMaps.getDefaultMapId();
 
     public LobbyManager(GameServer server) {
         this.server       = server;
@@ -31,8 +35,8 @@ public class LobbyManager {
     // ─── Player Management ────────────────────────────────────────────────────
 
     public synchronized void addPlayer(String clientId, String username) {
-        if (isGameStarted) return; // ورود در حین بازی ممنوع
-        boolean isHost = lobbyPlayers.isEmpty(); // اولین نفر هاست است
+        if (isGameStarted) return;
+        boolean isHost = lobbyPlayers.isEmpty();
         LobbyPlayer newPlayer = new LobbyPlayer(clientId, username, isHost);
         lobbyPlayers.put(clientId, newPlayer);
         System.out.println("[Lobby] Player joined: " + username + " (host=" + isHost + ")");
@@ -43,12 +47,11 @@ public class LobbyManager {
         LobbyPlayer removed = lobbyPlayers.remove(clientId);
         if (removed != null) {
             System.out.println("[Lobby] Player left: " + removed.getUsername());
-            // اگر هاست قطع شد، هاست به نفر بعدی منتقل می‌شود
             if (removed.isHost() && !lobbyPlayers.isEmpty()) {
                 String nextHostId = lobbyPlayers.keySet().iterator().next();
                 lobbyPlayers.get(nextHostId).setHost(true);
-                System.out.println("[Lobby] Host transferred to: " +
-                        lobbyPlayers.get(nextHostId).getUsername());
+                System.out.println("[Lobby] Host transferred to: "
+                        + lobbyPlayers.get(nextHostId).getUsername());
             }
             broadcastLobbyState();
         }
@@ -60,6 +63,30 @@ public class LobbyManager {
             player.setReady(!player.isReady());
             broadcastLobbyState();
         }
+    }
+
+    // ─── Map Selection (B10) ──────────────────────────────────────────────────
+
+    /**
+     * Updates the selected map if the request comes from the host.
+     * Broadcasts the updated lobby state with the new selection to all clients.
+     *
+     * @param clientId the client requesting the change (must be host)
+     * @param mapId    the ID of the map to select
+     */
+    public synchronized void setSelectedMap(String clientId, String mapId) {
+        LobbyPlayer requester = lobbyPlayers.get(clientId);
+        if (requester == null || !requester.isHost()) {
+            System.out.println("[Lobby] Non-host tried to change map: " + clientId);
+            return;
+        }
+        this.selectedMapId = mapId;
+        System.out.println("[Lobby] Host selected map: " + mapId);
+        broadcastLobbyState();
+    }
+
+    public String getSelectedMapId() {
+        return selectedMapId;
     }
 
     // ─── Chat ─────────────────────────────────────────────────────────────────
@@ -76,14 +103,10 @@ public class LobbyManager {
 
     // ─── Game Start Validation ────────────────────────────────────────────────
 
-    /**
-     * بررسی می‌کند آیا بازی می‌تواند شروع شود.
-     * شرط: درخواست‌دهنده هاست باشد و همه بازیکنان Ready باشند.
-     */
     public synchronized boolean canStartGame(String clientId) {
         LobbyPlayer requester = lobbyPlayers.get(clientId);
         if (requester == null || !requester.isHost()) return false;
-        if (lobbyPlayers.size() < 2) return false; // حداقل ۲ بازیکن
+        if (lobbyPlayers.size() < 2) return false;
 
         for (LobbyPlayer p : lobbyPlayers.values()) {
             if (!p.isReady()) return false;
@@ -91,21 +114,13 @@ public class LobbyManager {
         return true;
     }
 
-    /**
-     * وقتی GameServer بازی را شروع می‌کند این متد را صدا می‌زند
-     * تا ورود کلاینت‌های جدید به لابی بلاک شود.
-     */
     public synchronized void notifyGameStarted() {
         this.isGameStarted = true;
-        System.out.println("[Lobby] Game started. New connections to lobby are now blocked.");
+        System.out.println("[Lobby] Game started. New connections to lobby are blocked.");
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────
 
-    /**
-     * دسترسی به نقشه بازیکنان برای ساخت GameStateManager.
-     * ConcurrentHashMap داده می‌شود تا GameStateManager بتواند thread-safe کار کند.
-     */
     public ConcurrentHashMap<String, LobbyPlayer> getLobbyPlayers() {
         return lobbyPlayers;
     }
@@ -114,7 +129,7 @@ public class LobbyManager {
 
     private void broadcastLobbyState() {
         List<LobbyPlayer> currentPlayers = new ArrayList<>(lobbyPlayers.values());
-        LobbyUpdateBroadcast update = new LobbyUpdateBroadcast(currentPlayers);
+        LobbyUpdateBroadcast update = new LobbyUpdateBroadcast(currentPlayers, selectedMapId);
         server.broadcast(gson.toJson(update));
     }
 }
