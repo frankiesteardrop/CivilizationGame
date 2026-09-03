@@ -12,6 +12,9 @@ public abstract class Building {
 
     protected int floodHaltTurns;
 
+    // فیلد مالکیت اضافه شده برای رفع ارورهای شبکه و تشخیص بازیکن در PvP
+    protected String ownerId;
+
     public Building(int baseWorkerCapacity) {
         this.baseWorkerCapacity = baseWorkerCapacity;
         this.stationedWorkers = 0;
@@ -21,6 +24,7 @@ public abstract class Building {
         this.hp = 100;
         this.defense = 0;
         this.floodHaltTurns = 0;
+        this.ownerId = null; // در ابتدا نال است، سرور هنگام ساخت این مقدار را ست می‌کند
     }
 
     public abstract BuildingType getType();
@@ -38,6 +42,10 @@ public abstract class Building {
 
     protected void setMaxHp(int maxHp) { this.maxHp = maxHp; }
     protected void setDefense(int defense) { this.defense = defense; }
+
+    // متدهای گتر و ستر مالکیت جهت اعتبارسنجی سمت سرور
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public void heal(int amount) {
         this.hp = Math.min(this.maxHp, this.hp + amount);
