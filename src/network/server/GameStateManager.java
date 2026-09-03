@@ -2,13 +2,11 @@ package network.server;
 
 import com.google.gson.Gson;
 import controller.CombatController;
-import model.GameMap;
-import model.Hex;
-import model.Unit;
-import model.UnitType;
+import model.*;
 import network.messages.game.AttackRequest;
 import network.messages.game.ErrorResponse;
 import network.messages.game.GameStateBroadcast;
+import network.messages.game.ItemUseRequest;
 import network.messages.lobby.LobbyPlayer;
 
 import java.util.ArrayList;
@@ -22,7 +20,6 @@ public class GameStateManager {
     private final List<LobbyPlayer> players;
     private int currentPlayerIndex;
 
-    // نگهداری وضعیت دیپلماتیک (Neutral, Enemy, Allied) برای سیستم PvP
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> diplomacyStates = new ConcurrentHashMap<>();
 
     public GameStateManager(GameServer server, ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers) {
@@ -35,7 +32,6 @@ public class GameStateManager {
     public synchronized void initializeGame() {
         this.masterMap = new GameMap(20);
 
-        // مقداردهی اولیه دیپلماسی: همه بازیکنان در ابتدا نسبت به هم Neutral هستند
         for (LobbyPlayer p1 : players) {
             ConcurrentHashMap<String, String> relations = new ConcurrentHashMap<>();
             for (LobbyPlayer p2 : players) {
@@ -67,9 +63,55 @@ public class GameStateManager {
         broadcastCustomizedStates();
     }
 
-    // --- منطق یکپارچه و امنیتی حمله PvP ---
+    // --- مدیریت استفاده از آیتم‌های Apothecary ---
+    public synchronized void handleItemUseRequest(String clientId, ItemUseRequest req) {
+        if (!players.get(currentPlayerIndex).getId().equals(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
+            return;
+        }
+
+        Unit target = masterMap.getUnits().stream()
+                .filter(u -> u.isAlive() && u.getQ() == req.getTargetQ() && u.getR() == req.getTargetR())
+                .findFirst().orElse(null);
+
+        if (target == null || !clientId.equals(target.getOwnerId())) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("You can only use items on your own units!")));
+            return;
+        }
+
+        if (target.hasUsedItemThisTurn()) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("This unit has already used an item this turn!")));
+            return;
+        }
+
+        Inventory playerInv = getPlayerInventory(clientId);
+        if (playerInv == null || !playerInv.consumeItem(req.getItemName())) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("You do not have this item in your inventory!")));
+            return;
+        }
+
+        target.setUsedItemThisTurn(true);
+
+        switch (req.getItemName()) {
+            case "TELEPORT" -> {
+                Hex dest = masterMap.getHexAt(req.getDestQ(), req.getDestR());
+                if (dest != null && !masterMap.hasUnitAt(dest.getQ(), dest.getR()) && dest.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                    target.moveTo(dest.getQ(), dest.getR(), 0);
+                } else {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid teleport destination!")));
+                    return;
+                }
+            }
+            case "MOBILITY" -> target.addTemporaryAP(2);
+            case "COMBAT"   -> {
+                target.setTemporaryCombatDiceBonus(1);
+                target.setTemporarySiegeBonus(5);
+            }
+        }
+        broadcastCustomizedStates();
+    }
+
     public synchronized void handleAttackRequest(String clientId, AttackRequest req) {
-        // ۱. بررسی نوبت
         if (!players.get(currentPlayerIndex).getId().equals(clientId)) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
             return;
@@ -83,7 +125,6 @@ public class GameStateManager {
             return;
         }
 
-        // ۲. استخراج مهاجمین و تایید مطلق مالکیت (جلوگیری از کنترل نیروی حریف)
         List<Unit> attackers = new ArrayList<>();
         for (Unit u : masterMap.getUnits()) {
             if (u.isAlive() && u.getQ() == sourceHex.getQ() && u.getR() == sourceHex.getR()) {
@@ -100,7 +141,6 @@ public class GameStateManager {
             return;
         }
 
-        // ۳. استخراج مالک هدف و اعتبارسنجی دیپلماسی
         String targetOwnerId = getTargetOwnerId(targetHex);
 
         if (targetOwnerId != null && targetOwnerId.equals(clientId)) {
@@ -116,7 +156,6 @@ public class GameStateManager {
             }
         }
 
-        // ۴. پیکربندی پارامترهای نبرد
         boolean isTargetAnimal = masterMap.getUnits().stream()
                 .anyMatch(u -> u.isAlive() && u.getType() == UnitType.BEAR && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR());
 
@@ -133,7 +172,6 @@ public class GameStateManager {
             }
         }
 
-        // ۵. اجرای نبرد با هسته اصلی (CombatController)
         CombatController cc = new CombatController(masterMap);
         int result = cc.executeAttack(attackers, sourceHex, targetHex, isSiegeAttack, isTargetAnimal, targetHasWall);
 
@@ -142,8 +180,45 @@ public class GameStateManager {
             return;
         }
 
-        // ۶. همگام‌سازی نتایج برای تمام کلاینت‌ها
+        // بررسی Elimination پلیر مدافع پس از حمله محاصره‌ای
+        if (targetOwnerId != null && isSiegeAttack) {
+            checkPlayerElimination(targetOwnerId);
+        }
+
         broadcastCustomizedStates();
+    }
+
+    // متد بررسی باخت کامل بازیکن (Elimination)
+    private void checkPlayerElimination(String playerId) {
+        boolean hasActiveTH = false;
+        for (Hex h : masterMap.getHexes()) {
+            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.TOWN_HALL
+                    && !h.getBuilding().isDestroyed() && playerId.equals(h.getBuilding().getOwnerId())) {
+                hasActiveTH = true;
+                break;
+            }
+        }
+
+        if (!hasActiveTH) {
+            masterMap.getUnits().removeIf(u -> playerId.equals(u.getOwnerId()));
+            for (Hex h : masterMap.getHexes()) {
+                if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
+                    h.getBuilding().takeDamage(9999);
+                    h.setBuilding(null);
+                }
+            }
+            server.broadcast(gson.toJson(new ErrorResponse("💀 Player " + playerId + " has been eliminated!")));
+        }
+    }
+
+    private Inventory getPlayerInventory(String ownerId) {
+        for (Hex h : masterMap.getHexes()) {
+            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.TOWN_HALL
+                    && ownerId.equals(h.getBuilding().getOwnerId())) {
+                return ((TownHall) h.getBuilding()).getInventory();
+            }
+        }
+        return masterMap.getTownHall().getInventory();
     }
 
     private String getTargetOwnerId(Hex targetHex) {

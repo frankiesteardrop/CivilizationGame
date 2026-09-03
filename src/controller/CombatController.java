@@ -15,7 +15,6 @@ public class CombatController {
 
     public CombatController(GameMap map) {
         this.map = map;
-
         DamageHandler swordsman = new SwordsmanDamageHandler();
         DamageHandler archer    = new ArcherDamageHandler();
         DamageHandler cavalry   = new CavalryDamageHandler();
@@ -56,8 +55,6 @@ public class CombatController {
 
         validAttackers.forEach(u -> u.consumeAP(1));
 
-        // در محیط PvP سرور (GameStateManager) فیلترهای خودی/دشمن را قبلاً اعمال کرده است
-        // این متد فقط تمام اهداف زنده روی هکس را بدون در نظر گرفتن Owner جمع‌آوری می‌کند.
         List<Unit> validDefenders = map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && u.getQ() == targetHex.getQ()
@@ -99,6 +96,14 @@ public class CombatController {
         int wallModifier      = (dist == 1 && targetHasWall) ? 2 : 0;
 
         List<Integer> attackerRolls  = rollDice(attackerDiceCount, 0);
+
+        // اعمال باف آیتم مبارزه روی تاس‌ها
+        int totalCombatBuffs = validAttackers.stream().mapToInt(Unit::getTemporaryCombatDiceBonus).sum();
+        for (int i = 0; i < totalCombatBuffs && i < attackerRolls.size(); i++) {
+            attackerRolls.set(i, attackerRolls.get(i) + 1);
+        }
+        attackerRolls.sort(Collections.reverseOrder()); // مرتب‌سازی مجدد بعد از باف
+
         List<Integer> defenderRolls  = rollDice(defenderDiceCount, wallModifier);
 
         int attackerTakesDmg = 0;
@@ -142,6 +147,7 @@ public class CombatController {
     }
 
     private int handleSiegeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex, boolean targetHasWall) {
+        // متد getSiegeDamage به صورت خودکار باف آیتم را لحاظ می‌کند (در کلاس Unit اضافه شده بود)
         int siegeDmg = attackers.stream().mapToInt(Unit::getSiegeDamage).sum();
         int dir = getDirection(sourceHex, targetHex);
 

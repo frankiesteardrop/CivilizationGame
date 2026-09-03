@@ -1,24 +1,28 @@
 package model;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Inventory {
 
     private final Map<ResourceType, Integer> resources;
     private final Map<ResourceType, Integer> capacities;
-    // فیلد جدید برای مسدودسازی (Lock) منابع هنگام ارسال پیشنهاد تجارت
     private final Map<ResourceType, Integer> lockedResources;
+
+    // ذخیره‌سازی آیتم‌های مصرفی (عطاری)
+    private final Map<String, Integer> items;
 
     public Inventory() {
         this.resources  = new EnumMap<>(ResourceType.class);
         this.capacities = new EnumMap<>(ResourceType.class);
         this.lockedResources = new EnumMap<>(ResourceType.class);
+        this.items = new HashMap<>();
 
         for (ResourceType type : ResourceType.values()) {
             if (type != ResourceType.NONE) {
                 resources.put(type, 0);
-                lockedResources.put(type, 0); // مقداردهی اولیه منابع قفل شده
+                lockedResources.put(type, 0);
             }
         }
 
@@ -28,9 +32,26 @@ public class Inventory {
         capacities.put(ResourceType.IRON,  GameConfig.DEFAULT_IRON_CAPACITY);
     }
 
+    // متدهای مدیریت آیتم‌ها
+    public void addItem(String itemName, int amount) {
+        items.put(itemName, items.getOrDefault(itemName, 0) + amount);
+    }
+
+    public boolean hasItem(String itemName) {
+        return items.getOrDefault(itemName, 0) > 0;
+    }
+
+    public boolean consumeItem(String itemName) {
+        int current = items.getOrDefault(itemName, 0);
+        if (current > 0) {
+            items.put(itemName, current - 1);
+            return true;
+        }
+        return false;
+    }
+
     public void addResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return;
-
         int current  = resources.getOrDefault(type, 0);
         int capacity = capacities.getOrDefault(type, 0);
         int updated  = Math.min(current + amount, capacity);
@@ -41,10 +62,8 @@ public class Inventory {
         }
     }
 
-    // اصلاح شده: استفاده از متد hasEnough تا منابع قفل شده را نتوان مصرف کرد
     public boolean consumeResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return true;
-
         if (hasEnough(type, amount)) {
             int current = resources.getOrDefault(type, 0);
             resources.put(type, current - amount);
@@ -54,10 +73,8 @@ public class Inventory {
         return false;
     }
 
-    // متد جدید: مصرف منابعی که قبلاً برای یک ترید قفل شده بودند (هنگام Accept شدن ترید)
     public boolean consumeLockedResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return true;
-
         int currentLocked = lockedResources.getOrDefault(type, 0);
         int currentTotal = resources.getOrDefault(type, 0);
 
@@ -70,14 +87,12 @@ public class Inventory {
         return false;
     }
 
-    // متد جدید: قفل کردن موقت منابع (هنگام ارسال پیشنهاد ترید)
     public void lockResource(ResourceType type, int amount) {
         if (type != ResourceType.NONE && hasEnough(type, amount)) {
             lockedResources.put(type, lockedResources.getOrDefault(type, 0) + amount);
         }
     }
 
-    // متد جدید: آزادسازی منابع (هنگام Reject شدن یا Cancel شدن ترید)
     public void unlockResource(ResourceType type, int amount) {
         if (type != ResourceType.NONE) {
             int currentLocked = lockedResources.getOrDefault(type, 0);
@@ -85,7 +100,6 @@ public class Inventory {
         }
     }
 
-    // اصلاح شده: مقدار در دسترس برابر است با کل منابع منهای منابع قفل شده
     public boolean hasEnough(ResourceType type, int amount) {
         if (type == ResourceType.NONE) return true;
         int available = resources.getOrDefault(type, 0) - lockedResources.getOrDefault(type, 0);
@@ -106,11 +120,6 @@ public class Inventory {
         capacities.put(ResourceType.IRON,  GameConfig.TH_UPGRADE3_CAPACITY);
     }
 
-    public int getResourceAmount(ResourceType type) {
-        return resources.getOrDefault(type, 0);
-    }
-
-    public int getCapacity(ResourceType type) {
-        return capacities.getOrDefault(type, 0);
-    }
+    public int getResourceAmount(ResourceType type) { return resources.getOrDefault(type, 0); }
+    public int getCapacity(ResourceType type) { return capacities.getOrDefault(type, 0); }
 }

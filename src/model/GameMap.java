@@ -240,6 +240,30 @@ public class GameMap {
         }
     }
 
+    public void checkPlayerElimination(String playerId) {
+        boolean hasActiveTH = false;
+        for (Hex h : hexes.getAll()) {
+            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.TOWN_HALL
+                    && !h.getBuilding().isDestroyed() && playerId.equals(h.getBuilding().getOwnerId())) {
+                hasActiveTH = true;
+                break;
+            }
+        }
+
+        if (!hasActiveTH) {
+            // حذف تمامی یونیت‌های بازیکن
+            units.removeIf(u -> playerId.equals(u.getOwnerId()));
+            // متروکه کردن تمامی ساختمان‌های بازیکن
+            for (Hex h : hexes.getAll()) {
+                if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
+                    h.getBuilding().takeDamage(9999);
+                    h.setBuilding(null);
+                }
+            }
+            GameEventDispatcher.fireNotification("💀 Player " + playerId + " has been eliminated from the game!");
+        }
+    }
+
     public void removeDeadUnits() {
         boolean hadDead = units.stream().anyMatch(u -> !u.isAlive());
         units.removeIf(u -> !u.isAlive());

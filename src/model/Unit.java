@@ -18,9 +18,12 @@ public abstract class Unit {
     protected boolean isEnemy;
 
     protected Tribe ownerTribe;
-
-    // فیلد جدید برای مدیریت مالکیت در حالت چندنفره (PvP)
     protected String ownerId;
+
+    // فیلدهای کنترلی آیتم‌های مصرفی (گام ۵)
+    protected boolean hasUsedItemThisTurn;
+    protected int temporaryCombatDiceBonus;
+    protected int temporarySiegeBonus;
 
     public Unit(int q, int r, UnitType type) {
         this.q = q;
@@ -39,7 +42,11 @@ public abstract class Unit {
 
         this.isEnemy = false;
         this.ownerTribe = null;
-        this.ownerId = null; // در ابتدا نال است، سرور هنگام ساخت یونیت این مقدار را ست می‌کند
+        this.ownerId = null;
+
+        this.hasUsedItemThisTurn = false;
+        this.temporaryCombatDiceBonus = 0;
+        this.temporarySiegeBonus = 0;
     }
 
     public void resetAP() { if (isAlive) currentAP = maxAP; }
@@ -73,6 +80,27 @@ public abstract class Unit {
         GameEventDispatcher.fireUnitStateChanged(this);
     }
 
+    // متدهای مدیریت آیتم‌ها
+    public boolean hasUsedItemThisTurn() { return hasUsedItemThisTurn; }
+    public void setUsedItemThisTurn(boolean used) { this.hasUsedItemThisTurn = used; }
+
+    public void addTemporaryAP(int amount) {
+        this.currentAP += amount;
+        GameEventDispatcher.fireUnitStateChanged(this);
+    }
+
+    public void setTemporaryCombatDiceBonus(int bonus) { this.temporaryCombatDiceBonus = bonus; }
+    public int getTemporaryCombatDiceBonus() { return temporaryCombatDiceBonus; }
+
+    public void setTemporarySiegeBonus(int bonus) { this.temporarySiegeBonus = bonus; }
+    public int getTemporarySiegeBonus() { return temporarySiegeBonus; }
+
+    public void resetItemBuffs() {
+        this.hasUsedItemThisTurn = false;
+        this.temporaryCombatDiceBonus = 0;
+        this.temporarySiegeBonus = 0;
+    }
+
     public int getQ() { return q; }
     public int getR() { return r; }
     public UnitType getType() { return type; }
@@ -84,7 +112,10 @@ public abstract class Unit {
     public int getHp() { return hp; }
     public int getMaxHp() { return maxHp; }
     public int getAttackRange() { return attackRange; }
-    public int getSiegeDamage() { return siegeDamage; }
+
+    // اعمال باف آیتم مبارزه روی آسیب به سازه
+    public int getSiegeDamage() { return siegeDamage + temporarySiegeBonus; }
+
     public boolean isAlive() { return isAlive; }
 
     public boolean isEnemy() { return isEnemy; }
@@ -93,7 +124,6 @@ public abstract class Unit {
     public Tribe getOwnerTribe() { return ownerTribe; }
     public void setOwnerTribe(Tribe ownerTribe) { this.ownerTribe = ownerTribe; }
 
-    // گتر و ستر مالکیت برای بررسی‌های امنیتی سرور
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 

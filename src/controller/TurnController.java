@@ -48,11 +48,6 @@ public class TurnController {
             fireSeasonChangeNotification(seasonAfter);
         }
 
-        for (Unit unit : gameMap.getUnits()) {
-            if (unit.isAlive() && unit.getType() == UnitType.BEAR) {
-                unit.resetAP();
-            }
-        }
         DisasterController disasterController = new DisasterController(gameMap);
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
@@ -66,6 +61,7 @@ public class TurnController {
             if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
 
                 unit.resetAP();
+                unit.resetItemBuffs(); // پاک کردن باف آیتم‌ها در پایان نوبت
 
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();
@@ -78,6 +74,8 @@ public class TurnController {
                 if (gameMap.isStarving()) {
                     unit.consumeAP(1);
                 }
+            } else if (unit.isAlive() && unit.getType() == UnitType.BEAR) {
+                unit.resetAP();
             }
         }
 
@@ -86,20 +84,10 @@ public class TurnController {
 
     private void fireSeasonChangeNotification(Season newSeason) {
         String message = switch (newSeason) {
-            case SPRING ->
-                    "🌸 Spring has arrived! (Turns 1-10 of cycle)\n"
-                            + "✅ All Farms and Stables: +1 Food production per turn.";
-            case SUMMER ->
-                    "☀️ Summer begins! (Turns 11-20 of cycle)\n"
-                            + "— No bonuses or penalties this season.";
-            case AUTUMN ->
-                    "🍂 Autumn is here! (Turns 21-30 of cycle)\n"
-                            + "⚠ Water hex movement: +1 AP for all units.\n"
-                            + "⚠ Flood risk is active — coastal and riverside areas vulnerable.";
-            case WINTER ->
-                    "❄️ Winter has come! (Turns 31-40 of cycle)\n"
-                            + "⚠ All Farms: -1 Food production per turn.\n"
-                            + "⚠ All land movement: +1 AP for ALL units (enemies included).";
+            case SPRING -> "🌸 Spring has arrived!";
+            case SUMMER -> "☀️ Summer begins!";
+            case AUTUMN -> "🍂 Autumn is here!";
+            case WINTER -> "❄️ Winter has come!";
         };
         GameEventDispatcher.fireNotification(message);
     }
