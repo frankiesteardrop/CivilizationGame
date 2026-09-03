@@ -1,10 +1,12 @@
 package network.server;
 
 import com.google.gson.Gson;
+import controller.CombatController;
 import model.GameMap;
 import model.Hex;
 import model.Unit;
-import model.Building;
+import model.UnitType;
+import network.messages.game.AttackRequest;
 import network.messages.game.ErrorResponse;
 import network.messages.game.GameStateBroadcast;
 import network.messages.lobby.LobbyPlayer;
@@ -20,6 +22,9 @@ public class GameStateManager {
     private final List<LobbyPlayer> players;
     private int currentPlayerIndex;
 
+    // نگهداری وضعیت دیپلماتیک (Neutral, Enemy, Allied) برای سیستم PvP
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> diplomacyStates = new ConcurrentHashMap<>();
+
     public GameStateManager(GameServer server, ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers) {
         this.server = server;
         this.gson = new Gson();
@@ -27,46 +32,142 @@ public class GameStateManager {
         this.currentPlayerIndex = 0;
     }
 
-    // 1. انتقال از لابی به بازی
     public synchronized void initializeGame() {
-        // مقداردهی اولیه مپ پایه (از کدهای فاز 2 شما)
         this.masterMap = new GameMap(20);
 
-        // TODO: در ادامه، منطق اختصاص TownHall و 5 یونیت اولیه در فواصل دور برای هر پلیر پیاده می‌شود.
+        // مقداردهی اولیه دیپلماسی: همه بازیکنان در ابتدا نسبت به هم Neutral هستند
+        for (LobbyPlayer p1 : players) {
+            ConcurrentHashMap<String, String> relations = new ConcurrentHashMap<>();
+            for (LobbyPlayer p2 : players) {
+                if (!p1.getId().equals(p2.getId())) {
+                    relations.put(p2.getId(), "Neutral");
+                }
+            }
+            diplomacyStates.put(p1.getId(), relations);
+        }
 
         System.out.println("✅ [Server] Game Initialized. Transitioning clients to Game UI...");
-        broadcastCustomizedStates(); // ارسال وضعیت فیلتر شده اختصاصی
+        broadcastCustomizedStates();
     }
 
-    // 2. مدیریت نوبت
     public synchronized void handleEndTurn(String clientId) {
         String activeId = players.get(currentPlayerIndex).getId();
 
-        // سرور باید بررسی کند آیا الان نوبت این پلیر است یا خیر
         if (!activeId.equals(clientId)) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
             return;
         }
 
-        // چرخش نوبت
         currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
 
-        // اگر همه بازیکنان نوبتشان تمام شد، Turn کلی بازی را جلو می‌بریم
         if (currentPlayerIndex == 0) {
-            // منطق پایان ترن اصلی (تولید منابع، بلایای طبیعی، قبایل و...) از TurnController فاز 2
             masterMap.incrementTurn();
         }
 
         broadcastCustomizedStates();
     }
 
-    // 3. اعمال Fog of War (جلوگیری از تقلب)
+    // --- منطق یکپارچه و امنیتی حمله PvP ---
+    public synchronized void handleAttackRequest(String clientId, AttackRequest req) {
+        // ۱. بررسی نوبت
+        if (!players.get(currentPlayerIndex).getId().equals(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
+            return;
+        }
+
+        Hex sourceHex = masterMap.getHexAt(req.getSourceQ(), req.getSourceR());
+        Hex targetHex = masterMap.getHexAt(req.getTargetQ(), req.getTargetR());
+
+        if (sourceHex == null || targetHex == null) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid hex coordinates.")));
+            return;
+        }
+
+        // ۲. استخراج مهاجمین و تایید مطلق مالکیت (جلوگیری از کنترل نیروی حریف)
+        List<Unit> attackers = new ArrayList<>();
+        for (Unit u : masterMap.getUnits()) {
+            if (u.isAlive() && u.getQ() == sourceHex.getQ() && u.getR() == sourceHex.getR()) {
+                if (!clientId.equals(u.getOwnerId())) {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("You do not own these units!")));
+                    return;
+                }
+                attackers.add(u);
+            }
+        }
+
+        if (attackers.isEmpty()) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("No valid attacking units found.")));
+            return;
+        }
+
+        // ۳. استخراج مالک هدف و اعتبارسنجی دیپلماسی
+        String targetOwnerId = getTargetOwnerId(targetHex);
+
+        if (targetOwnerId != null && targetOwnerId.equals(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("You cannot attack your own units or structures!")));
+            return;
+        }
+
+        if (targetOwnerId != null) {
+            String diploStatus = getDiplomaticStatus(clientId, targetOwnerId);
+            if (!"Enemy".equals(diploStatus)) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("You must declare war first! Status: " + diploStatus)));
+                return;
+            }
+        }
+
+        // ۴. پیکربندی پارامترهای نبرد
+        boolean isTargetAnimal = masterMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getType() == UnitType.BEAR && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR());
+
+        boolean hasEnemyUnit = masterMap.getUnits().stream()
+                .anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && !clientId.equals(u.getOwnerId()));
+
+        boolean isSiegeAttack = !hasEnemyUnit && !isTargetAnimal;
+
+        boolean targetHasWall = false;
+        for (int i = 0; i < 6; i++) {
+            if (masterMap.getNeighbor(sourceHex, i) == targetHex) {
+                targetHasWall = sourceHex.hasWall(i);
+                break;
+            }
+        }
+
+        // ۵. اجرای نبرد با هسته اصلی (CombatController)
+        CombatController cc = new CombatController(masterMap);
+        int result = cc.executeAttack(attackers, sourceHex, targetHex, isSiegeAttack, isTargetAnimal, targetHasWall);
+
+        if (result == -1) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Attack failed. Check AP or attack range.")));
+            return;
+        }
+
+        // ۶. همگام‌سازی نتایج برای تمام کلاینت‌ها
+        broadcastCustomizedStates();
+    }
+
+    private String getTargetOwnerId(Hex targetHex) {
+        for (Unit u : masterMap.getUnits()) {
+            if (u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()) {
+                if (u.getOwnerId() != null) return u.getOwnerId();
+            }
+        }
+        if (targetHex.getBuilding() != null && !targetHex.getBuilding().isDestroyed()) {
+            return targetHex.getBuilding().getOwnerId();
+        }
+        return null;
+    }
+
+    private String getDiplomaticStatus(String attackerId, String defenderId) {
+        if (attackerId == null || defenderId == null) return "Neutral";
+        return diplomacyStates.get(attackerId).getOrDefault(defenderId, "Neutral");
+    }
+
     public synchronized void broadcastCustomizedStates() {
         String activePlayerId = players.get(currentPlayerIndex).getId();
 
         for (LobbyPlayer player : players) {
             String clientId = player.getId();
-            // تولید یک نسخه فیلتر شده از مپ برای این پلیر
             GameMap playerSpecificMap = filterMapForPlayer(masterMap, clientId);
 
             String mapJson = gson.toJson(playerSpecificMap);
@@ -76,16 +177,7 @@ public class GameStateManager {
         }
     }
 
-    // منطق حیاتی: سرور هرگز مپ کامل را برای کلاینت نمی‌فرستد
     private GameMap filterMapForPlayer(GameMap master, String playerId) {
-        // در یک پیاده‌سازی واقعی، ما اینجا یک Deep Copy از مپ می‌سازیم.
-        // سپس هکس‌هایی که در شعاع دید (Vision Radius) یونیت‌ها و ساختمان‌های playerId نیستند را پیدا می‌کنیم.
-        // برای هکس‌های خارج از دید:
-        // 1. لیست Units آن هکس پاک (خالی) می‌شود.
-        // 2. اگر Building دشمن در آن است و قبلاً کشف نشده، مخفی می‌شود.
-        // 3. منابع (Resources) پنهان می‌شوند.
-
-        // توجه: کد دقیق Deep Copy بسته به متدهای GameMap شما پیاده‌سازی می‌شود.
-        return master; // موقتاً مپ اصلی برگشت داده می‌شود تا DTOهای امن را بسازیم
+        return master;
     }
 }

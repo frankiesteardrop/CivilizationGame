@@ -56,6 +56,8 @@ public class CombatController {
 
         validAttackers.forEach(u -> u.consumeAP(1));
 
+        // در محیط PvP سرور (GameStateManager) فیلترهای خودی/دشمن را قبلاً اعمال کرده است
+        // این متد فقط تمام اهداف زنده روی هکس را بدون در نظر گرفتن Owner جمع‌آوری می‌کند.
         List<Unit> validDefenders = map.getUnits().stream()
                 .filter(u -> u.isAlive()
                         && u.getQ() == targetHex.getQ()

@@ -7,14 +7,18 @@ public class Inventory {
 
     private final Map<ResourceType, Integer> resources;
     private final Map<ResourceType, Integer> capacities;
+    // فیلد جدید برای مسدودسازی (Lock) منابع هنگام ارسال پیشنهاد تجارت
+    private final Map<ResourceType, Integer> lockedResources;
 
     public Inventory() {
         this.resources  = new EnumMap<>(ResourceType.class);
         this.capacities = new EnumMap<>(ResourceType.class);
+        this.lockedResources = new EnumMap<>(ResourceType.class);
 
         for (ResourceType type : ResourceType.values()) {
             if (type != ResourceType.NONE) {
                 resources.put(type, 0);
+                lockedResources.put(type, 0); // مقداردهی اولیه منابع قفل شده
             }
         }
 
@@ -37,11 +41,12 @@ public class Inventory {
         }
     }
 
+    // اصلاح شده: استفاده از متد hasEnough تا منابع قفل شده را نتوان مصرف کرد
     public boolean consumeResource(ResourceType type, int amount) {
         if (type == ResourceType.NONE || amount <= 0) return true;
 
-        int current = resources.getOrDefault(type, 0);
-        if (current >= amount) {
+        if (hasEnough(type, amount)) {
+            int current = resources.getOrDefault(type, 0);
             resources.put(type, current - amount);
             GameEventDispatcher.fireResourceChanged(type, resources.get(type));
             return true;
@@ -49,9 +54,42 @@ public class Inventory {
         return false;
     }
 
+    // متد جدید: مصرف منابعی که قبلاً برای یک ترید قفل شده بودند (هنگام Accept شدن ترید)
+    public boolean consumeLockedResource(ResourceType type, int amount) {
+        if (type == ResourceType.NONE || amount <= 0) return true;
+
+        int currentLocked = lockedResources.getOrDefault(type, 0);
+        int currentTotal = resources.getOrDefault(type, 0);
+
+        if (currentLocked >= amount && currentTotal >= amount) {
+            lockedResources.put(type, currentLocked - amount);
+            resources.put(type, currentTotal - amount);
+            GameEventDispatcher.fireResourceChanged(type, resources.get(type));
+            return true;
+        }
+        return false;
+    }
+
+    // متد جدید: قفل کردن موقت منابع (هنگام ارسال پیشنهاد ترید)
+    public void lockResource(ResourceType type, int amount) {
+        if (type != ResourceType.NONE && hasEnough(type, amount)) {
+            lockedResources.put(type, lockedResources.getOrDefault(type, 0) + amount);
+        }
+    }
+
+    // متد جدید: آزادسازی منابع (هنگام Reject شدن یا Cancel شدن ترید)
+    public void unlockResource(ResourceType type, int amount) {
+        if (type != ResourceType.NONE) {
+            int currentLocked = lockedResources.getOrDefault(type, 0);
+            lockedResources.put(type, Math.max(0, currentLocked - amount));
+        }
+    }
+
+    // اصلاح شده: مقدار در دسترس برابر است با کل منابع منهای منابع قفل شده
     public boolean hasEnough(ResourceType type, int amount) {
         if (type == ResourceType.NONE) return true;
-        return resources.getOrDefault(type, 0) >= amount;
+        int available = resources.getOrDefault(type, 0) - lockedResources.getOrDefault(type, 0);
+        return available >= amount;
     }
 
     public void upgradeToLevel2() {

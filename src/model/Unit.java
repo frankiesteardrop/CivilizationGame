@@ -19,6 +19,9 @@ public abstract class Unit {
 
     protected Tribe ownerTribe;
 
+    // فیلد جدید برای مدیریت مالکیت در حالت چندنفره (PvP)
+    protected String ownerId;
+
     public Unit(int q, int r, UnitType type) {
         this.q = q;
         this.r = r;
@@ -36,6 +39,7 @@ public abstract class Unit {
 
         this.isEnemy = false;
         this.ownerTribe = null;
+        this.ownerId = null; // در ابتدا نال است، سرور هنگام ساخت یونیت این مقدار را ست می‌کند
     }
 
     public void resetAP() { if (isAlive) currentAP = maxAP; }
@@ -88,6 +92,10 @@ public abstract class Unit {
 
     public Tribe getOwnerTribe() { return ownerTribe; }
     public void setOwnerTribe(Tribe ownerTribe) { this.ownerTribe = ownerTribe; }
+
+    // گتر و ستر مالکیت برای بررسی‌های امنیتی سرور
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public void kill() {
         if (this.isAlive) {
