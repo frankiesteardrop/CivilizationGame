@@ -45,4 +45,11 @@ public class GameServer {
                 .filter(entry -> !entry.getKey().equals(excludeClientId))
                 .forEach(entry -> entry.getValue().sendMessage(jsonMessage));
     }
+
+    public void sendToClient(String clientId, String jsonMessage) {
+        ClientHandler handler = clients.get(clientId);
+        if (handler != null) {
+            handler.sendMessage(jsonMessage);
+        }
+    }
 }
