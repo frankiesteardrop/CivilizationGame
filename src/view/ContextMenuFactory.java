@@ -1,9 +1,12 @@
 package view;
 
+import com.google.gson.Gson;                          // ← NEW import
 import controller.CombatController;
 import controller.MainController;
 import controller.MenuAction;
 import model.*;
+import network.client.NetworkManager;                 // ← NEW import
+import network.messages.game.AttackRequest;           // ← NEW import
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,7 +111,6 @@ public class ContextMenuFactory {
         return actions;
     }
 
-    // اصلاح حیاتی: متد سازنده منوی Trading Post با بررسی قلمرو بازیکن
     public static List<MenuAction> buildTradingPostMenu(MainController mc, TradingPost post, Hex hex, Runnable onTradeAction) {
         List<MenuAction> actions = new ArrayList<>();
 
@@ -183,13 +185,16 @@ public class ContextMenuFactory {
         });
     }
 
+    // ─── Attack Menu — B9 fix ─────────────────────────────────────────────────
+
     private static List<MenuAction> buildAttackMenu(MainController mc, Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
         GameMap map = mc.getGameMap();
         Hex sourceHex = map.getHexAt(selectedUnit.getQ(), selectedUnit.getR());
         if (sourceHex == null) return actions;
 
-        int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(), targetHex.getQ(), targetHex.getR());
+        int dist = map.getHexDistance(selectedUnit.getQ(), selectedUnit.getR(),
+                targetHex.getQ(), targetHex.getR());
         if (dist < 1 || dist > 2) {
             actions.add(new MenuAction("⛔ Target out of range (max 2)", false, null));
             return actions;
@@ -201,7 +206,6 @@ public class ContextMenuFactory {
                 .collect(Collectors.toList());
 
         boolean hasAnyEnemy = mc.isAttackable(targetHex);
-        boolean isMilTarget = hasAnyEnemy;
 
         boolean tempHasWall = false;
         if (dist == 1) {
@@ -210,13 +214,22 @@ public class ContextMenuFactory {
         }
         final boolean hasWall = tempHasWall;
 
+        // Determine the NetworkManager (null = single-player, non-null = multiplayer)
+        final NetworkManager nm = mc.getNetworkManager();
+        final Gson gson = new Gson();
+
         if (hasAnyEnemy) {
             boolean hasReadyAttacker = attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
-            boolean hasValidForDist  = (dist == 1) || attackers.stream().anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
+            boolean hasValidForDist  = (dist == 1) || attackers.stream()
+                    .anyMatch(u -> u.getType() == UnitType.ARCHER && u.getAttackRange() >= 2);
             boolean canAttack = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
-            final boolean fAnimal    = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
-            final boolean fEnemyUnit = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.isEnemy());
+            final boolean fAnimal    = map.getUnits().stream().anyMatch(u ->
+                    u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                            && u.getType() == UnitType.BEAR);
+            final boolean fEnemyUnit = map.getUnits().stream().anyMatch(u ->
+                    u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                            && u.isEnemy());
             final boolean fSiege = !(fAnimal || fEnemyUnit);
 
             String typeLabel = fSiege ? "🏰 Siege" : "🎲 Dice";
@@ -229,14 +242,26 @@ public class ContextMenuFactory {
             else if (!hasValidForDist)  disabledReason = "No Archer for range-2 attack";
             else                        disabledReason = "Ready";
 
-            actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
-                CombatController cc = new CombatController(map);
-                cc.executeAttack(attackers, sourceHex, targetHex, fSiege, fAnimal, hasWall);
-                map.removeDeadUnits();
-                map.updateFogOfWar();
-            }));
+            if (nm != null) {
+                // ── Multiplayer mode: send AttackRequest to server ────────────
+                // The server validates ownership, diplomatic status, AP, and range,
+                // then executes the attack and broadcasts the updated state.
+                final int srcQ = sourceHex.getQ(), srcR = sourceHex.getR();
+                final int tgtQ = targetHex.getQ(), tgtR = targetHex.getR();
+                actions.add(new MenuAction(label, canAttack, disabledReason, () ->
+                        nm.sendRequest(gson.toJson(new AttackRequest(srcQ, srcR, tgtQ, tgtR)))));
+            } else {
+                // ── Single-player mode: execute attack locally (original behavior) ──
+                actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
+                    CombatController cc = new CombatController(map);
+                    cc.executeAttack(attackers, sourceHex, targetHex, fSiege, fAnimal, hasWall);
+                    map.removeDeadUnits();
+                    map.updateFogOfWar();
+                }));
+            }
 
-            if (hasWall && isMilTarget && dist == 1) {
+            // "Attack Wall" sub-action (single-player only for now)
+            if (hasWall && hasAnyEnemy && dist == 1 && nm == null) {
                 actions.add(new MenuAction("⚔️ Attack Wall [🏰 Siege]", canAttack, disabledReason, () -> {
                     CombatController cc = new CombatController(map);
                     cc.executeAttack(attackers, sourceHex, targetHex, true, false, true);
@@ -251,7 +276,8 @@ public class ContextMenuFactory {
             actions.add(new MenuAction("🏴 Capture Hex (1 AP)", canCapture,
                     canCapture ? "No defenders — seize this hex" : "Need military unit with AP ≥ 1",
                     () -> {
-                        attackers.stream().filter(u -> u.getCurrentAP() >= 1).findFirst().ifPresent(u -> u.consumeAP(1));
+                        attackers.stream().filter(u -> u.getCurrentAP() >= 1).findFirst()
+                                .ifPresent(u -> u.consumeAP(1));
                         targetHex.setInsideBorder(true);
                         targetHex.setExplored(true);
                         map.updateFogOfWar();

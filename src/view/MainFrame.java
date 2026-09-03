@@ -5,6 +5,8 @@ import controller.AudioController;
 import controller.SaveLoadController;
 import model.GameEventDispatcher;
 import model.GameMap;
+import network.client.NetworkManager;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -17,6 +19,7 @@ public class MainFrame extends JFrame {
 
     private MainController mainController;
     private GamePanel gamePanel;
+    private HUDPanel  hudPanel;
     private JPanel gameWrapper;
 
     private final AudioController audioController;
@@ -52,6 +55,8 @@ public class MainFrame extends JFrame {
         return audioController;
     }
 
+    // ─── Single-Player Mode ───────────────────────────────────────────────────
+
     public void startGame() {
         GameEventDispatcher.clearAllListeners();
 
@@ -62,25 +67,82 @@ public class MainFrame extends JFrame {
 
         GameMap freshGameMap = new GameMap(20);
         this.mainController = new MainController(freshGameMap);
+        // networkManager stays null → single-player mode
 
-        this.gamePanel = new GamePanel(mainController);
-
-        gameWrapper = new JPanel(new BorderLayout());
-        HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
-
-        gameWrapper.add(hudPanel, BorderLayout.NORTH);
-        gameWrapper.add(gamePanel, BorderLayout.CENTER);
-
-        mainContainer.add(gameWrapper, "GAME_UI");
+        buildGameView();
         cardLayout.show(mainContainer, "GAME_UI");
-
         gamePanel.requestFocusInWindow();
     }
+
+    // ─── Multiplayer Mode — B5 ────────────────────────────────────────────────
+
+    /**
+     * Switches the UI from the LobbyPanel to the main game view in multiplayer mode.
+     *
+     * <p>Called by {@link network.client.ClientMessageDispatcher} when the server
+     * broadcasts a {@code GAME_START_BROADCAST} message.
+     *
+     * <p>The {@link NetworkManager} is set on the {@link MainController} so that
+     * all subsequent UI actions (end turn, attacks, builds) are routed to the
+     * server instead of executing locally.
+     *
+     * @param networkManager the active connection to the game server
+     */
+    public void startMultiplayerMode(NetworkManager networkManager) {
+        GameEventDispatcher.clearAllListeners();
+
+        if (gameWrapper != null) {
+            mainContainer.remove(gameWrapper);
+            gameWrapper = null;
+        }
+
+        // Create a local GameMap for rendering purposes only.
+        // The authoritative state will be overwritten by GAME_STATE_UPDATE messages.
+        GameMap renderMap = new GameMap(20);
+        this.mainController = new MainController(renderMap);
+
+        // Attach the network manager — this switches all actions to server-mode
+        this.mainController.setNetworkManager(networkManager);
+
+        buildGameView();
+        cardLayout.show(mainContainer, "GAME_UI");
+        gamePanel.requestFocusInWindow();
+
+        System.out.println("[MainFrame] Multiplayer game view started.");
+    }
+
+    /**
+     * Re-enables the End Turn button on the HUD when the server indicates
+     * it is now this client's turn. Called from the GAME_STATE_UPDATE handler
+     * in {@link network.client.ClientMessageDispatcher}.
+     */
+    public void notifyOurTurnStarted() {
+        if (hudPanel != null) {
+            hudPanel.onOurTurnStarted();
+        }
+    }
+
+    // ─── Shared Game View Builder ─────────────────────────────────────────────
+
+    /** Creates and shows the game panel + HUD. Shared by single-player and multiplayer. */
+    private void buildGameView() {
+        this.gamePanel = new GamePanel(mainController);
+        this.hudPanel  = new HUDPanel(mainController, gamePanel);
+
+        gameWrapper = new JPanel(new BorderLayout());
+        gameWrapper.add(hudPanel,   BorderLayout.NORTH);
+        gameWrapper.add(gamePanel,  BorderLayout.CENTER);
+
+        mainContainer.add(gameWrapper, "GAME_UI");
+    }
+
+    // ─── Load Game ────────────────────────────────────────────────────────────
 
     public void loadGameFromMenu(String slot) {
         GameMap loadedMap = SaveLoadController.loadGameMap(slot);
         if (loadedMap == null) {
-            JOptionPane.showMessageDialog(this, "Save file not found or corrupted!", "Load Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Save file not found or corrupted!",
+                    "Load Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -91,19 +153,14 @@ public class MainFrame extends JFrame {
             gameWrapper = null;
         }
         this.mainController = new MainController(loadedMap);
-        this.gamePanel = new GamePanel(mainController);
+        // networkManager stays null → single-player load
 
-        gameWrapper = new JPanel(new BorderLayout());
-        HUDPanel hudPanel = new HUDPanel(mainController, gamePanel);
-
-        gameWrapper.add(hudPanel, BorderLayout.NORTH);
-        gameWrapper.add(gamePanel, BorderLayout.CENTER);
-
-        mainContainer.add(gameWrapper, "GAME_UI");
+        buildGameView();
         cardLayout.show(mainContainer, "GAME_UI");
-
         gamePanel.requestFocusInWindow();
     }
+
+    // ─── Navigation ───────────────────────────────────────────────────────────
 
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();

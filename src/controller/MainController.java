@@ -1,6 +1,7 @@
 package controller;
 
 import model.*;
+import network.client.NetworkManager;
 import java.util.List;
 
 public class MainController {
@@ -14,6 +15,13 @@ public class MainController {
     private final TradeController    tradeController;
     private final TribeController    tribeController;
     private final SaveLoadController saveLoadController;
+
+    /**
+     * Optional NetworkManager for multiplayer mode.
+     * Null in single-player mode — controllers execute game logic locally.
+     * Non-null in multiplayer mode — UI actions are routed to the server.
+     */
+    private NetworkManager networkManager = null;
 
     private boolean processingTurn = false;
 
@@ -33,6 +41,24 @@ public class MainController {
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
+    // ─── NetworkManager (multiplayer mode toggle) ─────────────────────────────
+
+    /**
+     * Set this to enable multiplayer mode.
+     * When non-null, UI actions (end turn, attack, build, etc.) will be sent
+     * to the server via NetworkManager instead of executing locally.
+     */
+    public void setNetworkManager(NetworkManager networkManager) {
+        this.networkManager = networkManager;
+    }
+
+    /** Returns the NetworkManager if in multiplayer mode, or null in single-player. */
+    public NetworkManager getNetworkManager() {
+        return networkManager;
+    }
+
+    // ─── Getters ──────────────────────────────────────────────────────────────
+
     public GameMap            getGameMap()             { return gameMap; }
     public TurnController     getTurnController()      { return turnController; }
     public UnitController     getUnitController()      { return unitController; }
@@ -45,6 +71,8 @@ public class MainController {
 
     public boolean isProcessingTurn()             { return processingTurn; }
     public void    setProcessingTurn(boolean val) { this.processingTurn = val; }
+
+    // ─── Delegated Actions ────────────────────────────────────────────────────
 
     public Unit    selectUnitAt(Hex hex)               { return unitController.selectUnitAt(hex, gameMap); }
     public boolean canMove(Unit unit, Hex targetHex)   { return unitController.canMove(unit, targetHex, gameMap); }

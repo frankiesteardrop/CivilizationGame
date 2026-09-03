@@ -13,10 +13,30 @@ public class EconomyController implements TurnListener, BuildingListener {
     private boolean lastCapState = false;
     private boolean isHappinessInitialized = false;
 
+    // ─── Constructors ──────────────────────────────────────────────────────────
+
+    /**
+     * Client-side constructor (single-player / UI).
+     * Registers this instance as a game event listener.
+     */
     public EconomyController(MainController mainController) {
         this.mainController = mainController;
         GameEventDispatcher.addListener(this);
     }
+
+    /**
+     * Server-side constructor.
+     * Does NOT register as an event listener — the server controls the turn
+     * flow explicitly through {@link network.server.ServerTurnProcessor}.
+     * Use {@link #processEndTurn(GameMap)} and {@link #getEffectiveHappiness(GameMap)}
+     * directly from ServerTurnProcessor.
+     */
+    public EconomyController() {
+        this.mainController = null;
+        // Server: do not register as a listener; server manages turn flow directly
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private boolean isCoastalAllied(GameMap map) {
         return map.getHexes().stream()
@@ -81,8 +101,14 @@ public class EconomyController implements TurnListener, BuildingListener {
         return map.getTownHall().getHappiness();
     }
 
+    // ─── TurnListener ─────────────────────────────────────────────────────────
+
     @Override
     public void onTurnEnded(int newTurn) {
+        // Guard: server-side instance has no MainController — no-op here.
+        // Server calls processEndTurn(map) directly from ServerTurnProcessor.
+        if (mainController == null) return;
+
         GameMap map = mainController.getGameMap();
         boolean isStarving = processEndTurn(map);
         map.setStarving(isStarving);
@@ -99,6 +125,8 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     @Override
     public void onStarvationChanged(boolean isStarving) {}
+
+    // ─── Economy Core ─────────────────────────────────────────────────────────
 
     public boolean processEndTurn(GameMap map) {
         produceResources(map);
@@ -224,7 +252,6 @@ public class EconomyController implements TurnListener, BuildingListener {
 
     public void ejectWorkersFromHex(GameMap map, Hex buildingHex) {
         for (Unit u : map.getUnits()) {
-            // ─── [GAMEPLAY FIX]: Only eject alive workers to prevent Phantom Workers ───
             if (u.isAlive() && u instanceof Worker w) {
                 if (w.isStationed() && w.getQ() == buildingHex.getQ() && w.getR() == buildingHex.getR()) {
                     w.eject(map);
@@ -299,8 +326,14 @@ public class EconomyController implements TurnListener, BuildingListener {
         return Math.max(0, production);
     }
 
+    // ─── BuildingListener ─────────────────────────────────────────────────────
+
     @Override
     public void onBuildingDestroyed(Hex hex) {
+        // Guard: server-side instance has no MainController — no-op.
+        // Worker ejection on the server is handled by ServerTurnProcessor
+        // at the start of the next processTurn() call via removeDeadUnits().
+        if (mainController == null) return;
         ejectWorkersFromHex(mainController.getGameMap(), hex);
     }
 

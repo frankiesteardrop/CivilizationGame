@@ -1,8 +1,12 @@
 package view;
 
+import com.google.gson.Gson;                          // ← NEW import
 import controller.MainController;
+import controller.SaveLoadController;
 import model.*;
 import model.ProductionCommand;
+import network.client.NetworkManager;                 // ← NEW import
+import network.messages.game.EndTurnRequest;          // ← NEW import
 
 import javax.swing.*;
 import java.awt.*;
@@ -28,6 +32,9 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
     private final HUDCard happinessCard;
     private final HUDCard seasonCard;
     private final JPanel starvationAlertCard;
+
+    /** Used to serialize action requests when in multiplayer mode. */
+    private final Gson gson = new Gson();             // ← NEW field
 
     private boolean confirmIdleMode = false;
     private boolean isStarving = false;
@@ -241,9 +248,26 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
                 + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
     }
 
+    // ─── End Turn — B8 fix ────────────────────────────────────────────────────
+
     private void handleEndTurn() {
         if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
 
+        NetworkManager nm = mainController.getNetworkManager();
+
+        if (nm != null) {
+            // ── Multiplayer mode: route end-turn request to the server ──────────
+            // The server validates it's our turn, runs economy/disasters/tribes,
+            // and broadcasts the updated state. We disable the button until the
+            // next GAME_STATE_UPDATE arrives.
+            nm.sendRequest(gson.toJson(new EndTurnRequest()));
+            endTurnBtn.setEnabled(false);
+            endTurnBtn.setText("⏳ Waiting...");
+            confirmIdleMode = false;
+            return;
+        }
+
+        // ── Single-player mode: local execution (original behavior) ───────────
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
             confirmIdleMode = true;
             endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
@@ -254,6 +278,21 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         }
     }
 
+    // ─── Re-enable End Turn button when our turn comes back (multiplayer) ─────
+
+    /**
+     * Called by the game view when the server sends a GAME_STATE_UPDATE
+     * indicating it is now this client's turn.
+     */
+    public void onOurTurnStarted() {
+        SwingUtilities.invokeLater(() -> {
+            endTurnBtn.setEnabled(true);
+            endTurnBtn.setText("END TURN");
+            endTurnBtn.setBackground(new Color(192, 57, 43));
+            confirmIdleMode = false;
+        });
+    }
+
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(new Color(180, 20, 20));
@@ -262,7 +301,6 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
                 BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
                 BorderFactory.createEmptyBorder(6, 12, 6, 12)
         ));
-        // اصلاح حیاتی UI: متون مطابق با داک تنظیم شد
         JLabel label = new JLabel(
                 "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
                         + "<b>⚠️ STARVATION!</b>"
@@ -279,7 +317,6 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(180, 20, 20));
         panel.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
-        // اصلاح حیاتی UI: متون مطابق با داک تنظیم شد
         JLabel msg = new JLabel(
                 "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION CRISIS!</b><br/>"
                         + "<span style='color:#ffcccc; font-size:12px;'>"
@@ -367,8 +404,6 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
                     + "</body></html>");
         }
     }
-
-    // ─── Override Methods ────────────────────────────────────────────────────
 
     @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
