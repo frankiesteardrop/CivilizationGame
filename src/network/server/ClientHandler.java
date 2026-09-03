@@ -4,7 +4,13 @@ import java.io.*;
 import java.net.Socket;
 import java.util.UUID;
 
+/**
+ * مدیریت اتصال یک کلاینت در thread اختصاصی.
+ * هر پیام JSON دریافتی فوری به GameServer.routeMessage() ارسال می‌شود؛
+ * این کلاس هیچ منطق بازی یا لابی ندارد (Single Responsibility).
+ */
 public class ClientHandler implements Runnable {
+
     private final Socket socket;
     private final GameServer server;
     private PrintWriter out;
@@ -12,9 +18,9 @@ public class ClientHandler implements Runnable {
     private final String clientId;
 
     public ClientHandler(Socket socket, GameServer server) {
-        this.socket = socket;
-        this.server = server;
-        this.clientId = UUID.randomUUID().toString(); // شناسه موقت تا زمان ورود کامل
+        this.socket   = socket;
+        this.server   = server;
+        this.clientId = UUID.randomUUID().toString(); // شناسه منحصربه‌فرد این اتصال
     }
 
     @Override
@@ -27,14 +33,14 @@ public class ClientHandler implements Runnable {
 
             String incomingJson;
             while ((incomingJson = in.readLine()) != null) {
-                // TODO: در گام‌های بعدی، پیام JSON به آبجکت تبدیل شده و اعتبارسنجی می‌شود
-                System.out.println("[Server] Received from " + clientId + ": " + incomingJson);
+                // هر پیام JSON دریافتی به router مرکزی سرور تحویل داده می‌شود
+                server.routeMessage(clientId, incomingJson);
             }
         } catch (IOException e) {
             System.out.println("[Server] Connection dropped for " + clientId);
         } finally {
             server.removeClient(clientId);
-            try { socket.close(); } catch (IOException e) { e.printStackTrace(); }
+            try { socket.close(); } catch (IOException ignored) {}
         }
     }
 
