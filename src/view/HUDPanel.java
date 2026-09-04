@@ -1,27 +1,39 @@
 package view;
 
-import com.google.gson.Gson;                          // ← NEW import
+import com.google.gson.Gson;
 import controller.MainController;
 import controller.SaveLoadController;
 import model.*;
-import model.ProductionCommand;
-import network.client.NetworkManager;                 // ← NEW import
-import network.messages.game.EndTurnRequest;          // ← NEW import
+import network.client.NetworkManager;
+import network.messages.game.EndTurnRequest;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-public class HUDPanel extends JPanel implements ResourceListener, UnitListener, ProductionListener, TurnListener, BuildingListener, MapListener, NotificationListener {
+/**
+ * Top HUD bar: resources, season/turn, unit counts, starvation alert,
+ * turn indicator (B24), diplomacy panel (B23), in-game chat (B25),
+ * and End Turn / Pause buttons.
+ */
+public class HUDPanel extends JPanel
+        implements ResourceListener, UnitListener, ProductionListener,
+        TurnListener, BuildingListener, MapListener, NotificationListener {
 
     private final MainController mainController;
-    private final GamePanel gamePanel;
-    private final JPanel infoContainer;
-    private final JButton endTurnBtn;
-    private final JButton pauseBtn;
+    private final GamePanel      gamePanel;
+    private final JPanel         infoContainer;
+    private final JButton        endTurnBtn;
+    private final JButton        pauseBtn;
 
+    // Resource cards
     private final HUDCard foodCard;
     private final HUDCard woodCard;
     private final HUDCard stoneCard;
@@ -31,38 +43,49 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
     private final HUDCard turnCard;
     private final HUDCard happinessCard;
     private final HUDCard seasonCard;
-    private final JPanel starvationAlertCard;
+    private final JPanel  starvationAlertCard;
 
-    /** Used to serialize action requests when in multiplayer mode. */
-    private final Gson gson = new Gson();             // ← NEW field
+    // B24 — current-turn indicator
+    private final JLabel  activeTurnLabel;
+    /** Set by ClientMessageDispatcher when a GAME_STATE_UPDATE arrives. */
+    private String activePlayerName = null;
+    private boolean isMyTurn        = false;
 
-    private boolean confirmIdleMode = false;
-    private boolean isStarving = false;
+    // B23 — diplomacy panel
+    private final JPanel  diplomacyPanel;
+    /**
+     * Map from playerId → diplomatic status string ("Enemy"|"Allied"|"Neutral").
+     * Updated by ClientMessageDispatcher via {@link #updateDiplomacyStatus(Map)}.
+     */
+    private final Map<String, String[]> diplomacyData = new LinkedHashMap<>();
+    // String[] = { displayName, status }
+
+    // B25 — in-game chat
+    private final JPanel    chatDrawer;
+    private final JTextArea chatArea;
+    private final JTextField chatInput;
+    private boolean         chatVisible = false;
+
+    private final Gson gson = new Gson();
+    private boolean confirmIdleMode      = false;
+    private boolean isStarving           = false;
     private boolean starvationAlertShown = false;
+
+    // ─── Constructor ──────────────────────────────────────────────────────────
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
-        this.gamePanel = gamePanel;
+        this.gamePanel      = gamePanel;
 
         setLayout(new BorderLayout());
         setBackground(new Color(25, 28, 33));
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)),
-                BorderFactory.createEmptyBorder(8, 15, 8, 15)
-        ));
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)));
 
-        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        // ── Info row ──────────────────────────────────────────────────────────
+        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         infoContainer.setOpaque(false);
-        add(infoContainer, BorderLayout.CENTER);
-
-        endTurnBtn = buildEndTurnButton();
-        pauseBtn   = buildPauseButton();
-
-        JPanel eastPanel = new JPanel(new GridLayout(1, 2, 6, 0));
-        eastPanel.setOpaque(false);
-        eastPanel.add(pauseBtn);
-        eastPanel.add(endTurnBtn);
-        add(eastPanel, BorderLayout.EAST);
 
         foodCard      = new HUDCard("🍔 Food",      new Color(46, 204, 113),  false);
         woodCard      = new HUDCard("🪵 Wood",      new Color(211, 84, 0),    false);
@@ -87,13 +110,234 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
+        // ── B24 — Active turn indicator ───────────────────────────────────────
+        activeTurnLabel = new JLabel("🎮 Single Player");
+        activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        activeTurnLabel.setForeground(new Color(189, 195, 199));
+        activeTurnLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(44, 62, 80), 1),
+                new EmptyBorder(3, 8, 3, 8)));
+        activeTurnLabel.setOpaque(true);
+        activeTurnLabel.setBackground(new Color(35, 40, 52));
+
+        // ── B23 — Diplomacy panel ─────────────────────────────────────────────
+        diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        diplomacyPanel.setOpaque(false);
+        diplomacyPanel.setVisible(false); // hidden in single-player mode
+
+        // Wrap info + B24 together on the left
+        JPanel leftRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        leftRow.setOpaque(false);
+        leftRow.add(activeTurnLabel);
+        leftRow.add(infoContainer);
+
+        add(leftRow, BorderLayout.CENTER);
+
+        // ── Buttons (East) ────────────────────────────────────────────────────
+        pauseBtn   = buildPauseButton();
+        endTurnBtn = buildEndTurnButton();
+
+        // B25 — Chat toggle button
+        JButton chatBtn = buildChatToggleButton();
+
+        JPanel eastPanel = new JPanel(new GridLayout(1, 3, 6, 0));
+        eastPanel.setOpaque(false);
+        eastPanel.add(chatBtn);
+        eastPanel.add(pauseBtn);
+        eastPanel.add(endTurnBtn);
+        add(eastPanel, BorderLayout.EAST);
+
+        // ── B25 — Chat drawer (below HUD, slide-in panel) ─────────────────────
+        chatDrawer = buildChatDrawer();
+        chatDrawer.setVisible(false);
+
+        // Starvation card lives in CENTER; chat drawer is added to parent later
+        // via addNotify() — see note in initChatDrawer()
+
+        // ── Listeners ─────────────────────────────────────────────────────────
         GameEventDispatcher.addListener(this);
 
-        Timer uiSyncTimer = new Timer(500, e -> updateHUD());
-        uiSyncTimer.start();
-
+        // Periodic sync
+        new Timer(500, e -> updateHUD()).start();
         updateHUD();
     }
+
+    // ─── B24 — Turn Indicator Public API ─────────────────────────────────────
+
+    /**
+     * Called by {@link network.client.ClientMessageDispatcher} when a
+     * GAME_STATE_UPDATE arrives. Updates the active-turn label.
+     *
+     * @param activePlayerName display name of the player whose turn it is
+     * @param isMyTurn         true if it is this client's turn
+     */
+    public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
+        this.activePlayerName = activePlayerName;
+        this.isMyTurn         = isMyTurn;
+
+        SwingUtilities.invokeLater(() -> {
+            if (activePlayerName == null) {
+                activeTurnLabel.setText("🎮 Single Player");
+                activeTurnLabel.setBackground(new Color(35, 40, 52));
+                activeTurnLabel.setForeground(new Color(189, 195, 199));
+            } else if (isMyTurn) {
+                activeTurnLabel.setText("✅ YOUR TURN");
+                activeTurnLabel.setBackground(new Color(39, 120, 60));
+                activeTurnLabel.setForeground(Color.WHITE);
+            } else {
+                activeTurnLabel.setText("⏳ " + activePlayerName + "'s Turn");
+                activeTurnLabel.setBackground(new Color(60, 40, 20));
+                activeTurnLabel.setForeground(new Color(230, 180, 80));
+            }
+        });
+    }
+
+    // ─── B23 — Diplomacy Panel Public API ────────────────────────────────────
+
+    /**
+     * Called by {@link network.client.ClientMessageDispatcher} when a
+     * DIPLOMACY_EVENT or GAME_STATE_UPDATE arrives with updated relations.
+     * Rebuilds the diplomacy panel to reflect current statuses.
+     *
+     * @param playerStatuses map from playerId → [displayName, status]
+     *                       where status is "Enemy", "Allied", or "Neutral"
+     */
+    public void updateDiplomacyStatus(Map<String, String[]> playerStatuses) {
+        diplomacyData.clear();
+        diplomacyData.putAll(playerStatuses);
+
+        SwingUtilities.invokeLater(() -> {
+            diplomacyPanel.removeAll();
+
+            if (playerStatuses.isEmpty()) {
+                diplomacyPanel.setVisible(false);
+                return;
+            }
+
+            JLabel header = new JLabel("Diplomacy: ");
+            header.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            header.setForeground(new Color(150, 160, 180));
+            diplomacyPanel.add(header);
+
+            for (Map.Entry<String, String[]> entry : playerStatuses.entrySet()) {
+                String displayName = entry.getValue()[0];
+                String status      = entry.getValue()[1];
+
+                Color  bg;
+                String icon;
+                switch (status) {
+                    case "Enemy"  -> { bg = new Color(140, 30, 30);  icon = "⚔️"; }
+                    case "Allied" -> { bg = new Color(30, 100, 30);  icon = "🤝"; }
+                    default       -> { bg = new Color(50, 55, 70);   icon = "🔘"; }
+                }
+
+                JLabel badge = new JLabel(icon + " " + displayName);
+                badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                badge.setForeground(Color.WHITE);
+                badge.setOpaque(true);
+                badge.setBackground(bg);
+                badge.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(bg.brighter(), 1),
+                        new EmptyBorder(2, 6, 2, 6)));
+                badge.setToolTipText(displayName + ": " + status);
+                diplomacyPanel.add(badge);
+            }
+
+            diplomacyPanel.setVisible(true);
+            diplomacyPanel.revalidate();
+            diplomacyPanel.repaint();
+        });
+    }
+
+    // ─── B25 — In-Game Chat Public API ────────────────────────────────────────
+
+    /**
+     * Appends a formatted chat message to the in-game chat area.
+     * Can be called from any thread (uses invokeLater).
+     */
+    public void appendGameChatMessage(String formattedMessage) {
+        SwingUtilities.invokeLater(() -> {
+            chatArea.append(formattedMessage);
+            chatArea.setCaretPosition(chatArea.getDocument().getLength());
+        });
+    }
+
+    // ─── onOurTurnStarted (from B8) ──────────────────────────────────────────
+
+    public void onOurTurnStarted() {
+        SwingUtilities.invokeLater(() -> {
+            endTurnBtn.setEnabled(true);
+            endTurnBtn.setText("END TURN");
+            endTurnBtn.setBackground(new Color(192, 57, 43));
+            confirmIdleMode = false;
+            setActiveTurnInfo(
+                    mainController.getNetworkManager() != null ? "You" : null, true);
+        });
+    }
+
+    // ─── HUD Update ───────────────────────────────────────────────────────────
+
+    private void updateHUD() {
+        if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
+            resetEndTurnButton();
+        }
+
+        GameMap map = mainController.getGameMap();
+        Inventory inv = map.getTownHall().getInventory();
+
+        int netFood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.FOOD);
+        int netWood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.WOOD);
+        int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
+        int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
+
+        foodCard .updateValue(fmt(inv, ResourceType.FOOD,  netFood));
+        woodCard .updateValue(fmt(inv, ResourceType.WOOD,  netWood));
+        stoneCard.updateValue(fmt(inv, ResourceType.STONE, netStone));
+        ironCard .updateValue(fmt(inv, ResourceType.IRON,  netIron));
+
+        ProductionCommand task = map.getTownHall().getProductionQueue().peek();
+        if (task != null) {
+            String suffix = (isStarving && task.isPopulationTask())
+                    ? " <span style='color:#e74c3c;'>❄️ FROZEN</span>" : "";
+            queueCard.updateValue(task.getName() + " (" + task.getTurnsRemaining() + "T)" + suffix);
+        } else {
+            queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
+        }
+
+        long milCount   = map.getMilitaryUnitCount();
+        int  milCap     = map.getMilitaryUnitCap();
+        long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
+        long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
+        long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
+        long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
+        String milColor = (milCount >= milCap) ? "#e74c3c" : "#2ecc71";
+        String unitText = "<span style='color:" + milColor + ";'>⚔️ " + milCount + "/" + milCap + "</span>"
+                + " | 👥 " + map.getAliveUnitsCount()
+                + " <span style='font-size:10px; color:#bdc3c7;'>"
+                + "(E:" + expCount + " B:" + buildCount + " W:" + workCount + " X:" + expndCount + ")"
+                + "</span>";
+        popCard.updateValue(unitText);
+
+        int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
+        happinessCard.updateValue(formatHappiness(happiness));
+        seasonCard   .updateValue(formatSeason(map.getCurrentSeason()));
+
+        String seasonEffect = switch (map.getCurrentSeason()) {
+            case SPRING -> "<html><div style='padding:4px;'><b style='color:#a8e063;'>🌸 Spring</b><br/>Farms+Stables +1 Food/turn</div></html>";
+            case SUMMER -> "<html><div style='padding:4px;'><b style='color:#f9d423;'>☀️ Summer</b><br/>No seasonal effects</div></html>";
+            case AUTUMN -> "<html><div style='padding:4px;'><b style='color:#e67e22;'>🍂 Autumn</b><br/>Water +1 AP | Flood risk</div></html>";
+            case WINTER -> "<html><div style='padding:4px;'><b style='color:#a8d8ea;'>❄️ Winter</b><br/>Farms −1 Food | Land +1 AP</div></html>";
+        };
+        seasonCard.setToolTipText(seasonEffect);
+
+        int turn         = map.getCurrentTurn();
+        int turnInSeason = ((turn - 1) % 10) + 1;
+        turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + turnInSeason + "/10)</span>");
+
+        starvationAlertCard.setVisible(isStarving);
+    }
+
+    // ─── Button Builders ──────────────────────────────────────────────────────
 
     private JButton buildPauseButton() {
         JButton btn = new JButton("⏸  PAUSE  [ESC]");
@@ -104,11 +348,6 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         btn.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
-        btn.setToolTipText(
-                "<html><b>Pause Menu</b> — Save, Load, Return to Menu<br/>"
-                        + "<span style='color:#aaaaaa'>Keyboard: [Esc]</span><br/>"
-                        + "<span style='color:#e74c3c'>Note: Save is disabled during animation or turn processing</span></html>"
-        );
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(62, 72, 98)); }
             @Override public void mouseExited(MouseEvent e)  { btn.setBackground(new Color(45, 52, 70)); }
@@ -126,14 +365,143 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         btn.setBorder(BorderFactory.createEmptyBorder(8, 20, 8, 20));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
-
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) { btn.setBackground(btn.getBackground().brighter()); }
             @Override public void mouseExited(MouseEvent e)  { updateButtonColor(); }
         });
-
         btn.addActionListener(e -> handleEndTurn());
         return btn;
+    }
+
+    private JButton buildChatToggleButton() {
+        JButton btn = new JButton("💬 Chat");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setBackground(new Color(35, 70, 110));
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(52, 100, 150)); }
+            @Override public void mouseExited(MouseEvent e)  { btn.setBackground(new Color(35, 70, 110)); }
+        });
+        btn.addActionListener(e -> toggleChat());
+        return btn;
+    }
+
+    // ─── B25 — Chat Drawer ────────────────────────────────────────────────────
+
+    private JPanel buildChatDrawer() {
+        JPanel drawer = new JPanel(new BorderLayout(4, 4));
+        drawer.setBackground(new Color(18, 22, 30));
+        drawer.setPreferredSize(new Dimension(0, 180));
+        drawer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(2, 0, 0, 0, new Color(52, 130, 215)),
+                new EmptyBorder(6, 10, 6, 10)));
+
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setBackground(new Color(12, 15, 22));
+        chatArea.setForeground(Color.WHITE);
+        chatArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chatArea.setLineWrap(true);
+        chatArea.setWrapStyleWord(true);
+
+        JScrollPane scroll = new JScrollPane(chatArea);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(new Color(12, 15, 22));
+
+        chatInput = new JTextField();
+        chatInput.setBackground(new Color(28, 33, 48));
+        chatInput.setForeground(Color.WHITE);
+        chatInput.setCaretColor(Color.WHITE);
+        chatInput.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chatInput.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(52, 130, 215), 1),
+                new EmptyBorder(4, 8, 4, 8)));
+        chatInput.setToolTipText("Type a message and press Enter to send");
+        chatInput.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    sendChatMessage();
+                }
+            }
+        });
+
+        JLabel chatHeader = new JLabel("💬 Game Chat");
+        chatHeader.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        chatHeader.setForeground(new Color(52, 130, 215));
+
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(false);
+        top.add(chatHeader, BorderLayout.WEST);
+
+        drawer.add(top,    BorderLayout.NORTH);
+        drawer.add(scroll, BorderLayout.CENTER);
+        drawer.add(chatInput, BorderLayout.SOUTH);
+        return drawer;
+    }
+
+    private void toggleChat() {
+        chatVisible = !chatVisible;
+        // The chat drawer is installed in the parent container lazily
+        Container parent = getParent();
+        if (parent instanceof JPanel wrapper && wrapper.getLayout() instanceof BorderLayout bl) {
+            if (chatVisible) {
+                wrapper.add(chatDrawer, BorderLayout.SOUTH);
+            } else {
+                wrapper.remove(chatDrawer);
+            }
+            wrapper.revalidate();
+            wrapper.repaint();
+        }
+        chatDrawer.setVisible(chatVisible);
+        if (chatVisible) chatInput.requestFocusInWindow();
+    }
+
+    private void sendChatMessage() {
+        String text = chatInput.getText().trim();
+        if (text.isEmpty()) return;
+
+        NetworkManager nm = mainController.getNetworkManager();
+        if (nm != null) {
+            // Multiplayer: send to server for broadcast
+            nm.sendRequest(new Gson().toJson(
+                    new network.messages.lobby.ChatSendRequest(text)));
+        } else {
+            // Single-player: display locally (no server)
+            appendGameChatMessage("[local] You: " + text + "\n");
+        }
+        chatInput.setText("");
+    }
+
+    // ─── End Turn ─────────────────────────────────────────────────────────────
+
+    private void handleEndTurn() {
+        if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
+
+        NetworkManager nm = mainController.getNetworkManager();
+
+        if (nm != null) {
+            nm.sendRequest(gson.toJson(new EndTurnRequest()));
+            endTurnBtn.setEnabled(false);
+            endTurnBtn.setText("⏳ Waiting...");
+            confirmIdleMode = false;
+            setActiveTurnInfo("Waiting...", false);
+            return;
+        }
+
+        // Single-player mode
+        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+            confirmIdleMode = true;
+            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
+            updateButtonColor();
+        } else {
+            confirmIdleMode = false;
+            mainController.getTurnController().forceEndTurn();
+        }
     }
 
     private void updateButtonColor() {
@@ -148,92 +516,29 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         }
     }
 
-    private void updateHUD() {
-        if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
-            resetEndTurnButton();
-        }
+    // ─── Formatting Helpers ───────────────────────────────────────────────────
 
-        GameMap map = mainController.getGameMap();
-        Inventory inv = map.getTownHall().getInventory();
-
-        int maxFood  = inv.getCapacity(ResourceType.FOOD);
-        int maxWood  = inv.getCapacity(ResourceType.WOOD);
-        int maxStone = inv.getCapacity(ResourceType.STONE);
-        int maxIron  = inv.getCapacity(ResourceType.IRON);
-
-        int netFood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.FOOD);
-        int netWood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.WOOD);
-        int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
-        int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
-
-        foodCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.FOOD),  maxFood,  netFood));
-        woodCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.WOOD),  maxWood,  netWood));
-        stoneCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.STONE), maxStone, netStone));
-        ironCard.updateValue(formatResourceText(inv.getResourceAmount(ResourceType.IRON),  maxIron,  netIron));
-
-        ProductionCommand currentTask = map.getTownHall().getProductionQueue().peek();
-        if (currentTask != null) {
-            if (isStarving && currentTask.isPopulationTask()) {
-                queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining()
-                        + "T) <span style='color:#e74c3c;'>❄️ FROZEN</span>");
-            } else {
-                queueCard.updateValue(currentTask.getName() + " (" + currentTask.getTurnsRemaining() + "T)");
-            }
-        } else {
-            queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
-        }
-
-        long milCount   = map.getMilitaryUnitCount();
-        int  milCap     = map.getMilitaryUnitCap();
-        long expCount   = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Explorer).count();
-        long buildCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Builder).count();
-        long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
-        long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
-        String milColor = (milCount >= milCap) ? "#e74c3c" : "#2ecc71";
-        String unitText =
-                "<span style='color:" + milColor + ";'>⚔️ " + milCount + "/" + milCap + "</span>"
-                        + " | 👥 " + map.getAliveUnitsCount()
-                        + " <span style='font-size:10px; color:#bdc3c7;'>"
-                        + "(E:" + expCount + " B:" + buildCount + " W:" + workCount + " X:" + expndCount + ")"
-                        + "</span>";
-        popCard.updateValue(unitText);
-
-        int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
-        happinessCard.updateValue(formatHappinessText(happiness));
-
-        seasonCard.updateValue(formatSeasonText(map.getCurrentSeason()));
-
-        String seasonEffect = switch (map.getCurrentSeason()) {
-            case SPRING -> "<html><div style='padding:4px;'><b style='color:#a8e063;'>🌸 Spring Effect</b><br/>All Farms & Stables +1 Food/turn</div></html>";
-            case SUMMER -> "<html><div style='padding:4px;'><b style='color:#f9d423;'>☀️ Summer Effect</b><br/>No seasonal effects</div></html>";
-            case AUTUMN -> "<html><div style='padding:4px;'><b style='color:#e67e22;'>🍂 Autumn Effect</b><br/>Water movement +1 AP | Flood risk active</div></html>";
-            case WINTER -> "<html><div style='padding:4px;'><b style='color:#a8d8ea;'>❄️ Winter Effect</b><br/>All Farms -1 Food | All land movement +1 AP</div></html>";
-        };
-        seasonCard.setToolTipText(seasonEffect);
-
-        int turn = map.getCurrentTurn();
-        int turnInSeason = ((turn - 1) % 10) + 1;
-        turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + turnInSeason + "/10)</span>");
-
-        starvationAlertCard.setVisible(isStarving);
+    private String fmt(Inventory inv, ResourceType type, int net) {
+        int amount = inv.getResourceAmount(type);
+        int cap    = inv.getCapacity(type);
+        String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
+        String sign     = net > 0 ? "+" : "";
+        return amount + "<span style='color:#7f8c8d'>/" + cap + "</span> "
+                + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
     }
 
-    private String formatHappinessText(int happiness) {
-        String sign = happiness > 0 ? "+" : "";
-        String levelLabel;
-        String levelColor;
-
-        if      (happiness >= 3)  { levelLabel = "✨ Golden Age"; levelColor = "#f1c40f"; }
-        else if (happiness >= -2) { levelLabel = "😊 Normal";     levelColor = "#2ecc71"; }
-        else if (happiness >= -4) { levelLabel = "😠 Discontent"; levelColor = "#e67e22"; }
-        else                      { levelLabel = "🔥 Rebellion";  levelColor = "#e74c3c"; }
-
-        return sign + happiness
-                + " <span style='color:" + levelColor + "; font-size:11px;'>[" + levelLabel + "]</span>";
+    private String formatHappiness(int h) {
+        String sign  = h > 0 ? "+" : "";
+        String label; String color;
+        if      (h >= 3)  { label = "✨ Golden Age"; color = "#f1c40f"; }
+        else if (h >= -2) { label = "😊 Normal";     color = "#2ecc71"; }
+        else if (h >= -4) { label = "😠 Discontent"; color = "#e67e22"; }
+        else              { label = "🔥 Rebellion";  color = "#e74c3c"; }
+        return sign + h + " <span style='color:" + color + "; font-size:11px;'>[" + label + "]</span>";
     }
 
-    private String formatSeasonText(Season season) {
-        return switch (season) {
+    private String formatSeason(Season s) {
+        return switch (s) {
             case SPRING -> "<span style='color:#a8e063;'>🌸 Spring</span>";
             case SUMMER -> "<span style='color:#f9d423;'>☀️ Summer</span>";
             case AUTUMN -> "<span style='color:#e67e22;'>🍂 Autumn</span>";
@@ -241,57 +546,7 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         };
     }
 
-    private String formatResourceText(int amount, int max, int net) {
-        String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
-        String sign = net > 0 ? "+" : "";
-        return amount + "<span style='color:#7f8c8d'>/" + max + "</span> "
-                + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
-    }
-
-    // ─── End Turn — B8 fix ────────────────────────────────────────────────────
-
-    private void handleEndTurn() {
-        if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
-
-        NetworkManager nm = mainController.getNetworkManager();
-
-        if (nm != null) {
-            // ── Multiplayer mode: route end-turn request to the server ──────────
-            // The server validates it's our turn, runs economy/disasters/tribes,
-            // and broadcasts the updated state. We disable the button until the
-            // next GAME_STATE_UPDATE arrives.
-            nm.sendRequest(gson.toJson(new EndTurnRequest()));
-            endTurnBtn.setEnabled(false);
-            endTurnBtn.setText("⏳ Waiting...");
-            confirmIdleMode = false;
-            return;
-        }
-
-        // ── Single-player mode: local execution (original behavior) ───────────
-        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
-            confirmIdleMode = true;
-            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
-            updateButtonColor();
-        } else {
-            confirmIdleMode = false;
-            mainController.getTurnController().forceEndTurn();
-        }
-    }
-
-    // ─── Re-enable End Turn button when our turn comes back (multiplayer) ─────
-
-    /**
-     * Called by the game view when the server sends a GAME_STATE_UPDATE
-     * indicating it is now this client's turn.
-     */
-    public void onOurTurnStarted() {
-        SwingUtilities.invokeLater(() -> {
-            endTurnBtn.setEnabled(true);
-            endTurnBtn.setText("END TURN");
-            endTurnBtn.setBackground(new Color(192, 57, 43));
-            confirmIdleMode = false;
-        });
-    }
+    // ─── Starvation / Notification UI ────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
@@ -299,14 +554,12 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
         card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        ));
+                new EmptyBorder(6, 12, 6, 12)));
         JLabel label = new JLabel(
-                "<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
+                "<html><body style='color:white; font-size:13px;'>"
                         + "<b>⚠️ STARVATION!</b>"
                         + "<span style='color:#ffaaaa; font-size:11px;'> Population frozen | -1 AP/unit</span>"
-                        + "</body></html>"
-        );
+                        + "</body></html>");
         card.add(label, BorderLayout.CENTER);
         return card;
     }
@@ -314,77 +567,69 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
     private void showStarvationAlert() {
         JDialog alert = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         alert.setUndecorated(true);
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(180, 20, 20));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(new Color(180, 20, 20));
+        p.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
         JLabel msg = new JLabel(
-                "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION CRISIS!</b><br/>"
-                        + "<span style='color:#ffcccc; font-size:12px;'>"
-                        + "Your people are starving!<br/>Population growth frozen. Units lose 1 AP per turn."
-                        + "</span></center></html>", SwingConstants.CENTER
-        );
-        msg.setBorder(BorderFactory.createEmptyBorder(15, 25, 15, 25));
-        panel.add(msg, BorderLayout.CENTER);
-        alert.setContentPane(panel);
+                "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION!</b><br/>"
+                        + "<span style='color:#ffcccc; font-size:12px;'>Population frozen. Units lose 1 AP/turn.</span>"
+                        + "</center></html>", SwingConstants.CENTER);
+        msg.setBorder(new EmptyBorder(15, 25, 15, 25));
+        p.add(msg, BorderLayout.CENTER);
+        alert.setContentPane(p);
         alert.pack();
         alert.setLocationRelativeTo(this);
         alert.setVisible(true);
-        Timer closeTimer = new Timer(3000, e -> alert.dispose());
-        closeTimer.setRepeats(false);
-        closeTimer.start();
+        new Timer(3000, e -> alert.dispose()) {{ setRepeats(false); start(); }};
     }
 
     private void showProductionNotification(String itemName) {
         JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         notif.setUndecorated(true);
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(39, 174, 96));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(46, 204, 113), 2));
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(new Color(39, 174, 96));
+        p.setBorder(BorderFactory.createLineBorder(new Color(46, 204, 113), 2));
         JLabel msg = new JLabel(
                 "<html><center><b style='color:white; font-size:14px;'>✅ Production Complete!</b><br/>"
-                        + "<span style='color:#d5f5e3; font-size:12px;'>" + itemName + " is ready.</span>"
-                        + "</center></html>", SwingConstants.CENTER
-        );
-        msg.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
-        panel.add(msg, BorderLayout.CENTER);
-        notif.setContentPane(panel);
+                        + "<span style='color:#d5f5e3;'>" + itemName + " is ready.</span></center></html>",
+                SwingConstants.CENTER);
+        msg.setBorder(new EmptyBorder(12, 20, 12, 20));
+        p.add(msg, BorderLayout.CENTER);
+        notif.setContentPane(p);
         notif.pack();
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         notif.setLocation(screen.width - notif.getWidth() - 20, screen.height - notif.getHeight() - 60);
         notif.setVisible(true);
-        Timer closeTimer = new Timer(2500, e -> notif.dispose());
-        closeTimer.setRepeats(false);
-        closeTimer.start();
+        new Timer(2500, e -> notif.dispose()) {{ setRepeats(false); start(); }};
     }
 
     private void showDisasterNotification(String message) {
         JDialog notif = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), false);
         notif.setUndecorated(true);
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(120, 60, 0));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBackground(new Color(120, 60, 0));
+        p.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
         JLabel msg = new JLabel(
-                "<html><center><span style='color:white; font-family:Segoe UI; font-size:13px;'>"
-                        + message + "</span></center></html>", SwingConstants.CENTER
-        );
-        msg.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
-        panel.add(msg, BorderLayout.CENTER);
-        notif.setContentPane(panel);
+                "<html><center><span style='color:white; font-size:13px;'>" + message
+                        + "</span></center></html>", SwingConstants.CENTER);
+        msg.setBorder(new EmptyBorder(10, 18, 10, 18));
+        p.add(msg, BorderLayout.CENTER);
+        notif.setContentPane(p);
         notif.pack();
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         notif.setLocation(20, screen.height - notif.getHeight() - 60);
         notif.setVisible(true);
-        Timer closeTimer = new Timer(3500, e -> notif.dispose());
-        closeTimer.setRepeats(false);
-        closeTimer.start();
+        new Timer(3500, e -> notif.dispose()) {{ setRepeats(false); start(); }};
     }
+
+    // ─── HUDCard ──────────────────────────────────────────────────────────────
 
     private static class HUDCard extends JPanel {
         private final JLabel label;
         private final String title;
         private final String titleStyle;
 
-        public HUDCard(String title, Color accentColor, boolean isAlert) {
+        HUDCard(String title, Color accentColor, boolean isAlert) {
             this.title = title;
             this.titleStyle = isAlert ? "color:white;" : "color:#bdc3c7;";
             setLayout(new BorderLayout());
@@ -392,46 +637,60 @@ public class HUDPanel extends JPanel implements ResourceListener, UnitListener, 
             setOpaque(true);
             setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 4, 0, 0, accentColor),
-                    BorderFactory.createEmptyBorder(6, 12, 6, 12)
-            ));
+                    new EmptyBorder(6, 12, 6, 12)));
             label = new JLabel();
             add(label, BorderLayout.CENTER);
         }
 
-        public void updateValue(String valueText) {
+        void updateValue(String valueText) {
             label.setText("<html><body style='color:white; font-family:Segoe UI; font-size:13px;'>"
                     + "<span style='" + titleStyle + "'>" + title + ":</span> " + valueText
                     + "</body></html>");
         }
     }
 
-    @Override public void onResourceChanged(ResourceType type, int newAmount)              { SwingUtilities.invokeLater(this::updateHUD); }
-    @Override public void onUnitMoved(Unit unit, int oldQ, int oldR, int newQ, int newR)  { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onUnitKilled(Unit unit)                                          { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
-    @Override public void onUnitStateChanged(Unit unit)       { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onProductionCompleted(String itemName)                           { SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); }); }
-    @Override public void onTurnEnded(int newTurn)                                         { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
+    // ─── Event Listener Implementations ──────────────────────────────────────
 
-    @Override
-    public void onStarvationChanged(boolean starving) {
+    @Override public void onResourceChanged(ResourceType type, int newAmount) {
+        SwingUtilities.invokeLater(this::updateHUD);
+    }
+    @Override public void onUnitMoved(Unit unit, int oq, int or_, int nq, int nr) {
+        SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); });
+    }
+    @Override public void onUnitKilled(Unit unit) {
+        SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); });
+    }
+    @Override public void onUnitStateChanged(Unit unit) {
+        SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); });
+    }
+    @Override public void onProductionCompleted(String itemName) {
+        SwingUtilities.invokeLater(() -> { updateHUD(); showProductionNotification(itemName); });
+    }
+    @Override public void onTurnEnded(int newTurn) {
+        SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); });
+    }
+    @Override public void onStarvationChanged(boolean starving) {
         SwingUtilities.invokeLater(() -> {
-            boolean wasStarving = this.isStarving;
+            boolean was = this.isStarving;
             this.isStarving = starving;
             updateHUD();
-            if (starving && !wasStarving && !starvationAlertShown) {
+            if (starving && !was && !starvationAlertShown) {
                 starvationAlertShown = true;
                 showStarvationAlert();
             }
             if (!starving) starvationAlertShown = false;
         });
     }
-
-    @Override public void onBuildingConstructed(Hex hex)      { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBuildingDestroyed(Hex hex)        { SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); }); }
-    @Override public void onBorderExpanded(int centerQ, int centerR) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); }); }
-
-    @Override
-    public void onNotification(String message) {
+    @Override public void onBuildingConstructed(Hex hex) {
+        SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); });
+    }
+    @Override public void onBuildingDestroyed(Hex hex) {
+        SwingUtilities.invokeLater(() -> { updateHUD(); gamePanel.repaint(); });
+    }
+    @Override public void onBorderExpanded(int q, int r) {
+        SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); gamePanel.repaint(); });
+    }
+    @Override public void onNotification(String message) {
         SwingUtilities.invokeLater(() -> showDisasterNotification(message));
     }
 }

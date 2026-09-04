@@ -9,9 +9,6 @@ import java.awt.event.MouseEvent;
 /**
  * Dialog that lets the player either host a game (start a server on localhost)
  * or join an existing game by entering the server's IP address.
- *
- * <p>Results are retrieved via {@link #getUsername()}, {@link #getServerIp()},
- * and {@link #isHostMode()} after the dialog closes.
  */
 public class MultiplayerSetupDialog extends JDialog {
 
@@ -23,17 +20,15 @@ public class MultiplayerSetupDialog extends JDialog {
     private static final Color TEXT_MAIN    = new Color(225, 230, 240);
     private static final Color TEXT_DIM     = new Color(130, 140, 158);
 
-    private final JTextField usernameField;
-    private final JTextField ipField;
+    // ── B FIX: removed 'final' — both fields are initialized inside helper methods,
+    //    not in the constructor, so 'final' causes "cannot assign to final variable" ──
+    private JTextField usernameField;
+    private JTextField ipField;
+
     private final JTabbedPane tabs;
 
-    /** The username entered by the player. */
-    private String username  = null;
-
-    /** The server IP to connect to (localhost when hosting). */
-    private String serverIp  = null;
-
-    /** True = player chose to host; false = player chose to join. */
+    private String  username = null;
+    private String  serverIp = null;
     private boolean hostMode = false;
 
     public MultiplayerSetupDialog(Frame parent) {
@@ -56,13 +51,15 @@ public class MultiplayerSetupDialog extends JDialog {
         header.add(title, BorderLayout.CENTER);
         root.add(header, BorderLayout.NORTH);
 
-        // ── Username field (shared) ────────────────────────────────────────────
+        // ── Username field (shared between Host and Join) ──────────────────────
         JPanel usernamePanel = new JPanel(new BorderLayout(8, 0));
         usernamePanel.setBackground(BG_DARK);
         usernamePanel.setBorder(new EmptyBorder(12, 20, 4, 20));
         JLabel usernameLabel = new JLabel("Your Username:");
         usernameLabel.setForeground(TEXT_DIM);
         usernameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        // Initialized here in the constructor — no 'final' needed
         usernameField = new JTextField("Player1");
         usernameField.setBackground(BG_CARD);
         usernameField.setForeground(TEXT_MAIN);
@@ -71,29 +68,22 @@ public class MultiplayerSetupDialog extends JDialog {
         usernameField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(60, 70, 90), 1),
                 new EmptyBorder(6, 10, 6, 10)));
-        usernamePanel.add(usernameLabel, BorderLayout.WEST);
-        usernamePanel.add(usernameField, BorderLayout.CENTER);
+        usernamePanel.add(usernameLabel,  BorderLayout.WEST);
+        usernamePanel.add(usernameField,  BorderLayout.CENTER);
 
         // ── Tabs: Host / Join ──────────────────────────────────────────────────
         tabs = new JTabbedPane();
         tabs.setBackground(BG_DARK);
         tabs.setForeground(TEXT_MAIN);
         tabs.setFont(new Font("Segoe UI", Font.BOLD, 13));
-
-        // Host tab
-        JPanel hostPanel = buildHostPanel();
-        tabs.addTab("🖥️  Host Game", hostPanel);
-
-        // Join tab
-        JPanel joinPanel = buildJoinPanel();
-        tabs.addTab("🌐  Join Game", joinPanel);
+        tabs.addTab("🖥️  Host Game", buildHostPanel());
+        tabs.addTab("🌐  Join Game", buildJoinPanel());
 
         // ── Center ────────────────────────────────────────────────────────────
         JPanel center = new JPanel(new BorderLayout(0, 4));
         center.setBackground(BG_DARK);
         center.add(usernamePanel, BorderLayout.NORTH);
-        center.add(tabs, BorderLayout.CENTER);
-
+        center.add(tabs,          BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
 
         // ── Footer ────────────────────────────────────────────────────────────
@@ -115,8 +105,9 @@ public class MultiplayerSetupDialog extends JDialog {
         panel.setBackground(BG_DARK);
         panel.setBorder(new EmptyBorder(20, 20, 16, 20));
 
-        JLabel info = new JLabel("<html><center>Start a server on <b>localhost:8080</b>.<br/>"
-                + "Other players can join using your IP address.</center></html>",
+        JLabel info = new JLabel(
+                "<html><center>Start a server on <b>localhost:8080</b>.<br/>"
+                        + "Other players can join using your IP address.</center></html>",
                 SwingConstants.CENTER);
         info.setForeground(TEXT_DIM);
         info.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -135,7 +126,7 @@ public class MultiplayerSetupDialog extends JDialog {
         btnPanel.setOpaque(false);
         btnPanel.add(hostBtn);
 
-        panel.add(info, BorderLayout.CENTER);
+        panel.add(info,     BorderLayout.CENTER);
         panel.add(btnPanel, BorderLayout.SOUTH);
         return panel;
     }
@@ -147,9 +138,12 @@ public class MultiplayerSetupDialog extends JDialog {
 
         JPanel ipPanel = new JPanel(new BorderLayout(8, 0));
         ipPanel.setOpaque(false);
+
         JLabel ipLabel = new JLabel("Server IP:");
         ipLabel.setForeground(TEXT_DIM);
         ipLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        // Initialized here — NOT in the constructor, hence 'final' was illegal
         ipField = new JTextField("192.168.1.1");
         ipField.setBackground(BG_CARD);
         ipField.setForeground(TEXT_MAIN);
@@ -158,8 +152,9 @@ public class MultiplayerSetupDialog extends JDialog {
         ipField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(60, 70, 90), 1),
                 new EmptyBorder(6, 10, 6, 10)));
+
         ipPanel.add(ipLabel, BorderLayout.WEST);
-        ipPanel.add(ipField, BorderLayout.CENTER);
+        ipPanel.add(ipField,  BorderLayout.CENTER);
 
         JButton joinBtn = buildButton("🌐  Connect & Join Lobby", ACCENT_BLUE, Color.WHITE);
         joinBtn.addActionListener(e -> {
@@ -175,7 +170,7 @@ public class MultiplayerSetupDialog extends JDialog {
         btnPanel.setOpaque(false);
         btnPanel.add(joinBtn);
 
-        panel.add(ipPanel, BorderLayout.NORTH);
+        panel.add(ipPanel,  BorderLayout.NORTH);
         panel.add(btnPanel, BorderLayout.SOUTH);
         return panel;
     }

@@ -624,4 +624,42 @@ public class GameMap {
         }
         return false;
     }
+
+    // ─── B20: Per-Player Town Hall Lookup ────────────────────────────────────────
+
+    /**
+     * Returns the Town Hall owned by the given player, or the default single-player
+     * Town Hall if none is found (maintains backward compatibility).
+     *
+     * <p>In multiplayer mode every player has their own Town Hall placed via
+     * {@link #placePlayerSpawn(String, int, int)}. All server-side logic that
+     * needs per-player resources, production queues, and upgrade levels must use
+     * this method instead of {@link #getTownHall()}.
+     *
+     * @param playerId the unique client ID of the player
+     * @return the player's own TownHall, or the default TownHall if not found
+     */
+    public TownHall getPlayerTownHall(String playerId) {
+        if (playerId == null) return townHall;
+        for (Hex h : hexes.getAll()) {
+            if (h.getBuilding() instanceof TownHall th
+                    && playerId.equals(th.getOwnerId())
+                    && !th.isDestroyed()) {
+                return th;
+            }
+        }
+        return townHall; // fallback: single-player mode
+    }
+
+    /**
+     * Returns the Inventory belonging to the given player.
+     *
+     * <p>Convenience wrapper over {@link #getPlayerTownHall(String)}.
+     *
+     * @param playerId the unique client ID of the player
+     * @return the player's own Inventory, or the default Inventory if not found
+     */
+    public Inventory getPlayerInventory(String playerId) {
+        return getPlayerTownHall(playerId).getInventory();
+    }
 }

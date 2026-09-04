@@ -100,15 +100,13 @@ public class MainFrame extends JFrame {
     }
 
     // ─── Shared Network Connection ────────────────────────────────────────────
-
     private void connectToServer(String serverIp, String username) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
         NetworkManager networkManager = new NetworkManager();
-        networkManager.setMyClientId(username); // used by UDP heartbeat
+        networkManager.setMyClientId(username);
 
-        // Build the lobby controller + view first
         LobbyController lobbyController = new LobbyController(networkManager);
         lobbyController.setMyUsername(username);
 
@@ -118,24 +116,18 @@ public class MainFrame extends JFrame {
         mainContainer.add(lobbyWrapper, "LOBBY");
         cardLayout.show(mainContainer, "LOBBY");
 
-        // Build the message dispatcher and wire callbacks
         ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
+        // We don't have a server-assigned ID yet; use username as a display-key
+        dispatcher.setMyPlayerId(username);
 
-        // When server broadcasts GAME_START_BROADCAST → switch to game UI
-        dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager));
+        // B5: switch to game view when server broadcasts GAME_START_BROADCAST
+        dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
 
-        // When server sends GAME_STATE_UPDATE → placeholder for future render update
+        // B24: game state update — dispatcher handles turn indicator directly
         dispatcher.setOnGameStateUpdate(update -> {
-            // TODO: deserialize filteredMapJson and update local render map
-            // For now the notification is enough to see turn changes
             System.out.println("[Client] Game state updated — turn: " + update.getCurrentTurn()
                     + " | active: " + update.getActivePlayerId());
-            if (hudPanel != null) {
-                // Enable end-turn button if it's our turn
-                // (we detect by comparing activePlayerId to networkManager's clientId)
-                // For a complete implementation this needs the client's own ID from the server
-                hudPanel.onOurTurnStarted();
-            }
+            // HUD is updated by ClientMessageDispatcher.onMessage() → setActiveTurnInfo()
         });
 
         dispatcher.setOnDisconnected(() -> {
@@ -146,12 +138,8 @@ public class MainFrame extends JFrame {
         });
 
         networkManager.setMessageHandler(dispatcher);
-
-        // Connect TCP (and start UDP heartbeat)
         networkManager.connect(serverIp, 8080);
-
-        // Send JOIN_LOBBY to introduce ourselves
-        networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username)));
+        networkManager.sendRequest(gson.toJson(new network.messages.lobby.JoinLobbyRequest(username)));
     }
 
     // ─── Multiplayer Game View ────────────────────────────────────────────────
@@ -160,7 +148,8 @@ public class MainFrame extends JFrame {
      * Called by {@link ClientMessageDispatcher} when GAME_START_BROADCAST arrives.
      * Switches from LobbyPanel to the main GamePanel in multiplayer mode.
      */
-    public void startMultiplayerMode(NetworkManager networkManager) {
+    public void startMultiplayerMode(NetworkManager networkManager,
+                                     ClientMessageDispatcher dispatcher) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
@@ -171,6 +160,12 @@ public class MainFrame extends JFrame {
         buildGameView();
         cardLayout.show(mainContainer, "GAME_UI");
         gamePanel.requestFocusInWindow();
+
+        // B23 + B24 + B25: wire HUD into dispatcher
+        if (dispatcher != null && hudPanel != null) {
+            dispatcher.setHudPanel(hudPanel);
+        }
+
         System.out.println("[MainFrame] Multiplayer game view started.");
     }
 

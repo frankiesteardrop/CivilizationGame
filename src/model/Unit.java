@@ -1,6 +1,10 @@
 package model;
 
+import java.util.UUID;
+
 public abstract class Unit {
+    protected String id;
+    protected long createdAt;
     protected int q;
     protected int r;
     protected UnitType type;
@@ -26,6 +30,8 @@ public abstract class Unit {
     protected int temporarySiegeBonus;
 
     public Unit(int q, int r, UnitType type) {
+        this.id        = UUID.randomUUID().toString();
+        this.createdAt = System.currentTimeMillis();
         this.q = q;
         this.r = r;
         this.type = type;
@@ -125,6 +131,8 @@ public abstract class Unit {
     public void setOwnerTribe(Tribe ownerTribe) { this.ownerTribe = ownerTribe; }
 
     public String getOwnerId() { return ownerId; }
+    public String getId()        { return id; }
+    public long   getCreatedAt() { return createdAt; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public void kill() {

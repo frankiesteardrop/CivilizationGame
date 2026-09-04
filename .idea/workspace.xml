@@ -5,22 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/controller/CatapultDamageHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/Catapult.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/model/WatReport.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/network/messages/game/WatReportBroadcast.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/CombatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/CombatController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/SaveLoadController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/SaveLoadController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/UnitController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UnitController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/UpgradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UpgradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Building.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Building.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/UnitFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/UnitType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitType.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/GameServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameServer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/GameStateManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameStateManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/HexRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/UIConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/UIConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/Unit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Unit.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/LobbyPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/LobbyPlayer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/MultiplayerSetupDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MultiplayerSetupDialog.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

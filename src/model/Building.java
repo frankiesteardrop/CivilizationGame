@@ -1,6 +1,13 @@
 package model;
 
+import java.util.UUID;
+
 public abstract class Building {
+    /** Unique identifier — required by spec for all server-managed entities. (B21) */
+    protected String id;
+
+    /** Unix epoch ms when this building was created — required by spec. (B21) */
+    protected long createdAt;
     protected int baseWorkerCapacity;
     protected int stationedWorkers;
     protected boolean isDestroyed;
@@ -16,6 +23,8 @@ public abstract class Building {
     protected String ownerId;
 
     public Building(int baseWorkerCapacity) {
+        this.id        = UUID.randomUUID().toString();
+        this.createdAt = System.currentTimeMillis();
         this.baseWorkerCapacity = baseWorkerCapacity;
         this.stationedWorkers = 0;
         this.isDestroyed = false;
@@ -40,11 +49,15 @@ public abstract class Building {
     public int getMaxHp() { return maxHp; }
     public int getDefense() { return defense; }
 
+
     protected void setMaxHp(int maxHp) { this.maxHp = maxHp; }
     protected void setDefense(int defense) { this.defense = defense; }
 
     // متدهای گتر و ستر مالکیت جهت اعتبارسنجی سمت سرور
     public String getOwnerId() { return ownerId; }
+
+    public String getId()        { return id; }
+    public long   getCreatedAt() { return createdAt; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public void heal(int amount) {
