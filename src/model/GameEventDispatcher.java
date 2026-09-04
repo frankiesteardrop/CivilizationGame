@@ -17,8 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList; // B22: thread-safe list
  */
 public class GameEventDispatcher {
 
-    // B22: CopyOnWriteArrayList replaces ArrayList for thread-safety on multi-threaded server
-    private static final List<ResourceListener>     resourceListeners    =    private static final List<ResourceListener>     resourceListeners    =
+    private static final List<ResourceListener>     resourceListeners    =
             new CopyOnWriteArrayList<>();
     private static final List<UnitListener>         unitListeners        =
             new CopyOnWriteArrayList<>();
