@@ -19,6 +19,7 @@ public class UnitFactory {
         registry.put(UnitType.CAVALRY,         Cavalry::new);
 
         registry.put(UnitType.BEAR,            Bear::new);
+        registry.put(UnitType.CATAPULT, Catapult::new);
     }
 
     public static Unit createUnit(UnitType type, int q, int r) {

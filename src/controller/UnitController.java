@@ -73,21 +73,25 @@ public class UnitController {
 
     private boolean hasCapacityForUnit(Unit unit, Hex targetHex, GameMap map) {
         UnitType type = unit.getType();
-        if (type != UnitType.SWORDSMAN && type != UnitType.ARCHER && type != UnitType.CAVALRY) {
+        // Only military units have hex capacity limits
+        if (type != UnitType.SWORDSMAN && type != UnitType.ARCHER
+                && type != UnitType.CAVALRY && type != UnitType.CATAPULT) {
             return true;
         }
 
         int tq = targetHex.getQ();
         int tr = targetHex.getR();
 
-        long swords  = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.SWORDSMAN).count();
-        long archers = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.ARCHER).count();
-        long cavs    = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CAVALRY).count();
+        long swords    = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.SWORDSMAN).count();
+        long archers   = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.ARCHER).count();
+        long cavs      = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CAVALRY).count();
+        long catapults = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CATAPULT).count(); // B15
 
         return switch (type) {
-            case SWORDSMAN -> swords  < 2;
-            case ARCHER    -> archers < 2;
-            case CAVALRY   -> cavs    < 1;
+            case SWORDSMAN -> swords    < 2;
+            case ARCHER    -> archers   < 2;
+            case CAVALRY   -> cavs      < 1;
+            case CATAPULT  -> catapults < 1; // B15: max 1 catapult per hex
             default        -> true;
         };
     }

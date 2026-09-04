@@ -519,7 +519,8 @@ public class GameMap {
         return units.stream().filter(u -> u.isAlive()
                 && (u.getType() == UnitType.SWORDSMAN
                 ||  u.getType() == UnitType.ARCHER
-                ||  u.getType() == UnitType.CAVALRY)).count();
+                ||  u.getType() == UnitType.CAVALRY
+                ||  u.getType() == UnitType.CATAPULT)).count(); // B15: add CATAPULT
     }
 
     public int getHexDistance(int q1, int r1, int q2, int r2) {

@@ -330,6 +330,7 @@ public class SaveLoadController {
                 case ARCHER          -> Archer.class;
                 case CAVALRY         -> Cavalry.class;
                 case BEAR            -> Bear.class;
+                case CATAPULT        -> Catapult.class;
             };
             return context.deserialize(json, clazz);
         }

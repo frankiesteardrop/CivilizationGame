@@ -72,6 +72,10 @@ public class ContextMenuFactory {
                 mc.getUpgradeController().canTrainUnit("SWORDSMAN"), () -> mc.getUpgradeController().trainUnit("SWORDSMAN")));
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
                 mc.getUpgradeController().canTrainUnit("ARCHER"), () -> mc.getUpgradeController().trainUnit("ARCHER")));
+        actions.add(new MenuAction(milPrefix + "💣 Catapult (30W, 20S, 10I) [TH L2]",
+                mc.getUpgradeController().canTrainUnit("CATAPULT"),
+                "Requires TH Level 2 + 30 Wood + 20 Stone + 10 Iron",
+                () -> mc.getUpgradeController().trainUnit("CATAPULT")));
 
         return actions;
     }

@@ -1,11 +1,7 @@
 package controller;
 
 import model.*;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class CombatController {
@@ -18,11 +14,13 @@ public class CombatController {
         DamageHandler swordsman = new SwordsmanDamageHandler();
         DamageHandler archer    = new ArcherDamageHandler();
         DamageHandler cavalry   = new CavalryDamageHandler();
+        DamageHandler catapult  = new CatapultDamageHandler(); // B15: add catapult to chain
         DamageHandler civilian  = new CivilianDamageHandler();
 
         swordsman.setNext(archer);
         archer.setNext(cavalry);
-        cavalry.setNext(civilian);
+        cavalry.setNext(catapult); // B15: catapult after cavalry
+        catapult.setNext(civilian);
         this.damageChain = swordsman;
     }
 
@@ -37,9 +35,11 @@ public class CombatController {
                 .filter(u -> u.getAttackRange() >= dist && u.isAlive())
                 .collect(Collectors.toList());
 
+        // B15: allow CATAPULT for range-2 attacks (in addition to ARCHER)
         if (dist == 2) {
             validAttackers = validAttackers.stream()
-                    .filter(u -> u.getType() == UnitType.ARCHER)
+                    .filter(u -> u.getType() == UnitType.ARCHER
+                            || u.getType() == UnitType.CATAPULT)
                     .collect(Collectors.toList());
         }
 
@@ -47,10 +47,11 @@ public class CombatController {
         if (validAttackers.stream().anyMatch(u -> u.getCurrentAP() < 1)) return -1;
 
         if (dist == 1) {
-            long swords  = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
-            long archers = validAttackers.stream().filter(u -> u.getType() == UnitType.ARCHER).count();
-            long cavs    = validAttackers.stream().filter(u -> u.getType() == UnitType.CAVALRY).count();
-            if (swords > 2 || archers > 2 || cavs > 1) return -1;
+            long swords    = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
+            long archers   = validAttackers.stream().filter(u -> u.getType() == UnitType.ARCHER).count();
+            long cavs      = validAttackers.stream().filter(u -> u.getType() == UnitType.CAVALRY).count();
+            long catapults = validAttackers.stream().filter(u -> u.getType() == UnitType.CATAPULT).count(); // B15
+            if (swords > 2 || archers > 2 || cavs > 1 || catapults > 1) return -1;
         }
 
         validAttackers.forEach(u -> u.consumeAP(1));
@@ -63,6 +64,7 @@ public class CombatController {
                         : (u.getType() == UnitType.SWORDSMAN
                         || u.getType() == UnitType.ARCHER
                         || u.getType() == UnitType.CAVALRY
+                        || u.getType() == UnitType.CATAPULT   // B15: catapult can be targeted
                         || u.getType() == UnitType.WORKER
                         || u.getType() == UnitType.BUILDER
                         || u.getType() == UnitType.EXPLORER
@@ -91,20 +93,20 @@ public class CombatController {
 
         if (validDefenders.isEmpty()) return 0;
 
+        // B15: attackerDiceCount counts distinct unit types among attackers
         int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
         int defenderDiceCount = isTargetAnimal ? 1 : 2;
         int wallModifier      = (dist == 1 && targetHasWall) ? 2 : 0;
 
-        List<Integer> attackerRolls  = rollDice(attackerDiceCount, 0);
+        List<Integer> attackerRolls = rollDice(attackerDiceCount, 0);
 
-        // اعمال باف آیتم مبارزه روی تاس‌ها
         int totalCombatBuffs = validAttackers.stream().mapToInt(Unit::getTemporaryCombatDiceBonus).sum();
         for (int i = 0; i < totalCombatBuffs && i < attackerRolls.size(); i++) {
             attackerRolls.set(i, attackerRolls.get(i) + 1);
         }
-        attackerRolls.sort(Collections.reverseOrder()); // مرتب‌سازی مجدد بعد از باف
+        attackerRolls.sort(Collections.reverseOrder());
 
-        List<Integer> defenderRolls  = rollDice(defenderDiceCount, wallModifier);
+        List<Integer> defenderRolls = rollDice(defenderDiceCount, wallModifier);
 
         int attackerTakesDmg = 0;
         int defenderTakesDmg = 0;
@@ -147,14 +149,12 @@ public class CombatController {
     }
 
     private int handleSiegeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex, boolean targetHasWall) {
-        // متد getSiegeDamage به صورت خودکار باف آیتم را لحاظ می‌کند (در کلاس Unit اضافه شده بود)
         int siegeDmg = attackers.stream().mapToInt(Unit::getSiegeDamage).sum();
         int dir = getDirection(sourceHex, targetHex);
 
         if (dir >= 0 && targetHasWall) {
             targetHex.damageWall((dir + 3) % 6, siegeDmg);
             sourceHex.damageWall(dir, siegeDmg);
-
             if (!targetHex.hasWall((dir + 3) % 6) || !sourceHex.hasWall(dir)) {
                 targetHex.setWall((dir + 3) % 6, false, 0);
                 sourceHex.setWall(dir, false, 0);
@@ -180,15 +180,14 @@ public class CombatController {
                 if (b instanceof TribeCamp camp) {
                     targetHex.setInsideBorder(true);
                     targetHex.setExplored(true);
-
                     for (int i = 0; i < 6; i++) {
                         Hex neighbor = map.getNeighbor(targetHex, i);
-                        if (neighbor != null && neighbor.getTerrainType() != TerrainType.SEA && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
+                        if (neighbor != null && neighbor.getTerrainType() != TerrainType.SEA
+                                && neighbor.getTerrainType() != TerrainType.MOUNTAIN_RANGE) {
                             neighbor.setInsideBorder(true);
                             neighbor.setExplored(true);
                         }
                     }
-
                     targetHex.setBuilding(BuildingFactory.createBuilding(BuildingType.OUTPOST));
                     GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
                     camp.getTribe().getType().grantLoot(map, targetHex);

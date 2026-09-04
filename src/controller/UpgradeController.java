@@ -8,7 +8,7 @@ import java.util.Set;
 public class UpgradeController {
 
     private final GameMap gameMap;
-    private static final Set<String> MILITARY_UNIT_TYPES = Set.of("SWORDSMAN", "ARCHER", "CAVALRY");
+    private static final Set<String> MILITARY_UNIT_TYPES = Set.of("SWORDSMAN", "ARCHER", "CAVALRY", "CATAPULT");
 
     private interface TechStrategy {
         boolean canUnlock(TownHall th, Inventory inv);
@@ -170,6 +170,28 @@ public class UpgradeController {
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, 30); inv.consumeResource(ResourceType.IRON, 20); }
             public void refundResources(Inventory inv) { inv.addResource(ResourceType.FOOD, 30); inv.addResource(ResourceType.IRON, 20); }
             public UnitType getUnitType() { return UnitType.CAVALRY; }
+            public int getTurnCost() { return 3; }
+        });
+
+        // B15: Catapult — requires TH L2, no special building, expensive resources
+        unitStrategies.put("CATAPULT", new UnitStrategy() {
+            public boolean canTrain(Inventory inv) {
+                return gameMap.getTownHall().getLevel() >= 2
+                        && inv.hasEnough(ResourceType.WOOD,  30)
+                        && inv.hasEnough(ResourceType.STONE, 20)
+                        && inv.hasEnough(ResourceType.IRON,  10);
+            }
+            public void consumeResources(Inventory inv) {
+                inv.consumeResource(ResourceType.WOOD,  30);
+                inv.consumeResource(ResourceType.STONE, 20);
+                inv.consumeResource(ResourceType.IRON,  10);
+            }
+            public void refundResources(Inventory inv) {
+                inv.addResource(ResourceType.WOOD,  30);
+                inv.addResource(ResourceType.STONE, 20);
+                inv.addResource(ResourceType.IRON,  10);
+            }
+            public UnitType getUnitType() { return UnitType.CATAPULT; }
             public int getTurnCost() { return 3; }
         });
     }

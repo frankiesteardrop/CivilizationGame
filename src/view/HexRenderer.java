@@ -729,6 +729,14 @@ public class HexRenderer {
                 int[] py = {-(int)(s*0.8) + oy, -(int)(s*0.6) + oy, -(int)(s*0.4) + oy};
                 g2d.fillPolygon(px, py, 3);
             }
+            case APOTHECARY -> {
+                // Alchemist's pot shape: round bottom with steam columns
+                g2d.fillOval(-s + ox, -(int)(s*0.3) + oy, s*2, (int)(s*1.3));
+                g2d.fillRect(-(int)(s*0.3) + ox, -(int)(s*0.8) + oy, (int)(s*0.6), (int)(s*0.5));
+                // Two chimney stacks
+                g2d.fillRect(-(int)(s*0.6) + ox, -(int)(s*1.1) + oy, (int)(s*0.2), (int)(s*0.4));
+                g2d.fillRect((int)(s*0.4) + ox, -(int)(s*1.1) + oy, (int)(s*0.2), (int)(s*0.4));
+            }
             default -> {
                 g2d.fillRect(-(int)(s*0.65) + ox, -(int)(s*0.65) + oy,
                         (int)(s*1.3), (int)(s*1.3));
@@ -751,6 +759,7 @@ public class HexRenderer {
             case TRADING_POST -> UIConfig.BUILDING_TRADING_POST;
             case TRIBE_CAMP   -> UIConfig.BUILDING_TRIBE_CAMP;
             case OUTPOST      -> UIConfig.BUILDING_OUTPOST;
+            case APOTHECARY   -> UIConfig.BUILDING_APOTHECARY;
             default           -> Color.GRAY;
         };
     }
@@ -770,6 +779,7 @@ public class HexRenderer {
             case TRADING_POST -> "🏪";
             case TRIBE_CAMP   -> "⛺";
             case OUTPOST      -> "🗼";
+            case APOTHECARY   -> "⚗️";
             default           -> "?";
         };
     }

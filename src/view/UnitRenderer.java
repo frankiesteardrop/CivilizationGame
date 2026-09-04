@@ -187,6 +187,7 @@ public class UnitRenderer {
             case SWORDSMAN -> UIConfig.UNIT_SWORDSMAN;
             case ARCHER    -> UIConfig.UNIT_ARCHER;
             case CAVALRY   -> UIConfig.UNIT_CAVALRY;
+            case CATAPULT  -> UIConfig.UNIT_CATAPULT;
             default        -> Color.GRAY;
         };
     }
@@ -196,6 +197,7 @@ public class UnitRenderer {
             case SWORDSMAN -> UIConfig.UNIT_SWORDSMAN_BORDER;
             case ARCHER    -> UIConfig.UNIT_ARCHER_BORDER;
             case CAVALRY   -> UIConfig.UNIT_CAVALRY_BORDER;
+            case CATAPULT  -> UIConfig.UNIT_CATAPULT_BORDER;
             default        -> Color.DARK_GRAY;
         };
     }
@@ -205,6 +207,7 @@ public class UnitRenderer {
             case SWORDSMAN -> "⚔";
             case ARCHER    -> "🏹";
             case CAVALRY   -> "🐎";
+            case CATAPULT  -> "💣";
             default        -> "?";
         };
     }
@@ -431,7 +434,8 @@ public class UnitRenderer {
     }
 
     private boolean isMilitary(UnitType type) {
-        return type == UnitType.SWORDSMAN || type == UnitType.ARCHER || type == UnitType.CAVALRY;
+        return type == UnitType.SWORDSMAN || type == UnitType.ARCHER
+                || type == UnitType.CAVALRY || type == UnitType.CATAPULT; // B15
     }
 
     private String getMilitarySymbolShort(UnitType type) {
@@ -439,6 +443,7 @@ public class UnitRenderer {
             case SWORDSMAN -> "S";
             case ARCHER    -> "A";
             case CAVALRY   -> "C";
+            case CATAPULT  -> "C";
             default        -> "?";
         };
     }

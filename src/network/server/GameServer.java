@@ -147,6 +147,12 @@ public class GameServer {
     public void removeClient(String clientId) {
         clients.remove(clientId);
         lobbyManager.removePlayer(clientId);
+
+        // B18: notify game state manager so it can auto-skip the disconnected player's turn
+        if (gameStateManager != null) {
+            gameStateManager.handlePlayerDisconnected(clientId);
+        }
+
         udpHeartbeat.removeClient(clientId); // (B6) clean up UDP tracking
         System.out.println("⚠️ [Server] Client disconnected: " + clientId
                 + " | Total: " + clients.size());

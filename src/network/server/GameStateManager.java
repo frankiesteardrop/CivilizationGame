@@ -41,6 +41,12 @@ public class GameStateManager {
      */
     private final ConcurrentHashMap<String, List<TradeOffer>> tradeInboxes = new ConcurrentHashMap<>();
 
+    /**
+     * Pending war reports per player: key = targetPlayerId, value = list of reports.
+     * Cleared when delivered at the start of that player's turn. (B14)
+     */
+    private final ConcurrentHashMap<String, List<WatReport>> pendingWatReports = new ConcurrentHashMap<>();
+
     /** playerId → display username (populated at game start). */
     private final Map<String, String> playerNames = new HashMap<>();
 
@@ -79,6 +85,7 @@ public class GameStateManager {
             // Initialize player-specific structures
             playerNames.put(playerId, players.get(i).getUsername());
             tradeInboxes.put(playerId, new ArrayList<>());
+            pendingWatReports.put(playerId, new ArrayList<>());
 
             System.out.println("[Server] Player " + players.get(i).getUsername()
                     + " spawned at (" + spawn[0] + "," + spawn[1] + ")");
@@ -120,7 +127,53 @@ public class GameStateManager {
             masterMap.incrementTurn();
         }
 
+        // B14: deliver pending war reports to the player whose turn is now starting
+        String nextPlayerId = players.get(currentPlayerIndex).getId();
+        deliverWatReports(nextPlayerId);
+
         broadcastCustomizedStates();
+    }
+
+    // ─── B18: Player Disconnected ──────────────────────────────────────────────
+
+    /**
+     * Called when a client TCP connection drops during an active game. (B18)
+     *
+     * <p>Broadcasts a disconnect notification to all remaining players.
+     * If it was the disconnected player's turn, automatically processes their
+     * end-of-turn so the game does not freeze.
+     */
+    public synchronized void handlePlayerDisconnected(String clientId) {
+        if (serverTurnProcessor == null) return; // game not yet initialized
+
+        String playerName = playerNames.getOrDefault(clientId, clientId);
+        System.out.println("[Server] Player disconnected during game: " + playerName);
+
+        // Cancel all pending trades for the disconnected player
+        cancelAllTradesForPlayer(clientId);
+
+        // Notify remaining players
+        server.broadcast(gson.toJson(new GameNotificationMessage(
+                "⚠️ Player " + playerName + " has disconnected.")));
+
+        // Auto-skip if it was their turn (B18)
+        if (players.get(currentPlayerIndex).getId().equals(clientId)) {
+            server.broadcast(gson.toJson(new GameNotificationMessage(
+                    "⏭️ " + playerName + "'s turn was automatically skipped.")));
+
+            serverTurnProcessor.processTurn(masterMap);
+
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+            if (currentPlayerIndex == 0) {
+                masterMap.incrementTurn();
+            }
+
+            // Deliver war reports to the new active player
+            String nextPlayerId = players.get(currentPlayerIndex).getId();
+            deliverWatReports(nextPlayerId);
+
+            broadcastCustomizedStates();
+        }
     }
 
     // ─── B11: Apothecary Item Crafting ────────────────────────────────────────
@@ -703,6 +756,23 @@ public class GameStateManager {
             checkPlayerElimination(targetOwnerId);
         }
 
+        // B14: record war report for the defender if attack was on a player
+        if (result != -1 && targetOwnerId != null && !targetOwnerId.equals(clientId)) {
+            // Count units the defender lost
+            long aliveAfter = masterMap.getUnits().stream()
+                    .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId()))
+                    .count();
+            // We stored count before attack at the top of the method — use siegeDmg for siege attacks
+            int unitsLost = isSiegeAttack ? 0 : Math.max(0, (int) result);
+            int siegeDmg  = isSiegeAttack ? result : 0;
+
+            WatReport report = new WatReport(
+                    clientId, playerNames.getOrDefault(clientId, clientId),
+                    targetHex.getQ(), targetHex.getR(),
+                    unitsLost, siegeDmg, isSiegeAttack);
+            pendingWatReports.computeIfAbsent(targetOwnerId, k -> new ArrayList<>()).add(report);
+        }
+
         broadcastCustomizedStates();
     }
 
@@ -873,5 +943,19 @@ public class GameStateManager {
             return targetHex.getBuilding().getOwnerId();
         }
         return null;
+    }
+
+    // ─── War Report Delivery (B14) ────────────────────────────────────────────
+
+    /**
+     * Sends all pending war reports to the given player and clears the queue. (B14)
+     * Called at the start of each player's turn so they know what happened while waiting.
+     */
+    private void deliverWatReports(String playerId) {
+        List<WatReport> reports = pendingWatReports.get(playerId);
+        if (reports == null || reports.isEmpty()) return;
+
+        server.sendToClient(playerId, gson.toJson(new WatReportBroadcast(new ArrayList<>(reports))));
+        reports.clear();
     }
 }
