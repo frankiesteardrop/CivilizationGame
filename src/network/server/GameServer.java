@@ -128,6 +128,10 @@ public class GameServer {
                     gson.fromJson(json, TradeOfferRequest.class));
             case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId,
                     gson.fromJson(json, TradeResponseRequest.class));
+            case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId,
+                    gson.fromJson(json, CraftItemRequest.class));
+            case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId,
+                    gson.fromJson(json, AllianceResponseRequest.class));
             default -> System.out.println("[Server] Unknown game message: " + type);
         }
     }

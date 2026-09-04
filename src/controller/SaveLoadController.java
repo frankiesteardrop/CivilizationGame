@@ -303,6 +303,7 @@ public class SaveLoadController {
                 case TRADING_POST -> TradingPost.class;
                 case TRIBE_CAMP   -> TribeCamp.class;
                 case OUTPOST      -> Outpost.class;
+                case APOTHECARY   -> Apothecary.class;
             };
             return context.deserialize(json, clazz);
         }

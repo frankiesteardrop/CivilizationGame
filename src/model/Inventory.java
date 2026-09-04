@@ -122,4 +122,14 @@ public class Inventory {
 
     public int getResourceAmount(ResourceType type) { return resources.getOrDefault(type, 0); }
     public int getCapacity(ResourceType type) { return capacities.getOrDefault(type, 0); }
+
+    /**
+     * Returns a read-only view of the player's item inventory.
+     * Used by the UI to display which items the player currently holds.
+     *
+     * @return unmodifiable map from item name (e.g. "TELEPORT") to quantity
+     */
+    public java.util.Map<String, Integer> getItems() {
+        return java.util.Collections.unmodifiableMap(items);
+    }
 }

@@ -35,20 +35,20 @@ public class FogOfWarFilter {
     }
 
     /**
-     * Returns a JSON string that is the master map with fog applied for
-     * the given player. The master map object is never mutated.
+     * Returns a filtered JSON string of the master map for the given player.
+     * Allied players' vision is included (B13 shared Fog of War).
      *
-     * @param masterMap the authoritative server-side game state
-     * @param playerId  the player whose vision determines the filter
+     * @param masterMap       the authoritative server-side game state
+     * @param playerId        the player whose vision determines the filter
+     * @param alliedPlayerIds set of playerIds who are currently allied with playerId
      * @return filtered JSON string safe to send to that player's client
      */
-    public String filterForPlayer(GameMap masterMap, String playerId) {
-        Set<String> visibleKeys = computeVisibleHexKeys(masterMap, playerId);
+    public String filterForPlayer(GameMap masterMap, String playerId, Set<String> alliedPlayerIds) {
+        Set<String> visibleKeys = computeVisibleHexKeys(masterMap, playerId, alliedPlayerIds);
 
-        // Serialize the full map to a mutable JSON tree
         JsonObject mapJson = gson.toJsonTree(masterMap).getAsJsonObject();
 
-        // ── Filter hexes ──────────────────────────────────────────────────────
+        // ── Filter hexes ──────────────────────────────────────────────────────────
         JsonObject hexesObj = mapJson.getAsJsonObject("hexes");
         if (hexesObj != null) {
             JsonArray hexItems = hexesObj.getAsJsonArray("items");
@@ -60,18 +60,16 @@ public class FogOfWarFilter {
                     int r = hex.get("r").getAsInt();
 
                     if (!visibleKeys.contains(q + "," + r)) {
-                        // Hidden by fog: strip sensitive data
-                        hex.add("building", JsonNull.INSTANCE);
-                        hex.add("resources", new JsonObject());   // empty map
+                        hex.add("building",       JsonNull.INSTANCE);
+                        hex.add("resources",      new JsonObject());
                         hex.addProperty("isVisible",      false);
                         hex.addProperty("isInsideBorder", false);
-                        // isExplored is kept so the client can show explored-but-fogged terrain
                     }
                 }
             }
         }
 
-        // ── Filter units ──────────────────────────────────────────────────────
+        // ── Filter units ──────────────────────────────────────────────────────────
         JsonObject unitsObj = mapJson.getAsJsonObject("units");
         if (unitsObj != null) {
             JsonArray unitItems = unitsObj.getAsJsonArray("items");
@@ -82,6 +80,7 @@ public class FogOfWarFilter {
                     JsonObject unit = unitEl.getAsJsonObject();
                     int q = unit.get("q").getAsInt();
                     int r = unit.get("r").getAsInt();
+
                     if (visibleKeys.contains(q + "," + r)) {
                         visibleUnits.add(unit);
                     }
@@ -93,31 +92,43 @@ public class FogOfWarFilter {
         return mapJson.toString();
     }
 
-    // ─── Vision Computation ───────────────────────────────────────────────────
+    // ─── Vision Computation ───────────────────────────────────────────────────────
 
     /**
-     * Computes the set of "q,r" hex keys visible to the given player.
-     * Vision comes from all buildings and units owned by this player.
+     * Computes visible hex keys for the given player, including
+     * vision from allied players' units and buildings (B13).
      */
-    private Set<String> computeVisibleHexKeys(GameMap masterMap, String playerId) {
+    private Set<String> computeVisibleHexKeys(GameMap masterMap, String playerId,
+                                              Set<String> alliedPlayerIds) {
         Set<String> visible = new HashSet<>();
 
-        // Vision from player-owned buildings (Town Hall, Outpost, etc.)
-        for (Hex hex : masterMap.getHexes()) {
-            Building b = hex.getBuilding();
-            if (b != null && !b.isDestroyed() && playerId.equals(b.getOwnerId())) {
-                addVisionCircle(masterMap, hex.getQ(), hex.getR(), b.getVisionRadius(), visible);
-            }
-        }
+        // Own vision
+        addPlayerVision(masterMap, playerId, visible);
 
-        // Vision from player-owned units
-        for (Unit unit : masterMap.getUnits()) {
-            if (unit.isAlive() && playerId.equals(unit.getOwnerId())) {
-                addVisionCircle(masterMap, unit.getQ(), unit.getR(), unit.getVisionRadius(), visible);
-            }
+        // Allied players' vision (B13 — shared Fog of War)
+        for (String allyId : alliedPlayerIds) {
+            addPlayerVision(masterMap, allyId, visible);
         }
 
         return visible;
+    }
+
+    /** Adds all hexes visible to a single player (by ownerId) into the result set. */
+    private void addPlayerVision(GameMap masterMap, String playerId, Set<String> result) {
+        // Vision from owned buildings
+        for (Hex hex : masterMap.getHexes()) {
+            Building b = hex.getBuilding();
+            if (b != null && !b.isDestroyed() && playerId.equals(b.getOwnerId())) {
+                addVisionCircle(masterMap, hex.getQ(), hex.getR(), b.getVisionRadius(), result);
+            }
+        }
+
+        // Vision from owned units
+        for (Unit unit : masterMap.getUnits()) {
+            if (unit.isAlive() && playerId.equals(unit.getOwnerId())) {
+                addVisionCircle(masterMap, unit.getQ(), unit.getR(), unit.getVisionRadius(), result);
+            }
+        }
     }
 
     private void addVisionCircle(GameMap map, int centerQ, int centerR,

@@ -96,6 +96,33 @@ public class ServerTurnProcessor {
             }
         }
 
+        // ── Step 6.5: advance Apothecary crafting queues + deliver completed items ──
+        // For each Apothecary, advance its 1-turn queue and add the completed item
+        // to the owning player's Inventory.
+        for (Hex hex : gameMap.getHexes()) {
+            if (!(hex.getBuilding() instanceof Apothecary apothecary)) continue;
+            if (apothecary.isDestroyed()) continue;
+
+            String completedItem = apothecary.advanceCraftingQueue();
+            if (completedItem == null) continue;
+
+            // Find the owning player's Inventory
+            String ownerId = apothecary.getOwnerId();
+            if (ownerId == null) continue;
+
+            for (Hex thHex : gameMap.getHexes()) {
+                if (thHex.getBuilding() instanceof TownHall th
+                        && ownerId.equals(th.getOwnerId())
+                        && !th.isDestroyed()) {
+                    th.getInventory().addItem(completedItem, 1);
+                    GameEventDispatcher.fireNotification(
+                            "⚗️ Apothecary finished crafting: " + completedItem
+                                    + "! Added to inventory.");
+                    break;
+                }
+            }
+        }
+
         // ── Step 7: reset unit AP + apply happiness / starvation penalties ─────
         int effectiveHappiness = economyController.getEffectiveHappiness(gameMap);
 

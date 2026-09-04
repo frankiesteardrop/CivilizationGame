@@ -18,6 +18,7 @@ public class BuildingFactory {
         registry.put(BuildingType.DOCK, Dock::new);
         registry.put(BuildingType.MONUMENT, Monument::new);
         registry.put(BuildingType.BAZAAR, Bazaar::new);
+        registry.put(BuildingType.APOTHECARY, Apothecary::new);
         registry.put(BuildingType.TRADING_POST, TradingPost::new);
         registry.put(BuildingType.OUTPOST, Outpost::new);
 

@@ -130,6 +130,17 @@ public enum BuildingType {
         }
     },
 
+    APOTHECARY(2, 30, 20, 10, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1) {
+        @Override
+        public boolean hasRequiredTech(TownHall th) {
+            return th.getLevel() >= 2;
+        }
+        @Override
+        public boolean isValidTerrain(Hex hex, GameMap map) {
+            return hex.getTerrainType() == TerrainType.PLAINS;
+        }
+    },
+
     TRADING_POST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 1),
     TRIBE_CAMP(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2),
     OUTPOST(0, 0, 0, 0, ResourceType.NONE, 0, 0, ResourceType.NONE, 0, 2);

@@ -1,12 +1,13 @@
 package view;
 
-import com.google.gson.Gson;                          // ← NEW import
+import com.google.gson.Gson;
 import controller.CombatController;
 import controller.MainController;
 import controller.MenuAction;
 import model.*;
-import network.client.NetworkManager;                 // ← NEW import
-import network.messages.game.AttackRequest;           // ← NEW import
+import network.client.NetworkManager;
+import network.messages.game.AttackRequest;
+import network.messages.game.CraftItemRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -125,6 +126,99 @@ public class ContextMenuFactory {
         return actions;
     }
 
+    /**
+     * Builds the context menu for an Apothecary building.
+     * Shows crafting options with resource costs and current queue status.
+     * In multiplayer mode, crafting is routed to the server.
+     */
+    public static List<MenuAction> buildApothecaryMenu(MainController mc,
+                                                       Apothecary apothecary,
+                                                       Hex hex) {
+        List<MenuAction> actions = new ArrayList<>();
+
+        if (!hex.isInsideBorder()) {
+            actions.add(new MenuAction("⛔ Must be inside your territory to use", false, null));
+            return actions;
+        }
+
+        if (apothecary.isDestroyed()) {
+            actions.add(new MenuAction("⚠️ This Apothecary is destroyed", false, null));
+            return actions;
+        }
+
+        String currentlyCrafting = apothecary.getCurrentlyCrafting();
+        if (currentlyCrafting != null) {
+            actions.add(new MenuAction(
+                    "⏳ Currently crafting: " + currentlyCrafting + " (1 turn remaining)",
+                    false, null));
+            return actions;
+        }
+
+        // Show all available items with costs
+        Inventory inv = mc.getGameMap().getTownHall().getInventory();
+        Gson gson = new Gson();
+
+        for (Apothecary.ItemType itemType : Apothecary.ItemType.values()) {
+            boolean hasFood  = inv.hasEnough(ResourceType.FOOD,  itemType.getFoodCost());
+            boolean hasStone = inv.hasEnough(ResourceType.STONE, itemType.getStoneCost());
+            boolean hasIron  = inv.hasEnough(ResourceType.IRON,  itemType.getIronCost());
+            boolean hasWood  = inv.hasEnough(ResourceType.WOOD,  itemType.getWoodCost());
+
+            boolean canCraft = hasFood && hasStone && hasIron && hasWood;
+            StringBuilder costLabel = new StringBuilder();
+            if (itemType.getFoodCost()  > 0) costLabel.append(itemType.getFoodCost()).append("F ");
+            if (itemType.getStoneCost() > 0) costLabel.append(itemType.getStoneCost()).append("S ");
+            if (itemType.getIronCost()  > 0) costLabel.append(itemType.getIronCost()).append("I ");
+            if (itemType.getWoodCost()  > 0) costLabel.append(itemType.getWoodCost()).append("W ");
+
+            String label = String.format("⚗️ Craft %s (%s)",
+                    itemType.getDisplayName(), costLabel.toString().trim());
+
+            String disabledReason = "Insufficient resources: need "
+                    + itemType.getFoodCost() + "F "
+                    + itemType.getStoneCost() + "S "
+                    + itemType.getIronCost() + "I "
+                    + itemType.getWoodCost() + "W";
+
+            final Apothecary.ItemType finalItemType = itemType;
+            actions.add(new MenuAction(label, canCraft, disabledReason, () -> {
+                NetworkManager nm = mc.getNetworkManager();
+                if (nm != null) {
+                    // Multiplayer: send to server for validation and execution
+                    nm.sendRequest(gson.toJson(new CraftItemRequest(
+                            hex.getQ(), hex.getR(), finalItemType.name())));
+                } else {
+                    // Single-player: execute locally
+                    inv.consumeResource(ResourceType.FOOD,  finalItemType.getFoodCost());
+                    inv.consumeResource(ResourceType.STONE, finalItemType.getStoneCost());
+                    inv.consumeResource(ResourceType.IRON,  finalItemType.getIronCost());
+                    inv.consumeResource(ResourceType.WOOD,  finalItemType.getWoodCost());
+
+                    apothecary.queueItem(finalItemType.name());
+                    GameEventDispatcher.fireNotification("⚗️ Crafting " + finalItemType.getDisplayName()
+                            + " — ready at end of turn!");
+                    GameEventDispatcher.fireBuildingConstructed(hex);
+                }
+            }));
+        }
+
+        // Show what items the player currently holds
+        actions.add(new MenuAction("─────────────────", false, null));
+        java.util.Map<String, Integer> currentItems = inv.getItems();
+        if (currentItems.isEmpty()) {
+            actions.add(new MenuAction("📦 Inventory: empty", false, null));
+        } else {
+            currentItems.forEach((name, qty) -> {
+                if (qty > 0) {
+                    actions.add(new MenuAction("📦 " + name + " × " + qty, false, null));
+                }
+            });
+        }
+
+        return actions;
+    }
+
+
     public static List<MenuAction> buildUnitMenu(MainController mc, Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
         boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ() && selectedUnit.getR() == targetHex.getR());
@@ -156,6 +250,7 @@ public class ContextMenuFactory {
                 actions.add(createBuildAction(mc, builder, targetHex, BuildingType.DOCK, dockLabel));
                 actions.add(createBuildAction(mc, builder, targetHex, BuildingType.MONUMENT, "🏛️ Monument"));
                 actions.add(createBuildAction(mc, builder, targetHex, BuildingType.BAZAAR,   "⚖️ Bazaar [TH L2]"));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.APOTHECARY,        "⚗️ Apothecary [TH L2, Plains]"));
             }
         } else if (selectedUnit.getType() == UnitType.WORKER) {
             Worker worker = (Worker) selectedUnit;
