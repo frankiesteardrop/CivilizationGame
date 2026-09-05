@@ -5,56 +5,42 @@ import controller.EconomyController;
 import controller.TribeController;
 import model.*;
 
+import java.util.List;
+
 /**
- * Handles all server-side end-of-turn game logic for multiplayer games.
+ * Handles all server-side end-of-turn game logic for multiplayer sessions.
  *
- * <p>This is the server equivalent of {@code TurnController.executeEndTurnLogic()},
- * but designed to operate without a {@code MainController} or UI dependencies.
- * One instance is created per game session and reused across turns.
+ * <p>B33 fix: in multiplayer, each player has their own TownHall with their own
+ * Inventory and production queue. Economy processing is done per-player by
+ * temporarily setting {@link GameMap#setActiveTownHall(TownHall)} so that
+ * {@link EconomyController} operates on the correct player's resources.
  *
- * <p>Responsibilities (in order of execution):
+ * <p>Processing order per turn:
  * <ol>
- *   <li>Decrement flood-halt timers on buildings.</li>
- *   <li>Remove dead units from the map.</li>
- *   <li>Run bear AI and natural disaster checks.</li>
- *   <li>Run tribe AI turn behavior.</li>
- *   <li>Process economy: resource production, upkeep, food consumption.</li>
- *   <li>Advance production queues for all active Town Halls.</li>
- *   <li>Reset AP for all living units; apply happiness/starvation penalties.</li>
- *   <li>Clear per-turn item buffs on all units.</li>
+ *   <li>Decrement flood-halt timers</li>
+ *   <li>Remove dead units</li>
+ *   <li>Bear AI + disaster checks</li>
+ *   <li>Tribe AI turn behavior</li>
+ *   <li>Per-player economy (resource production, upkeep, food consumption) — B33</li>
+ *   <li>Per-player production queue advance — B33</li>
+ *   <li>Apothecary crafting queue advance (B11)</li>
+ *   <li>Per-unit AP reset + happiness/starvation penalties</li>
+ *   <li>Remove units that died from starvation</li>
  * </ol>
  */
 public class ServerTurnProcessor {
 
-    /**
-     * Economy controller instance — kept alive across turns so it can
-     * track happiness-state deltas (monument changes, settlement changes, etc.)
-     * Uses the no-arg server constructor that does not require a MainController.
-     */
     private final EconomyController economyController;
+    private final TribeController   tribeController;
 
-    /**
-     * Tribe controller — registered as a UnitListener so it can track
-     * mission progress when units are killed during combat.
-     */
-    private final TribeController tribeController;
-
-    /**
-     * Constructs a new processor for the given game map.
-     * Must be called once after {@code GameMap} has been initialized.
-     *
-     * @param gameMap the authoritative server-side game state
-     */
     public ServerTurnProcessor(GameMap gameMap) {
-        this.economyController = new EconomyController();       // no-arg server constructor
-        this.tribeController   = new TribeController(gameMap);  // registers as UnitListener
+        this.economyController = new EconomyController();   // server constructor (no MainController)
+        this.tribeController   = new TribeController(gameMap);
     }
 
     /**
      * Executes all end-of-turn processing on the master map.
-     * Called by {@link GameStateManager} each time a player ends their turn.
-     *
-     * @param gameMap the authoritative game state to mutate in place
+     * Called by {@link GameStateManager} each time the active player clicks "End Turn".
      */
     public void processTurn(GameMap gameMap) {
 
@@ -73,32 +59,43 @@ public class ServerTurnProcessor {
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // ── Step 4: tribe AI behavior for this turn ───────────────────────────
+        // ── Step 4: tribe AI ──────────────────────────────────────────────────
         tribeController.processTribesTurn();
 
-        // ── Step 5: economy ───────────────────────────────────────────────────
-        // NOTE: EconomyController.processEndTurn() is designed for single-player
-        // (it uses map.getTownHall() for the single inventory). Full per-player
-        // economy requires a redesigned GameMap with per-player TownHall lookup.
-        // For multiplayer the base economy still runs; per-player production queues
-        // are advanced separately in Step 6.
-        boolean isStarving = economyController.processEndTurn(gameMap);
-        gameMap.setStarving(isStarving);
+        // ── Step 5 + 6: per-player economy and production queue (B33) ─────────
+        List<TownHall> playerTownHalls = gameMap.getAllPlayerTownHalls();
 
-        // ── Step 6: advance production queues for ALL active Town Halls ────────
-        // processEndTurn() already advances the "default" TownHall (at 0,0).
-        // We additionally advance every player-owned TownHall (ownerId != null).
-        for (Hex hex : gameMap.getHexes()) {
-            if (hex.getBuilding() instanceof TownHall th
-                    && !th.isDestroyed()
-                    && th.getOwnerId() != null) {
-                th.advanceProductionQueue(isStarving);
+        if (playerTownHalls.isEmpty()) {
+            // ── Single-player mode: process the default single TownHall ────────
+            boolean starving = economyController.processEndTurn(gameMap);
+            gameMap.setStarving(starving);
+            gameMap.getTownHall().advanceProductionQueue(starving);
+
+        } else {
+            // ── Multiplayer mode: process each player's TownHall separately ────
+            boolean anyStarving = false;
+
+            for (TownHall playerTH : playerTownHalls) {
+                // Temporarily point map.getTownHall() to this player's TownHall
+                gameMap.setActiveTownHall(playerTH);
+
+                // Process economy for this player: production, upkeep, food consumption
+                boolean playerStarving = economyController.processEndTurn(gameMap);
+
+                // Advance this player's production queue
+                playerTH.advanceProductionQueue(playerStarving);
+
+                // Track starvation for AP penalty application below
+                // (we use the starvation state of the TownHall whose units we'll process)
+                if (playerStarving) anyStarving = true;
             }
+
+            // Restore default TownHall — map.getTownHall() goes back to normal
+            gameMap.clearActiveTownHall();
+            gameMap.setStarving(anyStarving);
         }
 
-        // ── Step 6.5: advance Apothecary crafting queues + deliver completed items ──
-        // For each Apothecary, advance its 1-turn queue and add the completed item
-        // to the owning player's Inventory.
+        // ── Step 7: Apothecary crafting queues + item delivery (B11) ─────────
         for (Hex hex : gameMap.getHexes()) {
             if (!(hex.getBuilding() instanceof Apothecary apothecary)) continue;
             if (apothecary.isDestroyed()) continue;
@@ -106,56 +103,52 @@ public class ServerTurnProcessor {
             String completedItem = apothecary.advanceCraftingQueue();
             if (completedItem == null) continue;
 
-            // Find the owning player's Inventory
             String ownerId = apothecary.getOwnerId();
             if (ownerId == null) continue;
 
-            for (Hex thHex : gameMap.getHexes()) {
-                if (thHex.getBuilding() instanceof TownHall th
-                        && ownerId.equals(th.getOwnerId())
-                        && !th.isDestroyed()) {
-                    th.getInventory().addItem(completedItem, 1);
-                    GameEventDispatcher.fireNotification(
-                            "⚗️ Apothecary finished crafting: " + completedItem
-                                    + "! Added to inventory.");
-                    break;
-                }
+            // Deliver the completed item to the owning player's inventory
+            TownHall ownerTH = gameMap.getPlayerTownHall(ownerId);
+            if (ownerTH != null) {
+                ownerTH.getInventory().addItem(completedItem, 1);
+                GameEventDispatcher.fireNotification("⚗️ Apothecary finished crafting: "
+                        + completedItem + "! Added to your inventory.");
             }
         }
 
-        // ── Step 7: reset unit AP + apply happiness / starvation penalties ─────
+        // ── Step 8: reset AP + happiness/starvation penalties ─────────────────
         int effectiveHappiness = economyController.getEffectiveHappiness(gameMap);
+        boolean isStarving     = gameMap.isStarving();
 
         for (Unit unit : gameMap.getUnits()) {
             if (!unit.isAlive()) continue;
 
             if (unit.getType() == UnitType.BEAR) {
-                // Bears only get their AP reset — no other modifiers apply
                 unit.resetAP();
                 continue;
             }
 
             if (!unit.isEnemy()) {
                 unit.resetAP();
-                unit.resetItemBuffs();     // clear teleport/mobility/combat item buffs
+                unit.resetItemBuffs(); // clear teleport/mobility/combat item buffs
 
-                // Happiness ≤ −5: certain unit types lose 1 AP
+                // Happiness ≤ −5: civilians and military lose 1 AP
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();
                     if (t == UnitType.WORKER    || t == UnitType.SWORDSMAN
-                            || t == UnitType.ARCHER || t == UnitType.CAVALRY) {
+                            || t == UnitType.ARCHER || t == UnitType.CAVALRY
+                            || t == UnitType.CATAPULT) {
                         unit.consumeAP(1);
                     }
                 }
 
-                // Starvation: every civilian and military unit loses 1 AP
+                // Starvation: every non-NPC unit loses 1 AP
                 if (isStarving) {
                     unit.consumeAP(1);
                 }
             }
         }
 
-        // ── Step 8: remove any units that may have died during starvation ──────
+        // ── Step 9: remove units that died from starvation / events ───────────
         gameMap.removeDeadUnits();
     }
 }

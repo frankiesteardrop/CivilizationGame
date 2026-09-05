@@ -15,7 +15,22 @@ import java.util.stream.Collectors;
 
 public class ContextMenuFactory {
 
+    /**
+     * Returns a single "not your turn" action list when the player tries to
+     * open a context menu in multiplayer outside of their turn. (B31)
+     */
+    private static List<MenuAction> notYourTurnMenu() {
+        return List.of(new MenuAction(
+                "⏳ Wait for your turn!", false,
+                "Actions are locked until it is your turn.", null));
+    }
+
     public static List<MenuAction> buildTownHallMenu(MainController mc) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         List<MenuAction> actions = new ArrayList<>();
         GameMap map = mc.getGameMap();
         TownHall th = map.getTownHall();
@@ -81,6 +96,11 @@ public class ContextMenuFactory {
     }
 
     public static List<MenuAction> buildStableMenu(MainController mc) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         GameMap map = mc.getGameMap();
         TownHall th = map.getTownHall();
         boolean qEmpty   = th.isProductionQueueEmpty();
@@ -96,6 +116,11 @@ public class ContextMenuFactory {
     }
 
     public static List<MenuAction> buildBazaarMenu(MainController mc, Bazaar bazaar, Runnable onTradeAction) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         List<MenuAction> actions = new ArrayList<>();
         boolean traded = bazaar.hasTraded();
         int     level  = bazaar.getLevel();
@@ -117,6 +142,11 @@ public class ContextMenuFactory {
     }
 
     public static List<MenuAction> buildTradingPostMenu(MainController mc, TradingPost post, Hex hex, Runnable onTradeAction) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         List<MenuAction> actions = new ArrayList<>();
 
         if (!hex.isInsideBorder()) {
@@ -138,6 +168,11 @@ public class ContextMenuFactory {
     public static List<MenuAction> buildApothecaryMenu(MainController mc,
                                                        Apothecary apothecary,
                                                        Hex hex) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         List<MenuAction> actions = new ArrayList<>();
 
         if (!hex.isInsideBorder()) {
@@ -224,6 +259,11 @@ public class ContextMenuFactory {
 
 
     public static List<MenuAction> buildUnitMenu(MainController mc, Unit selectedUnit, Hex targetHex) {
+        // B31: block actions when not our turn in multiplayer
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
+            return notYourTurnMenu();
+        }
+
         List<MenuAction> actions = new ArrayList<>();
         boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ() && selectedUnit.getR() == targetHex.getR());
         if (!isSameHex && selectedUnit.getAttackRange() > 0) {

@@ -34,6 +34,9 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     private Consumer<TradeInboxBroadcast>      onTradeInboxUpdate;
     private Consumer<DiplomacyBroadcast>       onDiplomacyEvent;
 
+    /** Called (on EDT) when the client learns its own playerId from a server message. */
+    private java.util.function.Consumer<String> onMyPlayerIdReceived;
+
     public ClientMessageDispatcher(LobbyController lobbyController) {
         this.lobbyController = lobbyController;
     }
@@ -47,6 +50,7 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     public void setOnDiplomacyEvent(Consumer<DiplomacyBroadcast> cb) { onDiplomacyEvent = cb; }
     public void setMyPlayerId(String id)                             { myPlayerId = id; }
     public void setHudPanel(HUDPanel panel)                          { hudPanel = panel; }
+    public void setOnMyPlayerIdReceived(java.util.function.Consumer<String> cb) { this.onMyPlayerIdReceived = cb; }
 
     // ─── Dispatch ─────────────────────────────────────────────────────────────
 
@@ -91,6 +95,13 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                     // We display the active player's name; the server currently only sends
                     // the ID — use it as-is until a name-map is available on the client
                     hudPanel.setActiveTurnInfo(activeId, isMyTurn);
+
+                    // B30: tell MainController our playerId so isAttackable() works correctly
+                    // (first time only — playerId doesn't change during a game)
+                    if (myPlayerId != null && onMyPlayerIdReceived != null) {
+                        onMyPlayerIdReceived.accept(myPlayerId);
+                        onMyPlayerIdReceived = null; // fire once only
+                    }
 
                     // Re-enable End Turn button if it's now our turn
                     if (isMyTurn) {

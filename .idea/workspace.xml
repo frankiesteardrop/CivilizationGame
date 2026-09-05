@@ -6,9 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MainController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/model/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Inventory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/server/ServerTurnProcessor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/ServerTurnProcessor.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -111,5 +112,16 @@
     <MESSAGE value="refactor(architecture): enforce Facade pattern for audio system and verify clean Inventory&#10;&#10;Delegated audio controls to MainController facade methods to strictly decouple UI panels (MainMenuPanel) from low-level subsystem controllers. Confirmed complete removal of deprecated methods in Inventory." />
     <MESSAGE value="all the bugs are fixed rn." />
     <option name="LAST_COMMIT_MESSAGE" value="all the bugs are fixed rn." />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/model/GameMap.java</url>
+          <line>545</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

@@ -547,7 +547,6 @@ public class GameMap {
 
     public List<Hex>  getHexes()       { return hexes.getAll(); }
     public List<Unit> getUnits()       { return units.getAll(); }
-    public TownHall   getTownHall()    { return townHall; }
     public int        getCurrentTurn() { return currentTurn; }
     public boolean    isStarving()     { return isStarving; }
     public void       setStarving(boolean s) { this.isStarving = s; }
@@ -661,5 +660,74 @@ public class GameMap {
      */
     public Inventory getPlayerInventory(String playerId) {
         return getPlayerTownHall(playerId).getInventory();
+    }
+
+    // ─── B33: Per-player TownHall + Active TownHall override ─────────────────────
+
+    /**
+     * Mutable overlay used by ServerTurnProcessor to temporarily point
+     * map.getTownHall() to a specific player's TownHall during per-player
+     * economy processing. Null outside of processing context.
+     */
+    private TownHall activeTownHall = null;
+
+    /**
+     * Returns the current active TownHall.
+     * In single-player mode this is always the default TownHall at (0,0).
+     * During multiplayer per-player economy processing, this returns the
+     * currently active player's TownHall (set by ServerTurnProcessor).
+     */
+    public TownHall getTownHall() {
+        return (activeTownHall != null) ? activeTownHall : townHall;
+    }
+
+    /**
+     * Sets the active TownHall for per-player economy processing. (B33)
+     * Must be cleared with {@link #clearActiveTownHall()} after use.
+     */
+    public void setActiveTownHall(TownHall th) {
+        this.activeTownHall = th;
+    }
+
+    /** Clears the active TownHall override after per-player processing. */
+    public void clearActiveTownHall() {
+        this.activeTownHall = null;
+    }
+
+    /**
+     * Returns the TownHall owned by the given player, or the default
+     * single-player TownHall if none is found. (B20)
+     */
+    public TownHall getPlayerTownHall(String playerId) {
+        if (playerId == null) return townHall;
+        for (Hex h : hexes.getAll()) {
+            if (h.getBuilding() instanceof TownHall th
+                    && playerId.equals(th.getOwnerId())
+                    && !th.isDestroyed()) {
+                return th;
+            }
+        }
+        return townHall;
+    }
+
+    /** Convenience wrapper over getPlayerTownHall(). (B20) */
+    public Inventory getPlayerInventory(String playerId) {
+        return getPlayerTownHall(playerId).getInventory();
+    }
+
+    /**
+     * Returns all active (non-destroyed) player-owned TownHalls.
+     * Used by ServerTurnProcessor for per-player economy. (B33)
+     */
+    public java.util.List<TownHall> getAllPlayerTownHalls() {
+        java.util.List<TownHall> result = new java.util.ArrayList<>();
+        for (Hex h : hexes.getAll()) {
+            if (h.getBuilding() instanceof TownHall th
+                    && !th.isDestroyed()
+                    && th.getOwnerId() != null) {
+                result.add(th);
+            }
+        }
+        return result;
     }
 }

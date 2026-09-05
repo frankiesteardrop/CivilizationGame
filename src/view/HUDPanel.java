@@ -159,6 +159,11 @@ public class HUDPanel extends JPanel
      */
     public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
         this.isMyTurn = isMyTurn;
+
+        // B31: propagate turn state to MainController so GamePanel and
+        // ContextMenuFactory can guard actions when it's not our turn
+        mainController.setMyTurn(isMyTurn);
+
         SwingUtilities.invokeLater(() -> {
             if (activePlayerName == null) {
                 activeTurnLabel.setText("🎮 Single Player");
