@@ -8,6 +8,10 @@ public class GameMap {
     private final Repository<Hex> hexes;
     private final Map<String, Hex> hexMap;
     private final Repository<Unit> units;
+
+    // فیلد جدید برای مدیریت متمرکز امپراتوری‌ها
+    private final Map<String, Empire> empires;
+
     private final int radius;
     private Random random;
     private final TownHall townHall;
@@ -20,29 +24,16 @@ public class GameMap {
             {1, 0}, {1, -1}, {0, -1}, {-1, 0}, {-1, 1}, {0, 1}
     };
 
-    // ─── Constructors ─────────────────────────────────────────────────────────
-
-    /**
-     * Single-player constructor — uses a randomly generated seed each time,
-     * so the map layout differs between sessions.
-     */
     public GameMap(int radius) {
         this(radius, new Random().nextLong());
     }
 
-    /**
-     * Pre-designed map constructor (B10) — uses a fixed seed so the same
-     * terrain is generated every time. Used by {@link network.server.GameStateManager}
-     * when initializing a multiplayer session from a {@link model.maps.MapDefinition}.
-     *
-     * @param radius     map radius (number of hex rings from center)
-     * @param randomSeed fixed seed for reproducible procedural generation
-     */
     public GameMap(int radius, long randomSeed) {
         this.radius   = radius;
         this.hexes    = new Repository<>();
         this.hexMap   = new HashMap<>();
         this.units    = new Repository<>();
+        this.empires  = new HashMap<>();
         this.townHall = new TownHall(0, 0);
         this.random   = new Random(randomSeed);
 
@@ -54,8 +45,6 @@ public class GameMap {
         spawnInitialUnits();
         updateFogOfWar();
     }
-
-    // ─── Map Generation ───────────────────────────────────────────────────────
 
     private void generateMap() {
         for (int q = -radius; q <= radius; q++) {
@@ -211,7 +200,7 @@ public class GameMap {
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
                 hex.setInsideBorder(true);
-                hex.setExplored(true);
+                hex.setExplored(null, true);
             }
         }
     }
@@ -254,24 +243,9 @@ public class GameMap {
         addUnit(new Worker(0, 0));
     }
 
-    // ─── Multiplayer Setup Methods (B10) ─────────────────────────────────────
-
-    /**
-     * Places a player's starting Town Hall at the given hex coordinates and
-     * spawns their initial units (Explorer, 2 Builders, 2 Workers) — all with
-     * {@code ownerId} set to {@code playerId}.
-     *
-     * <p>Called by {@link network.server.GameStateManager#initializeGame()} for
-     * each player after {@link #clearCenterSetup()} has been called.
-     *
-     * @param playerId the unique client ID of the player
-     * @param spawnQ   axial Q coordinate of the spawn hex
-     * @param spawnR   axial R coordinate of the spawn hex
-     */
     public void placePlayerSpawn(String playerId, int spawnQ, int spawnR) {
         Hex spawnHex = getHexAt(spawnQ, spawnR);
         if (spawnHex == null) {
-            // Fall back to nearest accessible hex if exact spawn is blocked
             spawnHex = findNearbyEmptyHex(spawnQ, spawnR, 3);
             if (spawnHex == null) {
                 System.err.println("[GameMap] Could not find valid spawn hex for player: " + playerId);
@@ -279,27 +253,27 @@ public class GameMap {
             }
         }
 
-        // Ensure terrain is passable (not sea or mountain range)
         if (spawnHex.getTerrainType() == TerrainType.SEA
                 || spawnHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) {
             spawnHex.setTerrainType(TerrainType.PLAINS);
         }
 
-        // Create and place the player's Town Hall (its constructor adds starting resources)
+        // ساخت و تخصیص Empire به این بازیکن
+        Empire emp = empires.computeIfAbsent(playerId, Empire::new);
+
         TownHall playerTH = new TownHall(spawnHex.getQ(), spawnHex.getR());
         playerTH.setOwnerId(playerId);
+        playerTH.setEmpire(emp);
         spawnHex.setBuilding(playerTH);
 
-        // Establish initial territory (radius 1 around spawn)
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(spawnHex.getQ(), spawnHex.getR(),
                     hex.getQ(), hex.getR()) <= 1) {
                 hex.setInsideBorder(true);
-                hex.setExplored(true);
+                hex.setExplored(playerId, true);
             }
         }
 
-        // Spawn initial units with ownerId set
         Explorer explorer = new Explorer(spawnHex.getQ(), spawnHex.getR());
         explorer.setOwnerId(playerId);
         addUnit(explorer);
@@ -323,47 +297,25 @@ public class GameMap {
         updateFogOfWar();
     }
 
-    /**
-     * Removes the default single-player setup (Town Hall at (0,0) plus initial
-     * unowned units) so that multiplayer spawns can be placed cleanly.
-     *
-     * <p>Call this immediately after constructing the map and before any
-     * {@link #placePlayerSpawn(String, int, int)} calls.
-     */
     public void clearCenterSetup() {
-        // Remove the default Town Hall building from (0,0)
         Hex center = getHexAt(0, 0);
         if (center != null) {
             center.setBuilding(null);
         }
 
-        // Remove all units that have no ownerId (the single-player default units)
         units.removeIf(u -> u.getOwnerId() == null);
 
-        // Reset initial territory marks around center
         for (Hex hex : hexes.getAll()) {
             if (getHexDistance(0, 0, hex.getQ(), hex.getR()) <= 1) {
                 hex.setInsideBorder(false);
-                hex.setExplored(false);
+                hex.setExplored(null, false);
             }
         }
     }
 
-    // ─── B32 — Thread-safe unit removal API ───────────────────────────────────
-
-    /**
-     * Removes all units that match the given predicate by delegating to
-     * {@link Repository#removeIf(Predicate)} — which operates on the underlying
-     * mutable list, not the unmodifiable view returned by {@link #getUnits()}.
-     *
-     * <p>This avoids the {@link UnsupportedOperationException} that occurs when
-     * callers mistakenly call {@code getUnits().removeIf(...)}.
-     */
     public void removeUnitsWhere(Predicate<Unit> predicate) {
         units.removeIf(predicate);
     }
-
-    // ─── Existing Methods (unchanged) ─────────────────────────────────────────
 
     public void addUnit(Unit unit) {
         if (unit != null) {
@@ -383,7 +335,6 @@ public class GameMap {
         }
 
         if (!hasActiveTH) {
-            // Use Repository.removeIf (safe — operates on underlying mutable list)
             units.removeIf(u -> playerId.equals(u.getOwnerId()));
             for (Hex h : hexes.getAll()) {
                 if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
@@ -403,30 +354,36 @@ public class GameMap {
 
     public void incrementTurn() { currentTurn++; }
 
+    // ─── مدیریت یکپارچه و تفکیک‌شده‌ی Fog Of War (B26) ──────────────────────
     public void updateFogOfWar() {
-        for (Hex hex : hexes.getAll()) hex.setVisible(false);
+        for (Hex hex : hexes.getAll()) hex.clearVisibility();
 
-        for (Hex hex : hexes.getAll()) {
-            Building b = hex.getBuilding();
-            if (b != null && !b.isDestroyed()) {
-                for (Hex other : hexes.getAll()) {
-                    if (getHexDistance(hex.getQ(), hex.getR(),
-                            other.getQ(), other.getR()) <= b.getVisionRadius()) {
-                        other.setVisible(true);
-                        other.setExplored(true);
+        Set<String> activePlayers = new HashSet<>(empires.keySet());
+        activePlayers.add(null);
+
+        for (String pId : activePlayers) {
+            for (Hex hex : hexes.getAll()) {
+                Building b = hex.getBuilding();
+                if (b != null && !b.isDestroyed() && Objects.equals(b.getOwnerId(), pId)) {
+                    for (Hex other : hexes.getAll()) {
+                        if (getHexDistance(hex.getQ(), hex.getR(),
+                                other.getQ(), other.getR()) <= b.getVisionRadius()) {
+                            other.setVisible(pId, true);
+                            other.setExplored(pId, true);
+                        }
                     }
                 }
             }
-        }
 
-        for (Unit unit : units.getAll()) {
-            if (!unit.isAlive()) continue;
-            boolean isExplorer = (unit instanceof Explorer);
-            for (Hex hex : hexes.getAll()) {
-                if (getHexDistance(unit.getQ(), unit.getR(),
-                        hex.getQ(), hex.getR()) <= unit.getVisionRadius()) {
-                    hex.setVisible(true);
-                    if (isExplorer) hex.setExplored(true);
+            for (Unit unit : units.getAll()) {
+                if (!unit.isAlive() || !Objects.equals(unit.getOwnerId(), pId)) continue;
+                boolean isExplorer = (unit instanceof Explorer);
+                for (Hex hex : hexes.getAll()) {
+                    if (getHexDistance(unit.getQ(), unit.getR(),
+                            hex.getQ(), hex.getR()) <= unit.getVisionRadius()) {
+                        hex.setVisible(pId, true);
+                        if (isExplorer) hex.setExplored(pId, true);
+                    }
                 }
             }
         }
@@ -500,7 +457,7 @@ public class GameMap {
     }
 
     public int getMilitaryUnitCap() {
-        int baseCap = switch (townHall.getLevel()) {
+        int baseCap = switch (getTownHall().getLevel()) {
             case 1  -> GameConfig.UNIT_CAP_TH_LEVEL_1;
             case 2  -> GameConfig.UNIT_CAP_TH_LEVEL_2;
             default -> GameConfig.UNIT_CAP_TH_LEVEL_3;
@@ -520,7 +477,7 @@ public class GameMap {
                 && (u.getType() == UnitType.SWORDSMAN
                 ||  u.getType() == UnitType.ARCHER
                 ||  u.getType() == UnitType.CAVALRY
-                ||  u.getType() == UnitType.CATAPULT)).count(); // B15: add CATAPULT
+                ||  u.getType() == UnitType.CATAPULT)).count();
     }
 
     public int getHexDistance(int q1, int r1, int q2, int r2) {
@@ -552,6 +509,10 @@ public class GameMap {
     public void       setStarving(boolean s) { this.isStarving = s; }
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
     public Random     getRandom()      { return random; }
+
+    // متدهای دسترسی جدید برای امپراتوری‌ها
+    public Empire getEmpire(String playerId) { return empires.get(playerId); }
+    public Map<String, Empire> getEmpires() { return empires; }
 
     public Hex getHexOfBuilding(Building building) {
         for (Hex h : hexes.getAll()) {
@@ -624,80 +585,20 @@ public class GameMap {
         return false;
     }
 
-    // ─── B20: Per-Player Town Hall Lookup ────────────────────────────────────────
-
-    /**
-     * Returns the Town Hall owned by the given player, or the default single-player
-     * Town Hall if none is found (maintains backward compatibility).
-     *
-     * <p>In multiplayer mode every player has their own Town Hall placed via
-     * {@link #placePlayerSpawn(String, int, int)}. All server-side logic that
-     * needs per-player resources, production queues, and upgrade levels must use
-     * this method instead of {@link #getTownHall()}.
-     *
-     * @param playerId the unique client ID of the player
-     * @return the player's own TownHall, or the default TownHall if not found
-     */
-    public TownHall getPlayerTownHall(String playerId) {
-        if (playerId == null) return townHall;
-        for (Hex h : hexes.getAll()) {
-            if (h.getBuilding() instanceof TownHall th
-                    && playerId.equals(th.getOwnerId())
-                    && !th.isDestroyed()) {
-                return th;
-            }
-        }
-        return townHall; // fallback: single-player mode
-    }
-
-    /**
-     * Returns the Inventory belonging to the given player.
-     *
-     * <p>Convenience wrapper over {@link #getPlayerTownHall(String)}.
-     *
-     * @param playerId the unique client ID of the player
-     * @return the player's own Inventory, or the default Inventory if not found
-     */
-    public Inventory getPlayerInventory(String playerId) {
-        return getPlayerTownHall(playerId).getInventory();
-    }
-
-    // ─── B33: Per-player TownHall + Active TownHall override ─────────────────────
-
-    /**
-     * Mutable overlay used by ServerTurnProcessor to temporarily point
-     * map.getTownHall() to a specific player's TownHall during per-player
-     * economy processing. Null outside of processing context.
-     */
     private TownHall activeTownHall = null;
 
-    /**
-     * Returns the current active TownHall.
-     * In single-player mode this is always the default TownHall at (0,0).
-     * During multiplayer per-player economy processing, this returns the
-     * currently active player's TownHall (set by ServerTurnProcessor).
-     */
     public TownHall getTownHall() {
         return (activeTownHall != null) ? activeTownHall : townHall;
     }
 
-    /**
-     * Sets the active TownHall for per-player economy processing. (B33)
-     * Must be cleared with {@link #clearActiveTownHall()} after use.
-     */
     public void setActiveTownHall(TownHall th) {
         this.activeTownHall = th;
     }
 
-    /** Clears the active TownHall override after per-player processing. */
     public void clearActiveTownHall() {
         this.activeTownHall = null;
     }
 
-    /**
-     * Returns the TownHall owned by the given player, or the default
-     * single-player TownHall if none is found. (B20)
-     */
     public TownHall getPlayerTownHall(String playerId) {
         if (playerId == null) return townHall;
         for (Hex h : hexes.getAll()) {
@@ -710,15 +611,10 @@ public class GameMap {
         return townHall;
     }
 
-    /** Convenience wrapper over getPlayerTownHall(). (B20) */
     public Inventory getPlayerInventory(String playerId) {
         return getPlayerTownHall(playerId).getInventory();
     }
 
-    /**
-     * Returns all active (non-destroyed) player-owned TownHalls.
-     * Used by ServerTurnProcessor for per-player economy. (B33)
-     */
     public java.util.List<TownHall> getAllPlayerTownHalls() {
         java.util.List<TownHall> result = new java.util.ArrayList<>();
         for (Hex h : hexes.getAll()) {

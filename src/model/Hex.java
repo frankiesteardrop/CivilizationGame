@@ -1,7 +1,9 @@
 package model;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class Hex {
     private final int q;
@@ -11,8 +13,9 @@ public class Hex {
     private final Map<ResourceType, Integer> resources;
     private ResourceSubtype resourceSubtype;
 
-    private boolean isExplored;
-    private boolean isVisible;
+    private final Set<String> exploredBy;
+    private final Set<String> visibleTo;
+
     private boolean isInsideBorder;
     private Building building;
 
@@ -27,8 +30,10 @@ public class Hex {
         this.terrainType = terrainType;
         this.resources = new HashMap<>();
         this.resourceSubtype = ResourceSubtype.NONE;
-        this.isExplored = false;
-        this.isVisible = false;
+
+        this.exploredBy = new HashSet<>();
+        this.visibleTo = new HashSet<>();
+
         this.isInsideBorder = false;
         this.building = null;
 
@@ -42,10 +47,34 @@ public class Hex {
     public int getR() { return r; }
     public TerrainType getTerrainType() { return terrainType; }
     public void setTerrainType(TerrainType type) { this.terrainType = type; }
-    public boolean isExplored() { return isExplored; }
-    public void setExplored(boolean explored) { this.isExplored = explored; }
-    public boolean isVisible() { return isVisible; }
-    public void setVisible(boolean visible) { this.isVisible = visible; }
+
+    // ─── Player-specific visibility (Multiplayer - B26) ─────────────────────
+
+    public boolean isExplored(String playerId) { return exploredBy.contains(playerId); }
+    public boolean isVisible(String playerId) { return visibleTo.contains(playerId); }
+
+    public void setExplored(String playerId, boolean explored) {
+        if (explored) exploredBy.add(playerId);
+        else exploredBy.remove(playerId);
+    }
+
+    public void setVisible(String playerId, boolean visible) {
+        if (visible) visibleTo.add(playerId);
+        else visibleTo.remove(playerId);
+    }
+
+    public void clearVisibility() { visibleTo.clear(); }
+
+    // ─── Backward compatibility & Client-side UI wrappers ───────────────────
+
+    public boolean isExplored() { return !exploredBy.isEmpty(); }
+    public void setExplored(boolean explored) { setExplored(null, explored); }
+
+    public boolean isVisible() { return !visibleTo.isEmpty(); }
+    public void setVisible(boolean visible) { setVisible(null, visible); }
+
+    // ─── Rest of the Code ───────────────────────────────────────────────────
+
     public boolean isInsideBorder() { return isInsideBorder; }
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }
 
