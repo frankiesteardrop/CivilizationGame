@@ -2,6 +2,7 @@ package view;
 
 import controller.MainController;
 import model.*;
+import network.client.NetworkManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -176,9 +177,14 @@ public class GameInputHandler extends MouseAdapter {
             if ((hasEnemy && selectedUnit.getAttackRange() > 0) || hexIsCapturable) {
                 panel.showContextMenu(e.getPoint(), mainController.getUnitMenuActions(selectedUnit, clickedHex));
             } else if (mainController.canMove(selectedUnit, clickedHex)) {
-                Point startPt  = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
-                Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
-                panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
+                NetworkManager nm = mainController.getNetworkManager();
+                if (nm != null) {
+                    mainController.getUnitController().executeMoveNetwork(selectedUnit, clickedHex, mainController.getGameMap(), nm);
+                } else {
+                    Point startPt  = panel.getHexPixelCoords(selectedUnit.getQ(), selectedUnit.getR());
+                    Point targetPt = panel.getHexPixelCoords(clickedHex.getQ(), clickedHex.getR());
+                    panel.startAnimation(selectedUnit, clickedHex, startPt.x, startPt.y, targetPt.x, targetPt.y);
+                }
             }
         }
     }

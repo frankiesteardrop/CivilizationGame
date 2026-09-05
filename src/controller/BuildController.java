@@ -1,6 +1,9 @@
 package controller;
 
+import com.google.gson.Gson;
 import model.*;
+import network.client.NetworkManager;
+import network.messages.game.BuildRequest;
 
 public class BuildController {
 
@@ -14,31 +17,26 @@ public class BuildController {
         if (hex == null || builder == null || !builder.isAlive()) return false;
         if (builder.getQ() != hex.getQ() || builder.getR() != hex.getR()) return false;
 
-        // مجوز ساخت Town Hall جدید در خارج از مرز فعلی (گام ۵)
         if (type != BuildingType.TOWN_HALL && !hex.isInsideBorder()) return false;
-
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed()) return false;
         if (hex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
         if (builder.getCharges() <= 0 || builder.getCurrentAP() < type.getApCost()) return false;
 
-        // پیدا کردن Inventory اختصاصی بازیکن در محیط چندنفره
         Inventory inv = getPlayerInventory(builder.getOwnerId());
         if (inv == null) return false;
 
-        // هزینه و شرایط ساخت Town Hall جدید (استراتژی اواخر بازی)
         if (type == BuildingType.TOWN_HALL) {
             return inv.hasEnough(ResourceType.WOOD, 200)
                     && inv.hasEnough(ResourceType.STONE, 200)
                     && inv.hasEnough(ResourceType.IRON, 100);
         }
 
-        // شرایط ساخت عطاری (Apothecary)
         if (type.name().equals("APOTHECARY")) {
             if (hex.getTerrainType() != TerrainType.PLAINS) return false;
             if (getPlayerTownHallLevel(builder.getOwnerId()) < 2) return false;
         }
 
-        TownHall th = gameMap.getTownHall(); // Fallback برای چک کردن تکنولوژی‌های پایه
+        TownHall th = gameMap.getTownHall();
         if (!type.hasRequiredTech(th)) return false;
         if (!type.isValidTerrain(hex, gameMap)) return false;
 
@@ -51,7 +49,11 @@ public class BuildController {
                 && inv.hasEnough(ResourceType.IRON,  type.getIronCost());
     }
 
-    public void buildStructure(Builder builder, BuildingType type, Hex hex) {
+    public void buildStructure(Builder builder, BuildingType type, Hex hex, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new BuildRequest(builder.getQ(), builder.getR(), "BUILD", type.name(), hex.getQ(), hex.getR(), 0)));
+            return;
+        }
         if (!canBuild(type, hex, builder)) return;
 
         Inventory inv = getPlayerInventory(builder.getOwnerId());
@@ -73,10 +75,9 @@ public class BuildController {
         builder.useCharge();
 
         Building newBuilding = BuildingFactory.createBuilding(type);
-        newBuilding.setOwnerId(builder.getOwnerId()); // تنظیم دقیق مالکیت
+        newBuilding.setOwnerId(builder.getOwnerId());
         hex.setBuilding(newBuilding);
 
-        // تولید مرز جدید به محض ساخت Town Hall جدید
         if (type == BuildingType.TOWN_HALL) {
             gameMap.expandBorderAt(hex.getQ(), hex.getR());
         }
@@ -87,7 +88,6 @@ public class BuildController {
         GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
-    // متدهای کمکی برای پیدا کردن وضعیت اختصاصی هر بازیکن در PvP
     private Inventory getPlayerInventory(String ownerId) {
         if (ownerId == null) return gameMap.getTownHall().getInventory();
         for (Hex h : gameMap.getHexes()) {
@@ -118,7 +118,11 @@ public class BuildController {
         return builder.getCurrentAP() >= 1 && builder.getCharges() > 0;
     }
 
-    public void buildRoad(Builder builder, Hex hex) {
+    public void buildRoad(Builder builder, Hex hex, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new BuildRequest(builder.getQ(), builder.getR(), "ROAD", "ROAD", hex.getQ(), hex.getR(), 0)));
+            return;
+        }
         if (!canBuildRoad(hex, builder)) return;
         builder.consumeAP(1);
         builder.useCharge();
@@ -154,7 +158,11 @@ public class BuildController {
         return builder.getCurrentAP() >= 2 && builder.getCharges() > 0;
     }
 
-    public void buildWall(Builder builder, Hex hex, int dir) {
+    public void buildWall(Builder builder, Hex hex, int dir, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new BuildRequest(builder.getQ(), builder.getR(), "WALL", "WALL", hex.getQ(), hex.getR(), dir)));
+            return;
+        }
         if (!canBuildWall(hex, dir, builder)) return;
 
         Inventory inv = getPlayerInventory(builder.getOwnerId());
@@ -196,7 +204,11 @@ public class BuildController {
         return false;
     }
 
-    public void destroyStructure(Builder builder, Hex hex, String type, int dir) {
+    public void destroyStructure(Builder builder, Hex hex, String type, int dir, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new BuildRequest(builder.getQ(), builder.getR(), "DESTROY", type, hex.getQ(), hex.getR(), dir)));
+            return;
+        }
         if (!canDestroy(hex, type, dir, builder)) return;
         builder.consumeAP(1);
 

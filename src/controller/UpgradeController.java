@@ -1,6 +1,10 @@
 package controller;
 
+import com.google.gson.Gson;
 import model.*;
+import network.client.NetworkManager;
+import network.messages.game.TrainRequest;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +52,6 @@ public class UpgradeController {
             }
             GameEventDispatcher.fireNotification("🏰 Defensive walls built around Town Hall!");
         });
-        // ─────────────────────────────────────────────────────────────────────────────
 
         techStrategies.put("STONE_MINE", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) {
@@ -77,10 +80,7 @@ public class UpgradeController {
 
         techStrategies.put("PROF_TOOLS", new TechStrategy() {
             public boolean canUnlock(TownHall th, Inventory inv) {
-                // [B4] Fix: Added th.isIronMineUnlocked() to enforce tech tree progression
-                return th.getLevel() >= 2
-                        && th.isIronMineUnlocked()
-                        && !th.isSteelToolsUnlocked()
+                return th.getLevel() >= 2 && th.isIronMineUnlocked() && !th.isSteelToolsUnlocked()
                         && inv.hasEnough(ResourceType.IRON, GameConfig.TECH_STEEL_TOOLS_IRON);
             }
             public void unlock(TownHall th, Inventory inv) {
@@ -112,7 +112,6 @@ public class UpgradeController {
             }
         });
 
-        // ─── یونیت‌های غیرنظامی ───
         unitStrategies.put("WORKER", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, GameConfig.WORKER_FOOD_COST); }
@@ -145,7 +144,6 @@ public class UpgradeController {
             public int getTurnCost() { return GameConfig.BORDER_EXPANDER_TURN_COST; }
         });
 
-        // ─── یونیت‌های نظامی ───
         unitStrategies.put("SWORDSMAN", new UnitStrategy() {
             public boolean canTrain(Inventory inv) { return inv.hasEnough(ResourceType.FOOD, 20) && inv.hasEnough(ResourceType.WOOD, 10); }
             public void consumeResources(Inventory inv) { inv.consumeResource(ResourceType.FOOD, 20); inv.consumeResource(ResourceType.WOOD, 10); }
@@ -173,7 +171,6 @@ public class UpgradeController {
             public int getTurnCost() { return 3; }
         });
 
-        // B15: Catapult — requires TH L2, no special building, expensive resources
         unitStrategies.put("CATAPULT", new UnitStrategy() {
             public boolean canTrain(Inventory inv) {
                 return gameMap.getTownHall().getLevel() >= 2
@@ -205,7 +202,11 @@ public class UpgradeController {
         return false;
     }
 
-    public void handleWarehouseUpgrade() {
+    public void handleWarehouseUpgrade(NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new TrainRequest("UPGRADE_TH")));
+            return;
+        }
         if (!canAffordWarehouseUpgrade()) return;
         TownHall th = gameMap.getTownHall();
         Inventory inv = th.getInventory();
@@ -234,7 +235,11 @@ public class UpgradeController {
         return strategy != null && strategy.canUnlock(th, th.getInventory());
     }
 
-    public void unlockTech(String techType) {
+    public void unlockTech(String techType, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new TrainRequest("TECH:" + techType)));
+            return;
+        }
         if (!canUnlockTech(techType)) return;
         TechStrategy strategy = techStrategies.get(techType);
         if (strategy != null) strategy.unlock(gameMap.getTownHall(), gameMap.getTownHall().getInventory());
@@ -248,7 +253,11 @@ public class UpgradeController {
         return strategy != null && strategy.canTrain(th.getInventory());
     }
 
-    public void trainUnit(String unitType) {
+    public void trainUnit(String unitType, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new TrainRequest(unitType)));
+            return;
+        }
         if (!canTrainUnit(unitType)) return;
         TownHall th = gameMap.getTownHall();
         UnitStrategy strategy = unitStrategies.get(unitType);

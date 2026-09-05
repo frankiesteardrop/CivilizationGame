@@ -1,6 +1,9 @@
 package controller;
 
+import com.google.gson.Gson;
 import model.*;
+import network.client.NetworkManager;
+import network.messages.game.MoveRequest;
 
 public class UnitController {
 
@@ -14,7 +17,6 @@ public class UnitController {
     public boolean canMove(Unit unit, Hex targetHex, GameMap map) {
         if (unit == null || !unit.isAlive() || targetHex == null) return false;
         if (unit instanceof Worker && ((Worker) unit).isStationed()) return false;
-
         if (targetHex.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return false;
 
         int dq = targetHex.getQ() - unit.getQ();
@@ -37,7 +39,6 @@ public class UnitController {
             if (targetHex.getTerrainType() == TerrainType.SEA && fromHex != null && fromHex.getTerrainType() != TerrainType.SEA) {
                 return unit.getCurrentAP() >= 1;
             }
-
             if (fromHex != null) {
                 cost = calculateMoveCost(fromHex, targetHex, dq, dr, map.getCurrentSeason());
             } else {
@@ -46,8 +47,16 @@ public class UnitController {
         } else {
             cost = (targetHex.getTerrainType() == TerrainType.SEA) ? 1 : targetHex.getTerrainType().getMovementCost();
         }
-
         return unit.getCurrentAP() >= cost;
+    }
+
+    // متد جدید برای کلاینت بی‌حالت
+    public void executeMoveNetwork(Unit unit, Hex targetHex, GameMap map, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new MoveRequest(unit.getQ(), unit.getR(), targetHex.getQ(), targetHex.getR())));
+            return;
+        }
+        executeMove(unit, targetHex, map);
     }
 
     public void executeMove(Unit unit, Hex targetHex, GameMap map) {
@@ -73,7 +82,6 @@ public class UnitController {
 
     private boolean hasCapacityForUnit(Unit unit, Hex targetHex, GameMap map) {
         UnitType type = unit.getType();
-        // Only military units have hex capacity limits
         if (type != UnitType.SWORDSMAN && type != UnitType.ARCHER
                 && type != UnitType.CAVALRY && type != UnitType.CATAPULT) {
             return true;
@@ -85,38 +93,29 @@ public class UnitController {
         long swords    = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.SWORDSMAN).count();
         long archers   = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.ARCHER).count();
         long cavs      = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CAVALRY).count();
-        long catapults = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CATAPULT).count(); // B15
+        long catapults = map.getUnits().stream().filter(u -> u.isAlive() && u.getQ() == tq && u.getR() == tr && u.getType() == UnitType.CATAPULT).count();
 
         return switch (type) {
             case SWORDSMAN -> swords    < 2;
             case ARCHER    -> archers   < 2;
             case CAVALRY   -> cavs      < 1;
-            case CATAPULT  -> catapults < 1; // B15: max 1 catapult per hex
+            case CATAPULT  -> catapults < 1;
             default        -> true;
         };
     }
 
     private int calculateMoveCost(Hex fromHex, Hex toHex, int dq, int dr, Season season) {
         int cost = toHex.getTerrainType().getMovementCost();
-
         if (toHex.getTerrainType() == TerrainType.SEA) cost = 1;
-
         boolean roadConnected = fromHex.hasRoad() && toHex.hasRoad();
         if (roadConnected) cost = 1;
 
         int dir = getDirection(dq, dr);
         boolean crossesRiver = false;
-
         if (dir >= 0) {
-            if (fromHex.hasRiver(dir) || toHex.hasRiver((dir + 3) % 6)) {
-                crossesRiver = true;
-            }
+            if (fromHex.hasRiver(dir) || toHex.hasRiver((dir + 3) % 6)) crossesRiver = true;
         }
-
-        if (crossesRiver && !roadConnected) {
-            cost += 1;
-        }
-
+        if (crossesRiver && !roadConnected) cost += 1;
         return applySeasonalPenalty(cost, toHex, season);
     }
 
@@ -173,12 +172,20 @@ public class UnitController {
         return building.getStationedWorkers() < building.getMaxWorkers();
     }
 
-    public boolean handleStation(Worker worker, Hex hex, GameMap map) {
+    public boolean handleStation(Worker worker, Hex hex, GameMap map, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new network.messages.game.BuildRequest(worker.getQ(), worker.getR(), "STATION", "NONE", hex.getQ(), hex.getR(), 0)));
+            return true;
+        }
         if (!canStation(worker, hex, map)) return false;
         return worker.stationIn(hex.getBuilding());
     }
 
-    public void handleEject(Worker worker) {
+    public void handleEject(Worker worker, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new network.messages.game.BuildRequest(worker.getQ(), worker.getR(), "EJECT", "NONE", worker.getQ(), worker.getR(), 0)));
+            return;
+        }
         if (worker != null && worker.isStationed()) worker.eject();
     }
 

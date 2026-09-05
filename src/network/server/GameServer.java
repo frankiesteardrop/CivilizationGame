@@ -12,10 +12,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Core game server — accepts TCP connections, routes messages, and manages
- * the UDP heartbeat server for connection health monitoring.
- */
 public class GameServer {
 
     private static final int PORT = 8080;
@@ -24,18 +20,13 @@ public class GameServer {
     private final LobbyManager   lobbyManager   = new LobbyManager(this);
     private final Gson            gson           = new Gson();
 
-    /** Started in {@link #start()} alongside the TCP accept loop. */
     private final UdpHeartbeatServer udpHeartbeat = new UdpHeartbeatServer();
 
     private volatile GameStateManager gameStateManager = null;
     private boolean isRunning = false;
 
-    // ─── Server Lifecycle ─────────────────────────────────────────────────────
-
     public void start() {
         isRunning = true;
-
-        // Start UDP heartbeat server on a daemon thread (B6)
         udpHeartbeat.start();
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
@@ -50,19 +41,11 @@ public class GameServer {
         }
     }
 
-    // ─── Message Routing ──────────────────────────────────────────────────────
-
-    /**
-     * Parses the "type" field and dispatches to the appropriate handler.
-     * Chat is handled at all stages; game messages are only accepted after
-     * the game has started.
-     */
     public void routeMessage(String clientId, String json) {
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             if (!obj.has("type")) {
-                sendToClient(clientId, gson.toJson(
-                        new ErrorResponse("Invalid message: missing 'type' field.")));
+                sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid message: missing 'type' field.")));
                 return;
             }
 
@@ -82,8 +65,7 @@ public class GameServer {
             }
 
         } catch (Exception e) {
-            System.err.println("[Server] Error routing message from " + clientId
-                    + ": " + e.getMessage());
+            System.err.println("[Server] Error routing message from " + clientId + ": " + e.getMessage());
             sendToClient(clientId, gson.toJson(new ErrorResponse("Internal server error.")));
         }
     }
@@ -102,13 +84,11 @@ public class GameServer {
             case "START_GAME"   -> {
                 if (lobbyManager.canStartGame(clientId)) {
                     String mapId = lobbyManager.getSelectedMapId();
-                    this.gameStateManager = new GameStateManager(
-                            this, lobbyManager.getLobbyPlayers(), mapId);
+                    this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers(), mapId);
                     lobbyManager.notifyGameStarted();
                     gameStateManager.initializeGame();
                 } else {
-                    sendToClient(clientId, gson.toJson(new ErrorResponse(
-                            "Cannot start game: not all players are ready, or you are not the host.")));
+                    sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot start game: not all players are ready, or you are not the host.")));
                 }
             }
             default -> System.out.println("[Server] Unknown lobby message: " + type);
@@ -118,47 +98,38 @@ public class GameServer {
     private void handleGameMessage(String clientId, String type, String json) {
         switch (type) {
             case "END_TURN"         -> gameStateManager.handleEndTurn(clientId);
-            case "ATTACK_REQUEST"   -> gameStateManager.handleAttackRequest(clientId,
-                    gson.fromJson(json, AttackRequest.class));
-            case "ITEM_USE"         -> gameStateManager.handleItemUseRequest(clientId,
-                    gson.fromJson(json, ItemUseRequest.class));
-            case "DIPLOMACY_ACTION" -> gameStateManager.handleDiplomacyRequest(clientId,
-                    gson.fromJson(json, DiplomacyRequest.class));
-            case "TRADE_OFFER"      -> gameStateManager.handleTradeOffer(clientId,
-                    gson.fromJson(json, TradeOfferRequest.class));
-            case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId,
-                    gson.fromJson(json, TradeResponseRequest.class));
-            case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId,
-                    gson.fromJson(json, CraftItemRequest.class));
-            case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId,
-                    gson.fromJson(json, AllianceResponseRequest.class));
+            case "ATTACK_REQUEST"   -> gameStateManager.handleAttackRequest(clientId, gson.fromJson(json, AttackRequest.class));
+            case "ITEM_USE"         -> gameStateManager.handleItemUseRequest(clientId, gson.fromJson(json, ItemUseRequest.class));
+            case "DIPLOMACY_ACTION" -> gameStateManager.handleDiplomacyRequest(clientId, gson.fromJson(json, DiplomacyRequest.class));
+            case "TRADE_OFFER"      -> gameStateManager.handleTradeOffer(clientId, gson.fromJson(json, TradeOfferRequest.class));
+            case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId, gson.fromJson(json, TradeResponseRequest.class));
+            case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId, gson.fromJson(json, CraftItemRequest.class));
+            case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId, gson.fromJson(json, AllianceResponseRequest.class));
+
+            // هندلرهای جدید گام دوم
+            case "MOVE_REQUEST"     -> gameStateManager.handleMoveRequest(clientId, gson.fromJson(json, MoveRequest.class));
+            case "BUILD_REQUEST"    -> gameStateManager.handleBuildRequest(clientId, gson.fromJson(json, BuildRequest.class));
+            case "TRAIN_REQUEST"    -> gameStateManager.handleTrainRequest(clientId, gson.fromJson(json, TrainRequest.class));
+            case "CANCEL_PRODUCTION"-> gameStateManager.handleCancelProduction(clientId);
             default -> System.out.println("[Server] Unknown game message: " + type);
         }
     }
 
-    // ─── Client Management ────────────────────────────────────────────────────
-
     public void addClient(String clientId, ClientHandler handler) {
         clients.put(clientId, handler);
-        System.out.println("✅ [Server] Client connected: " + clientId
-                + " | Total: " + clients.size());
+        System.out.println("✅ [Server] Client connected: " + clientId + " | Total: " + clients.size());
     }
 
     public void removeClient(String clientId) {
         clients.remove(clientId);
         lobbyManager.removePlayer(clientId);
 
-        // B18: notify game state manager so it can auto-skip the disconnected player's turn
         if (gameStateManager != null) {
             gameStateManager.handlePlayerDisconnected(clientId);
         }
-
-        udpHeartbeat.removeClient(clientId); // (B6) clean up UDP tracking
-        System.out.println("⚠️ [Server] Client disconnected: " + clientId
-                + " | Total: " + clients.size());
+        udpHeartbeat.removeClient(clientId);
+        System.out.println("⚠️ [Server] Client disconnected: " + clientId + " | Total: " + clients.size());
     }
-
-    // ─── Messaging ────────────────────────────────────────────────────────────
 
     public void broadcast(String jsonMessage) {
         clients.values().forEach(handler -> handler.sendMessage(jsonMessage));
@@ -174,8 +145,6 @@ public class GameServer {
         ClientHandler handler = clients.get(clientId);
         if (handler != null) handler.sendMessage(jsonMessage);
     }
-
-    // ─── Accessors ────────────────────────────────────────────────────────────
 
     public GameStateManager      getGameStateManager() { return gameStateManager; }
     public LobbyManager          getLobbyManager()     { return lobbyManager; }

@@ -8,6 +8,7 @@ import model.*;
 import network.client.NetworkManager;
 import network.messages.game.AttackRequest;
 import network.messages.game.CraftItemRequest;
+import network.messages.game.CancelProductionRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,10 +16,6 @@ import java.util.stream.Collectors;
 
 public class ContextMenuFactory {
 
-    /**
-     * Returns a single "not your turn" action list when the player tries to
-     * open a context menu in multiplayer outside of their turn. (B31)
-     */
     private static List<MenuAction> notYourTurnMenu() {
         return List.of(new MenuAction(
                 "⏳ Wait for your turn!", false,
@@ -26,14 +23,12 @@ public class ContextMenuFactory {
     }
 
     public static List<MenuAction> buildTownHallMenu(MainController mc) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         List<MenuAction> actions = new ArrayList<>();
         GameMap map = mc.getGameMap();
         TownHall th = map.getTownHall();
+        NetworkManager nm = mc.getNetworkManager();
 
         boolean qEmpty    = th.isProductionQueueEmpty();
         String  prefix    = qEmpty ? "" : "⏳ [BUSY] ";
@@ -41,65 +36,64 @@ public class ContextMenuFactory {
         String  milPrefix = isMilCap ? "⚔️ [CAP] " : prefix;
 
         if (!qEmpty) {
-            actions.add(new MenuAction("🚫 Cancel Current Production (No Refund)", true, th::cancelCurrentProduction)
-                    .setConfirmation("Are you sure you want to cancel the current production?\n\n⚠️ ALL INVESTED RESOURCES WILL BE LOST!"));
+            actions.add(new MenuAction("🚫 Cancel Current Production (No Refund)", true, () -> {
+                if (nm != null) nm.sendRequest(new Gson().toJson(new CancelProductionRequest()));
+                else th.cancelCurrentProduction();
+            }).setConfirmation("Are you sure you want to cancel the current production?\n\n⚠️ ALL INVESTED RESOURCES WILL BE LOST!"));
         }
 
         String whLabel = th.getLevel() >= 3 ? "✅ Capital MAXED"
                 : String.format(prefix + "📦 Upgrade TH → Level %d", th.getLevel() + 1);
         actions.add(new MenuAction(whLabel, mc.getUpgradeController().canAffordWarehouseUpgrade(),
-                () -> mc.getUpgradeController().handleWarehouseUpgrade()));
+                () -> mc.getUpgradeController().handleWarehouseUpgrade(nm)));
 
         actions.add(new MenuAction(th.isStoneMineUnlocked() ? "✅ ⛏️ Tech: Stone Mine"
                 : String.format(prefix + "⛏️ Stone Mine (%dW)", GameConfig.TECH_STONE_MINE_WOOD),
                 mc.getUpgradeController().canUnlockTech("STONE_MINE"),
-                () -> mc.getUpgradeController().unlockTech("STONE_MINE")));
+                () -> mc.getUpgradeController().unlockTech("STONE_MINE", nm)));
 
         actions.add(new MenuAction(th.isIronMineUnlocked() ? "✅ 🔩 Tech: Iron Mine"
                 : String.format(prefix + "🔩 Iron Mine (%dW, %dS)", GameConfig.TECH_IRON_MINE_WOOD, GameConfig.TECH_IRON_MINE_STONE),
                 mc.getUpgradeController().canUnlockTech("IRON_MINE"),
-                () -> mc.getUpgradeController().unlockTech("IRON_MINE")));
+                () -> mc.getUpgradeController().unlockTech("IRON_MINE", nm)));
 
         actions.add(new MenuAction(th.isProfessionalToolsUnlocked() ? "✅ 🔧 Tech: Steel Tools"
                 : String.format(prefix + "🔧 Steel Tools (%dI) [Requires Iron Mine tech]", GameConfig.TECH_STEEL_TOOLS_IRON),
                 mc.getUpgradeController().canUnlockTech("PROF_TOOLS"),
                 "Requires TH Lv2 + Iron Mine tech + " + GameConfig.TECH_STEEL_TOOLS_IRON + " Iron",
-                () -> mc.getUpgradeController().unlockTech("PROF_TOOLS")));
+                () -> mc.getUpgradeController().unlockTech("PROF_TOOLS", nm)));
 
         actions.add(new MenuAction(th.isSeafaringUnlocked() ? "✅ ⛵ Tech: Seafaring"
                 : String.format(prefix + "⛵ Seafaring (%dW)", GameConfig.TECH_SEAFARING_WOOD),
                 mc.getUpgradeController().canUnlockTech("SEAFARING"),
-                () -> mc.getUpgradeController().unlockTech("SEAFARING")));
+                () -> mc.getUpgradeController().unlockTech("SEAFARING", nm)));
 
         actions.add(new MenuAction(th.isDefensiveArchUnlocked() ? "✅ 🏰 Tech: Defensive Arch"
                 : String.format(prefix + "🏰 Defensive Arch (%dS)", GameConfig.TECH_DEFENSIVE_ARCH_STONE),
                 mc.getUpgradeController().canUnlockTech("DEFENSIVE_ARCH"),
-                () -> mc.getUpgradeController().unlockTech("DEFENSIVE_ARCH")));
+                () -> mc.getUpgradeController().unlockTech("DEFENSIVE_ARCH", nm)));
 
         actions.add(new MenuAction(String.format(prefix + "👷 Worker (%dF)", GameConfig.WORKER_FOOD_COST),
-                mc.getUpgradeController().canTrainUnit("WORKER"), () -> mc.getUpgradeController().trainUnit("WORKER")));
+                mc.getUpgradeController().canTrainUnit("WORKER"), () -> mc.getUpgradeController().trainUnit("WORKER", nm)));
         actions.add(new MenuAction(String.format(prefix + "🔨 Builder (%dF, %dW)", GameConfig.BUILDER_FOOD_COST, GameConfig.BUILDER_WOOD_COST),
-                mc.getUpgradeController().canTrainUnit("BUILDER"), () -> mc.getUpgradeController().trainUnit("BUILDER")));
+                mc.getUpgradeController().canTrainUnit("BUILDER"), () -> mc.getUpgradeController().trainUnit("BUILDER", nm)));
         actions.add(new MenuAction(String.format(prefix + "🧭 Explorer (%dF, %dW)", GameConfig.EXPLORER_FOOD_COST, GameConfig.EXPLORER_WOOD_COST),
-                mc.getUpgradeController().canTrainUnit("EXPLORER"), () -> mc.getUpgradeController().trainUnit("EXPLORER")));
+                mc.getUpgradeController().canTrainUnit("EXPLORER"), () -> mc.getUpgradeController().trainUnit("EXPLORER", nm)));
 
         actions.add(new MenuAction(milPrefix + "⚔️ Swordsman (20F, 10W)",
-                mc.getUpgradeController().canTrainUnit("SWORDSMAN"), () -> mc.getUpgradeController().trainUnit("SWORDSMAN")));
+                mc.getUpgradeController().canTrainUnit("SWORDSMAN"), () -> mc.getUpgradeController().trainUnit("SWORDSMAN", nm)));
         actions.add(new MenuAction(milPrefix + "🏹 Archer (20F, 20W) [TH L2]",
-                mc.getUpgradeController().canTrainUnit("ARCHER"), () -> mc.getUpgradeController().trainUnit("ARCHER")));
+                mc.getUpgradeController().canTrainUnit("ARCHER"), () -> mc.getUpgradeController().trainUnit("ARCHER", nm)));
         actions.add(new MenuAction(milPrefix + "💣 Catapult (30W, 20S, 10I) [TH L2]",
                 mc.getUpgradeController().canTrainUnit("CATAPULT"),
                 "Requires TH Level 2 + 30 Wood + 20 Stone + 10 Iron",
-                () -> mc.getUpgradeController().trainUnit("CATAPULT")));
+                () -> mc.getUpgradeController().trainUnit("CATAPULT", nm)));
 
         return actions;
     }
 
     public static List<MenuAction> buildStableMenu(MainController mc) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         GameMap map = mc.getGameMap();
         TownHall th = map.getTownHall();
@@ -111,15 +105,12 @@ public class ContextMenuFactory {
                 prefix + "🏇 Train Cavalry (30F, 20I) [TH L2 + Stable]",
                 mc.getUpgradeController().canTrainUnit("CAVALRY"),
                 "Requires TH Level 2 + active Stable + unit cap not full + resources",
-                () -> mc.getUpgradeController().trainUnit("CAVALRY")
+                () -> mc.getUpgradeController().trainUnit("CAVALRY", mc.getNetworkManager())
         ));
     }
 
     public static List<MenuAction> buildBazaarMenu(MainController mc, Bazaar bazaar, Runnable onTradeAction) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         List<MenuAction> actions = new ArrayList<>();
         boolean traded = bazaar.hasTraded();
@@ -142,13 +133,9 @@ public class ContextMenuFactory {
     }
 
     public static List<MenuAction> buildTradingPostMenu(MainController mc, TradingPost post, Hex hex, Runnable onTradeAction) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         List<MenuAction> actions = new ArrayList<>();
-
         if (!hex.isInsideBorder()) {
             actions.add(new MenuAction("⛔ Hex must be in your territory to trade", false, null));
             return actions;
@@ -156,30 +143,17 @@ public class ContextMenuFactory {
 
         boolean traded = post.hasTraded();
         actions.add(new MenuAction("🏪 Trade (80% Rate - Custom Amount)", !traded, "Already traded this turn", onTradeAction));
-
         return actions;
     }
 
-    /**
-     * Builds the context menu for an Apothecary building.
-     * Shows crafting options with resource costs and current queue status.
-     * In multiplayer mode, crafting is routed to the server.
-     */
-    public static List<MenuAction> buildApothecaryMenu(MainController mc,
-                                                       Apothecary apothecary,
-                                                       Hex hex) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+    public static List<MenuAction> buildApothecaryMenu(MainController mc, Apothecary apothecary, Hex hex) {
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         List<MenuAction> actions = new ArrayList<>();
-
         if (!hex.isInsideBorder()) {
             actions.add(new MenuAction("⛔ Must be inside your territory to use", false, null));
             return actions;
         }
-
         if (apothecary.isDestroyed()) {
             actions.add(new MenuAction("⚠️ This Apothecary is destroyed", false, null));
             return actions;
@@ -187,13 +161,10 @@ public class ContextMenuFactory {
 
         String currentlyCrafting = apothecary.getCurrentlyCrafting();
         if (currentlyCrafting != null) {
-            actions.add(new MenuAction(
-                    "⏳ Currently crafting: " + currentlyCrafting + " (1 turn remaining)",
-                    false, null));
+            actions.add(new MenuAction("⏳ Currently crafting: " + currentlyCrafting + " (1 turn remaining)", false, null));
             return actions;
         }
 
-        // Show all available items with costs
         Inventory inv = mc.getGameMap().getTownHall().getInventory();
         Gson gson = new Gson();
 
@@ -210,62 +181,46 @@ public class ContextMenuFactory {
             if (itemType.getIronCost()  > 0) costLabel.append(itemType.getIronCost()).append("I ");
             if (itemType.getWoodCost()  > 0) costLabel.append(itemType.getWoodCost()).append("W ");
 
-            String label = String.format("⚗️ Craft %s (%s)",
-                    itemType.getDisplayName(), costLabel.toString().trim());
-
-            String disabledReason = "Insufficient resources: need "
-                    + itemType.getFoodCost() + "F "
-                    + itemType.getStoneCost() + "S "
-                    + itemType.getIronCost() + "I "
-                    + itemType.getWoodCost() + "W";
-
+            String label = String.format("⚗️ Craft %s (%s)", itemType.getDisplayName(), costLabel.toString().trim());
+            String disabledReason = "Insufficient resources: need " + itemType.getFoodCost() + "F " + itemType.getStoneCost() + "S " + itemType.getIronCost() + "I " + itemType.getWoodCost() + "W";
             final Apothecary.ItemType finalItemType = itemType;
+
             actions.add(new MenuAction(label, canCraft, disabledReason, () -> {
                 NetworkManager nm = mc.getNetworkManager();
                 if (nm != null) {
-                    // Multiplayer: send to server for validation and execution
-                    nm.sendRequest(gson.toJson(new CraftItemRequest(
-                            hex.getQ(), hex.getR(), finalItemType.name())));
+                    nm.sendRequest(gson.toJson(new CraftItemRequest(hex.getQ(), hex.getR(), finalItemType.name())));
                 } else {
-                    // Single-player: execute locally
                     inv.consumeResource(ResourceType.FOOD,  finalItemType.getFoodCost());
                     inv.consumeResource(ResourceType.STONE, finalItemType.getStoneCost());
                     inv.consumeResource(ResourceType.IRON,  finalItemType.getIronCost());
                     inv.consumeResource(ResourceType.WOOD,  finalItemType.getWoodCost());
 
                     apothecary.queueItem(finalItemType.name());
-                    GameEventDispatcher.fireNotification("⚗️ Crafting " + finalItemType.getDisplayName()
-                            + " — ready at end of turn!");
+                    GameEventDispatcher.fireNotification("⚗️ Crafting " + finalItemType.getDisplayName() + " — ready at end of turn!");
                     GameEventDispatcher.fireBuildingConstructed(hex);
                 }
             }));
         }
 
-        // Show what items the player currently holds
         actions.add(new MenuAction("─────────────────", false, null));
         java.util.Map<String, Integer> currentItems = inv.getItems();
         if (currentItems.isEmpty()) {
             actions.add(new MenuAction("📦 Inventory: empty", false, null));
         } else {
             currentItems.forEach((name, qty) -> {
-                if (qty > 0) {
-                    actions.add(new MenuAction("📦 " + name + " × " + qty, false, null));
-                }
+                if (qty > 0) actions.add(new MenuAction("📦 " + name + " × " + qty, false, null));
             });
         }
-
         return actions;
     }
 
-
     public static List<MenuAction> buildUnitMenu(MainController mc, Unit selectedUnit, Hex targetHex) {
-        // B31: block actions when not our turn in multiplayer
-        if (mc.getNetworkManager() != null && !mc.isMyTurn()) {
-            return notYourTurnMenu();
-        }
+        if (mc.getNetworkManager() != null && !mc.isMyTurn()) return notYourTurnMenu();
 
         List<MenuAction> actions = new ArrayList<>();
+        NetworkManager nm = mc.getNetworkManager();
         boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ() && selectedUnit.getR() == targetHex.getR());
+
         if (!isSameHex && selectedUnit.getAttackRange() > 0) {
             return buildAttackMenu(mc, selectedUnit, targetHex);
         }
@@ -277,29 +232,29 @@ public class ContextMenuFactory {
                 BuildingType bType = existing.getType();
                 actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
                         canDestroy, getDestroyDisabledReason(bType, builder),
-                        () -> mc.getBuildController().destroyStructure(builder, targetHex, "BUILDING", 0))
+                        () -> mc.getBuildController().destroyStructure(builder, targetHex, "BUILDING", 0, nm))
                         .setConfirmation("Destroy " + bType.name() + "?\n\n⚠️ No resources will be refunded.\nWorkers inside will be relocated."));
             } else if (!targetHex.isInsideBorder()) {
                 actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
             } else {
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.LUMBER_MILL, "🌲 Lumber Mill"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.FARM,        "🌾 Farm"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STABLE,      "🐄 Stable"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)"));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.LUMBER_MILL, "🌲 Lumber Mill", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.FARM,        "🌾 Farm", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STABLE,      "🐄 Stable", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)", nm));
 
                 boolean hasDockDiscount = mc.getGameMap().getTownHall().getDiscountedDocks() > 0;
                 String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.DOCK, dockLabel));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.MONUMENT, "🏛️ Monument"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.BAZAAR,   "⚖️ Bazaar [TH L2]"));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.APOTHECARY,        "⚗️ Apothecary [TH L2, Plains]"));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.DOCK, dockLabel, nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.MONUMENT, "🏛️ Monument", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.BAZAAR,   "⚖️ Bazaar [TH L2]", nm));
+                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.APOTHECARY,"⚗️ Apothecary [TH L2, Plains]", nm));
             }
         } else if (selectedUnit.getType() == UnitType.WORKER) {
             Worker worker = (Worker) selectedUnit;
             if (worker.isStationed()) {
-                actions.add(new MenuAction("🚪 Leave Facility", mc.getUnitController().canEject(worker), () -> mc.getUnitController().handleEject(worker)));
+                actions.add(new MenuAction("🚪 Leave Facility", mc.getUnitController().canEject(worker), () -> mc.getUnitController().handleEject(worker, nm)));
             } else {
                 Building b = targetHex.getBuilding();
                 if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL
@@ -307,7 +262,7 @@ public class ContextMenuFactory {
 
                     boolean can = mc.getUnitController().canStation(worker, targetHex, mc.getGameMap());
                     actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
-                            () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap())));
+                            () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap(), nm)));
                 } else {
                     actions.add(new MenuAction("⛔ No workable facility here", false, null));
                 }
@@ -316,15 +271,13 @@ public class ContextMenuFactory {
         return actions;
     }
 
-    private static MenuAction createBuildAction(MainController mc, Builder builder, Hex hex, BuildingType type, String label) {
+    private static MenuAction createBuildAction(MainController mc, Builder builder, Hex hex, BuildingType type, String label, NetworkManager nm) {
         boolean canBuild = mc.getBuildController().canBuild(type, hex, builder);
         return new MenuAction(label + " (-" + type.getApCost() + "AP)", canBuild, () -> {
-            mc.getBuildController().buildStructure(builder, type, hex);
+            mc.getBuildController().buildStructure(builder, type, hex, nm);
             GameEventDispatcher.fireUnitStateChanged(builder);
         });
     }
-
-    // ─── Attack Menu — B9 fix ─────────────────────────────────────────────────
 
     private static List<MenuAction> buildAttackMenu(MainController mc, Unit selectedUnit, Hex targetHex) {
         List<MenuAction> actions = new ArrayList<>();
@@ -353,7 +306,6 @@ public class ContextMenuFactory {
         }
         final boolean hasWall = tempHasWall;
 
-        // Determine the NetworkManager (null = single-player, non-null = multiplayer)
         final NetworkManager nm = mc.getNetworkManager();
         final Gson gson = new Gson();
 
@@ -382,15 +334,11 @@ public class ContextMenuFactory {
             else                        disabledReason = "Ready";
 
             if (nm != null) {
-                // ── Multiplayer mode: send AttackRequest to server ────────────
-                // The server validates ownership, diplomatic status, AP, and range,
-                // then executes the attack and broadcasts the updated state.
                 final int srcQ = sourceHex.getQ(), srcR = sourceHex.getR();
                 final int tgtQ = targetHex.getQ(), tgtR = targetHex.getR();
                 actions.add(new MenuAction(label, canAttack, disabledReason, () ->
                         nm.sendRequest(gson.toJson(new AttackRequest(srcQ, srcR, tgtQ, tgtR)))));
             } else {
-                // ── Single-player mode: execute attack locally (original behavior) ──
                 actions.add(new MenuAction(label, canAttack, disabledReason, () -> {
                     CombatController cc = new CombatController(map);
                     cc.executeAttack(attackers, sourceHex, targetHex, fSiege, fAnimal, hasWall);
@@ -399,7 +347,6 @@ public class ContextMenuFactory {
                 }));
             }
 
-            // "Attack Wall" sub-action (single-player only for now)
             if (hasWall && hasAnyEnemy && dist == 1 && nm == null) {
                 actions.add(new MenuAction("⚔️ Attack Wall [🏰 Siege]", canAttack, disabledReason, () -> {
                     CombatController cc = new CombatController(map);
