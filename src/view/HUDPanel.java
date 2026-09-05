@@ -13,14 +13,11 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Top HUD bar: resources, season/turn, unit counts, starvation alert,
- * active-turn indicator (B24), diplomacy badges (B23), in-game chat toggle (B25),
- * End Turn and Pause buttons.
- */
 public class HUDPanel extends JPanel
         implements ResourceListener, UnitListener, ProductionListener,
         TurnListener, BuildingListener, MapListener, NotificationListener {
@@ -30,8 +27,8 @@ public class HUDPanel extends JPanel
     private final JPanel         infoContainer;
     private final JButton        endTurnBtn;
     private final JButton        pauseBtn;
+    private final JButton        inboxBtn; // دکمه جدید برای صندوق ترید
 
-    // Resource + status cards
     private final HUDCard foodCard;
     private final HUDCard woodCard;
     private final HUDCard stoneCard;
@@ -43,18 +40,13 @@ public class HUDPanel extends JPanel
     private final HUDCard seasonCard;
     private final JPanel  starvationAlertCard;
 
-    // B24 — active-turn indicator
     private final JLabel  activeTurnLabel;
     private boolean isMyTurn = false;
-
-    // B23 — diplomacy badges panel
     private final JPanel diplomacyPanel;
 
-    // B25 — in-game chat drawer
-    //  ↓  'final' REMOVED — these are assigned inside buildChatDrawer(), not constructor directly
-    private final JPanel    chatDrawer;   // chatDrawer itself IS assigned in constructor → fine
-    private       JTextArea  chatArea;    // assigned inside buildChatDrawer() → cannot be final
-    private       JTextField chatInput;   // assigned inside buildChatDrawer() → cannot be final
+    private final JPanel    chatDrawer;
+    private       JTextArea  chatArea;
+    private       JTextField chatInput;
     private boolean chatVisible = false;
 
     private final Gson gson = new Gson();
@@ -62,7 +54,8 @@ public class HUDPanel extends JPanel
     private boolean isStarving           = false;
     private boolean starvationAlertShown = false;
 
-    // ─── Constructor ──────────────────────────────────────────────────────────
+    // کش کردن پیشنهادهای ترید برای نمایش در دیالوگ
+    private List<TradeOffer> pendingOffers = new ArrayList<>();
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
@@ -74,7 +67,6 @@ public class HUDPanel extends JPanel
                 BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)),
                 new EmptyBorder(6, 12, 6, 12)));
 
-        // ── Resource cards ────────────────────────────────────────────────────
         infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         infoContainer.setOpaque(false);
 
@@ -101,7 +93,6 @@ public class HUDPanel extends JPanel
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
-        // ── B24: Active turn indicator ─────────────────────────────────────────
         activeTurnLabel = new JLabel("🎮 Single Player");
         activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         activeTurnLabel.setForeground(new Color(189, 195, 199));
@@ -111,12 +102,10 @@ public class HUDPanel extends JPanel
                 BorderFactory.createLineBorder(new Color(44, 62, 80), 1),
                 new EmptyBorder(3, 8, 3, 8)));
 
-        // ── B23: Diplomacy badges panel ────────────────────────────────────────
         diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         diplomacyPanel.setOpaque(false);
         diplomacyPanel.setVisible(false);
 
-        // Left: turn indicator + resources + diplomacy
         JPanel leftRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         leftRow.setOpaque(false);
         leftRow.add(activeTurnLabel);
@@ -124,46 +113,30 @@ public class HUDPanel extends JPanel
         leftRow.add(diplomacyPanel);
         add(leftRow, BorderLayout.CENTER);
 
-        // ── Buttons ───────────────────────────────────────────────────────────
         pauseBtn   = buildPauseButton();
         endTurnBtn = buildEndTurnButton();
         JButton chatBtn = buildChatToggleButton();
+        inboxBtn = buildInboxButton(); // دکمه جدید
 
-        JPanel eastPanel = new JPanel(new GridLayout(1, 3, 6, 0));
+        JPanel eastPanel = new JPanel(new GridLayout(1, 4, 6, 0)); // تغییر Grid به 4 ستون
         eastPanel.setOpaque(false);
+        eastPanel.add(inboxBtn);
         eastPanel.add(chatBtn);
         eastPanel.add(pauseBtn);
         eastPanel.add(endTurnBtn);
         add(eastPanel, BorderLayout.EAST);
 
-        // ── B25: Build chat drawer ─────────────────────────────────────────────
-        // chatDrawer IS assigned here directly → can stay final
-        // chatArea and chatInput are assigned inside buildChatDrawer() → must NOT be final
         chatDrawer = buildChatDrawer();
         chatDrawer.setVisible(false);
 
-        // ── Listeners + periodic sync ─────────────────────────────────────────
         GameEventDispatcher.addListener(this);
         new Timer(500, e -> updateHUD()).start();
         updateHUD();
     }
 
-    // ─── B24: Active Turn Indicator ───────────────────────────────────────────
-
-    /**
-     * Updates the turn indicator label.
-     * Called by {@link network.client.ClientMessageDispatcher} on GAME_STATE_UPDATE.
-     *
-     * @param activePlayerName display name/id of the active player (null = single-player)
-     * @param isMyTurn         true when it is this client's turn
-     */
     public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
         this.isMyTurn = isMyTurn;
-
-        // B31: propagate turn state to MainController so GamePanel and
-        // ContextMenuFactory can guard actions when it's not our turn
         mainController.setMyTurn(isMyTurn);
-
         SwingUtilities.invokeLater(() -> {
             if (activePlayerName == null) {
                 activeTurnLabel.setText("🎮 Single Player");
@@ -181,15 +154,6 @@ public class HUDPanel extends JPanel
         });
     }
 
-    // ─── B23: Diplomacy Panel ─────────────────────────────────────────────────
-
-    /**
-     * Rebuilds diplomacy badges for all known opponents.
-     * Called by {@link network.client.ClientMessageDispatcher} on DIPLOMACY_EVENT.
-     *
-     * @param playerStatuses map: playerId → [displayName, status]
-     *                       status ∈ {"Enemy", "Allied", "Neutral"}
-     */
     public void updateDiplomacyStatus(Map<String, String[]> playerStatuses) {
         SwingUtilities.invokeLater(() -> {
             diplomacyPanel.removeAll();
@@ -232,9 +196,20 @@ public class HUDPanel extends JPanel
         });
     }
 
-    // ─── B25: In-Game Chat ────────────────────────────────────────────────────
+    // متد جدید برای آپدیت دکمه اینباکس از طرف ClientMessageDispatcher
+    public void updateTradeInbox(List<TradeOffer> offers) {
+        this.pendingOffers = offers;
+        SwingUtilities.invokeLater(() -> {
+            if (offers.isEmpty()) {
+                inboxBtn.setText("📥 Inbox");
+                inboxBtn.setBackground(new Color(40, 44, 52));
+            } else {
+                inboxBtn.setText("📥 Inbox (" + offers.size() + ")");
+                inboxBtn.setBackground(new Color(230, 126, 34)); // تغییر رنگ به هشدار نارنجی
+            }
+        });
+    }
 
-    /** Appends a formatted message to the in-game chat area (thread-safe). */
     public void appendGameChatMessage(String formattedMessage) {
         SwingUtilities.invokeLater(() -> {
             chatArea.append(formattedMessage);
@@ -242,9 +217,6 @@ public class HUDPanel extends JPanel
         });
     }
 
-    // ─── onOurTurnStarted (B8) ────────────────────────────────────────────────
-
-    /** Re-enables the End Turn button and updates the turn indicator. */
     public void onOurTurnStarted() {
         SwingUtilities.invokeLater(() -> {
             endTurnBtn.setEnabled(true);
@@ -255,8 +227,6 @@ public class HUDPanel extends JPanel
                     mainController.getNetworkManager() != null ? "You" : null, true);
         });
     }
-
-    // ─── HUD Update ───────────────────────────────────────────────────────────
 
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
@@ -309,8 +279,6 @@ public class HUDPanel extends JPanel
         starvationAlertCard.setVisible(isStarving);
     }
 
-    // ─── Button Builders ──────────────────────────────────────────────────────
-
     private JButton buildPauseButton() {
         JButton btn = new JButton("⏸  PAUSE  [ESC]");
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -362,16 +330,34 @@ public class HUDPanel extends JPanel
         return btn;
     }
 
-    // ─── B25: Chat Drawer Builder ──────────────────────────────────────────────
+    // دکمه جدید اینباکس (باز کردن TradeInboxDialog)
+    private JButton buildInboxButton() {
+        JButton btn = new JButton("📥 Inbox");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setBackground(new Color(40, 44, 52));
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(new EmptyBorder(8, 12, 8, 12));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(btn.getBackground().brighter()); }
+            @Override public void mouseExited (MouseEvent e) {
+                if (pendingOffers.isEmpty()) btn.setBackground(new Color(40, 44, 52));
+                else btn.setBackground(new Color(230, 126, 34));
+            }
+        });
+        btn.addActionListener(e -> {
+            if (mainController.getNetworkManager() == null) {
+                GameEventDispatcher.fireNotification("⚠️ Trade Inbox is only available in Multiplayer.");
+                return;
+            }
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            new TradeInboxDialog(parentFrame, mainController.getNetworkManager(), pendingOffers).setVisible(true);
+        });
+        return btn;
+    }
 
-    /**
-     * Builds the sliding chat drawer panel.
-     *
-     * <p>IMPORTANT: {@code chatArea} and {@code chatInput} are instance fields
-     * that are assigned here. They MUST NOT be declared {@code final} because
-     * Java requires final instance fields to be assigned directly in the
-     * constructor, not inside a method called by it.
-     */
     private JPanel buildChatDrawer() {
         JPanel drawer = new JPanel(new BorderLayout(4, 4));
         drawer.setBackground(new Color(18, 22, 30));
@@ -380,7 +366,6 @@ public class HUDPanel extends JPanel
                 BorderFactory.createMatteBorder(2, 0, 0, 0, new Color(52, 130, 215)),
                 new EmptyBorder(6, 10, 6, 10)));
 
-        // chatArea assigned here — field must NOT be final
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatArea.setBackground(new Color(12, 15, 22));
@@ -393,7 +378,6 @@ public class HUDPanel extends JPanel
         scroll.setBorder(null);
         scroll.getViewport().setBackground(new Color(12, 15, 22));
 
-        // chatInput assigned here — field must NOT be final
         chatInput = new JTextField();
         chatInput.setBackground(new Color(28, 33, 48));
         chatInput.setForeground(Color.WHITE);
@@ -454,8 +438,6 @@ public class HUDPanel extends JPanel
         chatInput.setText("");
     }
 
-    // ─── End Turn ─────────────────────────────────────────────────────────────
-
     private void handleEndTurn() {
         if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
 
@@ -469,7 +451,6 @@ public class HUDPanel extends JPanel
             return;
         }
 
-        // Single-player mode: idle-unit confirmation guard
         if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
             confirmIdleMode = true;
             endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
@@ -491,8 +472,6 @@ public class HUDPanel extends JPanel
             updateButtonColor();
         }
     }
-
-    // ─── Formatting Helpers ───────────────────────────────────────────────────
 
     private String fmt(Inventory inv, ResourceType type, int net) {
         int amount = inv.getResourceAmount(type);
@@ -531,8 +510,6 @@ public class HUDPanel extends JPanel
             case WINTER -> "<html><b style='color:#a8d8ea;'>❄️ Winter</b><br/>Farms −1 Food | Land +1 AP</html>";
         };
     }
-
-    // ─── Notification / Starvation UI ─────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
@@ -608,8 +585,6 @@ public class HUDPanel extends JPanel
         new Timer(3500, e -> notif.dispose()) {{ setRepeats(false); start(); }};
     }
 
-    // ─── HUDCard ──────────────────────────────────────────────────────────────
-
     private static class HUDCard extends JPanel {
         private final JLabel label;
         private final String title;
@@ -634,8 +609,6 @@ public class HUDPanel extends JPanel
                     + valueText + "</body></html>");
         }
     }
-
-    // ─── Event Listener Implementations ──────────────────────────────────────
 
     @Override public void onResourceChanged(ResourceType t, int a)             { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit u, int oq, int or_, int nq, int nr) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
