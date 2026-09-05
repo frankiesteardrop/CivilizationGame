@@ -18,6 +18,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Top HUD bar: Responsive layout using BorderLayout.
+ * West: Turn Indicator & Diplomacy
+ * Center: Scrollable Resource Cards
+ * East: Fixed-size Action Buttons
+ */
 public class HUDPanel extends JPanel
         implements ResourceListener, UnitListener, ProductionListener,
         TurnListener, BuildingListener, MapListener, NotificationListener {
@@ -27,7 +33,7 @@ public class HUDPanel extends JPanel
     private final JPanel         infoContainer;
     private final JButton        endTurnBtn;
     private final JButton        pauseBtn;
-    private final JButton        inboxBtn; // دکمه جدید برای صندوق ترید
+    private final JButton        inboxBtn;
 
     private final HUDCard foodCard;
     private final HUDCard woodCard;
@@ -54,31 +60,54 @@ public class HUDPanel extends JPanel
     private boolean isStarving           = false;
     private boolean starvationAlertShown = false;
 
-    // کش کردن پیشنهادهای ترید برای نمایش در دیالوگ
     private List<TradeOffer> pendingOffers = new ArrayList<>();
 
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
         this.gamePanel      = gamePanel;
 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(10, 0));
         setBackground(new Color(25, 28, 33));
+        setPreferredSize(new Dimension(0, 52)); // ارتفاع ثابت برای جلوگیری از پرش تصویر
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 4, 0, new Color(41, 128, 185)),
-                new EmptyBorder(6, 12, 6, 12)));
+                BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(41, 128, 185)),
+                new EmptyBorder(5, 10, 5, 10)));
 
-        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        // ─── 1. West Panel: Turn Info & Diplomacy ─────────────────────────────
+        JPanel westPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        westPanel.setOpaque(false);
+
+        activeTurnLabel = new JLabel("🎮 Single Player");
+        activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        activeTurnLabel.setForeground(new Color(189, 195, 199));
+        activeTurnLabel.setOpaque(true);
+        activeTurnLabel.setBackground(new Color(35, 40, 52));
+        activeTurnLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(44, 62, 80), 1),
+                new EmptyBorder(4, 10, 4, 10)));
+
+        diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        diplomacyPanel.setOpaque(false);
+        diplomacyPanel.setVisible(false);
+
+        westPanel.add(activeTurnLabel);
+        westPanel.add(diplomacyPanel);
+        add(westPanel, BorderLayout.WEST);
+
+        // ─── 2. Center Panel: Scrollable Resources ────────────────────────────
+        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         infoContainer.setOpaque(false);
 
-        foodCard      = new HUDCard("🍔 Food",      new Color(46, 204, 113),  false);
-        woodCard      = new HUDCard("🪵 Wood",      new Color(211, 84, 0),    false);
-        stoneCard     = new HUDCard("🪨 Stone",     new Color(149, 165, 166), false);
-        ironCard      = new HUDCard("⚙️ Iron",      new Color(243, 156, 18),  false);
-        queueCard     = new HUDCard("🏗️ Queue",     new Color(241, 196, 15),  false);
-        popCard       = new HUDCard("👥 Units",     new Color(52, 152, 219),  false);
-        turnCard      = new HUDCard("⏳ Turn",      new Color(155, 89, 182),  false);
-        happinessCard = new HUDCard("😊 Happiness", new Color(255, 165, 0),   false);
-        seasonCard    = new HUDCard("🌍 Season",    new Color(100, 180, 255), false);
+        foodCard      = new HUDCard("🍔", new Color(46, 204, 113), false);
+        woodCard      = new HUDCard("🪵", new Color(211, 84, 0),   false);
+        stoneCard     = new HUDCard("🪨", new Color(149, 165, 166),false);
+        ironCard      = new HUDCard("⚙️", new Color(243, 156, 18), false);
+        queueCard     = new HUDCard("🏗️", new Color(241, 196, 15), false);
+        popCard       = new HUDCard("👥", new Color(52, 152, 219), false);
+        happinessCard = new HUDCard("😊", new Color(255, 165, 0),  false);
+        seasonCard    = new HUDCard("🌍", new Color(100, 180, 255),false);
+        turnCard      = new HUDCard("⏳", new Color(155, 89, 182), false);
+
         starvationAlertCard = createStarvationCard();
         starvationAlertCard.setVisible(false);
 
@@ -93,39 +122,47 @@ public class HUDPanel extends JPanel
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
-        activeTurnLabel = new JLabel("🎮 Single Player");
-        activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        activeTurnLabel.setForeground(new Color(189, 195, 199));
-        activeTurnLabel.setOpaque(true);
-        activeTurnLabel.setBackground(new Color(35, 40, 52));
-        activeTurnLabel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(44, 62, 80), 1),
-                new EmptyBorder(3, 8, 3, 8)));
+        JScrollPane scrollPane = new JScrollPane(infoContainer);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_HIDDEN);
 
-        diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        diplomacyPanel.setOpaque(false);
-        diplomacyPanel.setVisible(false);
+        // Use a wrapper to keep the scroll pane vertically centered
+        JPanel centerWrapper = new JPanel(new BorderLayout());
+        centerWrapper.setOpaque(false);
+        centerWrapper.add(scrollPane, BorderLayout.CENTER);
+        add(centerWrapper, BorderLayout.CENTER);
 
-        JPanel leftRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        leftRow.setOpaque(false);
-        leftRow.add(activeTurnLabel);
-        leftRow.add(infoContainer);
-        leftRow.add(diplomacyPanel);
-        add(leftRow, BorderLayout.CENTER);
-
-        pauseBtn   = buildPauseButton();
-        endTurnBtn = buildEndTurnButton();
-        JButton chatBtn = buildChatToggleButton();
-        inboxBtn = buildInboxButton(); // دکمه جدید
-
-        JPanel eastPanel = new JPanel(new GridLayout(1, 4, 6, 0)); // تغییر Grid به 4 ستون
+        // ─── 3. East Panel: Action Buttons ────────────────────────────────────
+        JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         eastPanel.setOpaque(false);
+
+        inboxBtn   = buildActionButton("📥 Inbox", new Color(40, 44, 52), Color.WHITE);
+        JButton chatBtn = buildActionButton("💬 Chat", new Color(35, 70, 110), Color.WHITE);
+        pauseBtn   = buildActionButton("⏸ PAUSE", new Color(45, 52, 70), new Color(175, 185, 210));
+        endTurnBtn = buildActionButton("END TURN", new Color(192, 57, 43), Color.WHITE);
+
+        inboxBtn.addActionListener(e -> {
+            if (mainController.getNetworkManager() == null) {
+                GameEventDispatcher.fireNotification("⚠️ Trade Inbox is only available in Multiplayer.");
+                return;
+            }
+            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            new TradeInboxDialog(parentFrame, mainController.getNetworkManager(), pendingOffers).setVisible(true);
+        });
+        chatBtn.addActionListener(e -> toggleChat());
+        pauseBtn.addActionListener(e -> gamePanel.openPauseMenu());
+        endTurnBtn.addActionListener(e -> handleEndTurn());
+
         eastPanel.add(inboxBtn);
         eastPanel.add(chatBtn);
         eastPanel.add(pauseBtn);
         eastPanel.add(endTurnBtn);
         add(eastPanel, BorderLayout.EAST);
 
+        // ─── Chat Drawer ──────────────────────────────────────────────────────
         chatDrawer = buildChatDrawer();
         chatDrawer.setVisible(false);
 
@@ -134,99 +171,7 @@ public class HUDPanel extends JPanel
         updateHUD();
     }
 
-    public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
-        this.isMyTurn = isMyTurn;
-        mainController.setMyTurn(isMyTurn);
-        SwingUtilities.invokeLater(() -> {
-            if (activePlayerName == null) {
-                activeTurnLabel.setText("🎮 Single Player");
-                activeTurnLabel.setBackground(new Color(35, 40, 52));
-                activeTurnLabel.setForeground(new Color(189, 195, 199));
-            } else if (isMyTurn) {
-                activeTurnLabel.setText("✅ YOUR TURN");
-                activeTurnLabel.setBackground(new Color(39, 120, 60));
-                activeTurnLabel.setForeground(Color.WHITE);
-            } else {
-                activeTurnLabel.setText("⏳ " + activePlayerName + "'s Turn");
-                activeTurnLabel.setBackground(new Color(60, 40, 20));
-                activeTurnLabel.setForeground(new Color(230, 180, 80));
-            }
-        });
-    }
-
-    public void updateDiplomacyStatus(Map<String, String[]> playerStatuses) {
-        SwingUtilities.invokeLater(() -> {
-            diplomacyPanel.removeAll();
-            if (playerStatuses == null || playerStatuses.isEmpty()) {
-                diplomacyPanel.setVisible(false);
-                return;
-            }
-
-            JLabel header = new JLabel("Diplomacy: ");
-            header.setFont(new Font("Segoe UI", Font.BOLD, 11));
-            header.setForeground(new Color(150, 160, 180));
-            diplomacyPanel.add(header);
-
-            for (Map.Entry<String, String[]> entry : playerStatuses.entrySet()) {
-                String name   = entry.getValue()[0];
-                String status = entry.getValue()[1];
-
-                Color  bg;
-                String icon;
-                switch (status) {
-                    case "Enemy"  -> { bg = new Color(140, 30, 30); icon = "⚔️"; }
-                    case "Allied" -> { bg = new Color(30, 100, 30); icon = "🤝"; }
-                    default       -> { bg = new Color(50, 55, 70);  icon = "🔘"; }
-                }
-
-                JLabel badge = new JLabel(icon + " " + name);
-                badge.setFont(new Font("Segoe UI", Font.BOLD, 11));
-                badge.setForeground(Color.WHITE);
-                badge.setOpaque(true);
-                badge.setBackground(bg);
-                badge.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(bg.brighter(), 1),
-                        new EmptyBorder(2, 6, 2, 6)));
-                badge.setToolTipText(name + ": " + status);
-                diplomacyPanel.add(badge);
-            }
-            diplomacyPanel.setVisible(true);
-            diplomacyPanel.revalidate();
-            diplomacyPanel.repaint();
-        });
-    }
-
-    // متد جدید برای آپدیت دکمه اینباکس از طرف ClientMessageDispatcher
-    public void updateTradeInbox(List<TradeOffer> offers) {
-        this.pendingOffers = offers;
-        SwingUtilities.invokeLater(() -> {
-            if (offers.isEmpty()) {
-                inboxBtn.setText("📥 Inbox");
-                inboxBtn.setBackground(new Color(40, 44, 52));
-            } else {
-                inboxBtn.setText("📥 Inbox (" + offers.size() + ")");
-                inboxBtn.setBackground(new Color(230, 126, 34)); // تغییر رنگ به هشدار نارنجی
-            }
-        });
-    }
-
-    public void appendGameChatMessage(String formattedMessage) {
-        SwingUtilities.invokeLater(() -> {
-            chatArea.append(formattedMessage);
-            chatArea.setCaretPosition(chatArea.getDocument().getLength());
-        });
-    }
-
-    public void onOurTurnStarted() {
-        SwingUtilities.invokeLater(() -> {
-            endTurnBtn.setEnabled(true);
-            endTurnBtn.setText("END TURN");
-            endTurnBtn.setBackground(new Color(192, 57, 43));
-            confirmIdleMode = false;
-            setActiveTurnInfo(
-                    mainController.getNetworkManager() != null ? "You" : null, true);
-        });
-    }
+    // ─── Formatting Helpers (Minified for UI) ─────────────────────────────────
 
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
@@ -241,18 +186,27 @@ public class HUDPanel extends JPanel
         int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
         int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
 
-        foodCard .updateValue(fmt(inv, ResourceType.FOOD,  netFood));
-        woodCard .updateValue(fmt(inv, ResourceType.WOOD,  netWood));
-        stoneCard.updateValue(fmt(inv, ResourceType.STONE, netStone));
-        ironCard .updateValue(fmt(inv, ResourceType.IRON,  netIron));
+        // Update cards with minimal text and rich tooltips
+        foodCard.updateValue(fmtConcise(inv, ResourceType.FOOD, netFood));
+        foodCard.setToolTipText(fmtTooltip(inv, ResourceType.FOOD, netFood));
+
+        woodCard.updateValue(fmtConcise(inv, ResourceType.WOOD, netWood));
+        woodCard.setToolTipText(fmtTooltip(inv, ResourceType.WOOD, netWood));
+
+        stoneCard.updateValue(fmtConcise(inv, ResourceType.STONE, netStone));
+        stoneCard.setToolTipText(fmtTooltip(inv, ResourceType.STONE, netStone));
+
+        ironCard.updateValue(fmtConcise(inv, ResourceType.IRON, netIron));
+        ironCard.setToolTipText(fmtTooltip(inv, ResourceType.IRON, netIron));
 
         ProductionCommand task = map.getTownHall().getProductionQueue().peek();
         if (task != null) {
-            String frozen = (isStarving && task.isPopulationTask())
-                    ? " <span style='color:#e74c3c;'>❄️ FROZEN</span>" : "";
-            queueCard.updateValue(task.getName() + " (" + task.getTurnsRemaining() + "T)" + frozen);
+            String frozen = (isStarving && task.isPopulationTask()) ? " <span style='color:#e74c3c;'>❄️</span>" : "";
+            queueCard.updateValue(task.getTurnsRemaining() + "T" + frozen);
+            queueCard.setToolTipText("Producing: " + task.getName() + " (" + task.getTurnsRemaining() + " turns left)");
         } else {
             queueCard.updateValue("<span style='color:#7f8c8d;'>Idle</span>");
+            queueCard.setToolTipText("Queue is empty");
         }
 
         long milCount   = map.getMilitaryUnitCount();
@@ -262,101 +216,175 @@ public class HUDPanel extends JPanel
         long workCount  = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof Worker).count();
         long expndCount = map.getUnits().stream().filter(u -> u.isAlive() && u instanceof BorderExpander).count();
         String milColor = (milCount >= milCap) ? "#e74c3c" : "#2ecc71";
-        popCard.updateValue(
-                "<span style='color:" + milColor + ";'>⚔️ " + milCount + "/" + milCap + "</span>"
-                        + " | 👥 " + map.getAliveUnitsCount()
-                        + " <span style='font-size:10px; color:#bdc3c7;'>"
-                        + "(E:" + expCount + " B:" + buildCount
-                        + " W:" + workCount + " X:" + expndCount + ")"
-                        + "</span>");
 
-        happinessCard.updateValue(formatHappiness(mainController.getEconomyController().getEffectiveHappiness(map)));
-        seasonCard   .updateValue(formatSeason(map.getCurrentSeason()));
-        seasonCard.setToolTipText(seasonTooltip(map.getCurrentSeason()));
+        popCard.updateValue("<span style='color:" + milColor + ";'>" + milCount + "</span>/" + milCap + " | " + map.getAliveUnitsCount());
+        popCard.setToolTipText(String.format("<html>Military: %d / %d<br/>Civilians: %d<br/>(Exp:%d, Bld:%d, Wrk:%d, Expnd:%d)</html>",
+                milCount, milCap, map.getAliveUnitsCount(), expCount, buildCount, workCount, expndCount));
+
+        int happiness = mainController.getEconomyController().getEffectiveHappiness(map);
+        happinessCard.updateValue(happiness > 0 ? "+" + happiness : String.valueOf(happiness));
+        happinessCard.setToolTipText("Empire Happiness: " + happiness);
+
+        Season currentSeason = map.getCurrentSeason();
+        seasonCard.updateValue(currentSeason.name().substring(0, 1) + currentSeason.name().substring(1).toLowerCase());
+        seasonCard.setToolTipText(seasonTooltip(currentSeason));
 
         int turn = map.getCurrentTurn();
-        turnCard.updateValue(turn + " <span style='color:#7f8c8d; font-size:10px;'>(" + ((turn - 1) % 10 + 1) + "/10)</span>");
+        turnCard.updateValue(String.valueOf(turn));
+        turnCard.setToolTipText("Global Turn: " + turn + " | Season Turn: " + ((turn - 1) % 10 + 1) + "/10");
+
         starvationAlertCard.setVisible(isStarving);
     }
 
-    private JButton buildPauseButton() {
-        JButton btn = new JButton("⏸  PAUSE  [ESC]");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setBackground(new Color(45, 52, 70));
-        btn.setForeground(new Color(175, 185, 210));
-        btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(8, 14, 8, 14));
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setOpaque(true);
-        btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(62, 72, 98)); }
-            @Override public void mouseExited (MouseEvent e) { btn.setBackground(new Color(45, 52, 70)); }
-        });
-        btn.addActionListener(e -> gamePanel.openPauseMenu());
-        return btn;
+    private String fmtConcise(Inventory inv, ResourceType type, int net) {
+        int amount = inv.getResourceAmount(type);
+        String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
+        String sign     = net > 0 ? "+" : "";
+        return amount + " <span style='color:" + netColor + "; font-size:10px;'>(" + sign + net + ")</span>";
     }
 
-    private JButton buildEndTurnButton() {
-        JButton btn = new JButton("END TURN");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btn.setBackground(new Color(192, 57, 43));
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(8, 20, 8, 20));
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setOpaque(true);
-        btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(btn.getBackground().brighter()); }
-            @Override public void mouseExited (MouseEvent e) { updateButtonColor(); }
-        });
-        btn.addActionListener(e -> handleEndTurn());
-        return btn;
+    private String fmtTooltip(Inventory inv, ResourceType type, int net) {
+        return String.format("%s: %d / %d | Net Production: %+d",
+                type.name(), inv.getResourceAmount(type), inv.getCapacity(type), net);
     }
 
-    private JButton buildChatToggleButton() {
-        JButton btn = new JButton("💬 Chat");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setBackground(new Color(35, 70, 110));
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(8, 12, 8, 12));
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setOpaque(true);
-        btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(52, 100, 150)); }
-            @Override public void mouseExited (MouseEvent e) { btn.setBackground(new Color(35, 70, 110)); }
-        });
-        btn.addActionListener(e -> toggleChat());
-        return btn;
-    }
+    // ─── Button & UI Builders ─────────────────────────────────────────────────
 
-    // دکمه جدید اینباکس (باز کردن TradeInboxDialog)
-    private JButton buildInboxButton() {
-        JButton btn = new JButton("📥 Inbox");
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btn.setBackground(new Color(40, 44, 52));
-        btn.setForeground(Color.WHITE);
+    private JButton buildActionButton(String text, Color bg, Color fg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setBackground(bg);
+        btn.setForeground(fg);
         btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(8, 12, 8, 12));
+        btn.setBorder(new EmptyBorder(6, 14, 6, 14));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
         btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { btn.setBackground(btn.getBackground().brighter()); }
+            @Override public void mouseEntered(MouseEvent e) {
+                if (btn.isEnabled()) btn.setBackground(btn.getBackground().brighter());
+            }
             @Override public void mouseExited (MouseEvent e) {
-                if (pendingOffers.isEmpty()) btn.setBackground(new Color(40, 44, 52));
-                else btn.setBackground(new Color(230, 126, 34));
+                if (btn == endTurnBtn) updateButtonColor();
+                else if (btn == inboxBtn && !pendingOffers.isEmpty()) btn.setBackground(new Color(230, 126, 34));
+                else btn.setBackground(bg);
             }
         });
-        btn.addActionListener(e -> {
-            if (mainController.getNetworkManager() == null) {
-                GameEventDispatcher.fireNotification("⚠️ Trade Inbox is only available in Multiplayer.");
+        return btn;
+    }
+
+    private void updateButtonColor() {
+        endTurnBtn.setBackground(confirmIdleMode ? new Color(230, 126, 34) : new Color(192, 57, 43));
+    }
+
+    private void resetEndTurnButton() {
+        if (confirmIdleMode) {
+            confirmIdleMode = false;
+            endTurnBtn.setText("END TURN");
+            updateButtonColor();
+        }
+    }
+
+    private void handleEndTurn() {
+        if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
+
+        NetworkManager nm = mainController.getNetworkManager();
+        if (nm != null) {
+            nm.sendRequest(gson.toJson(new EndTurnRequest()));
+            endTurnBtn.setEnabled(false);
+            endTurnBtn.setText("⏳ Waiting...");
+            confirmIdleMode = false;
+            setActiveTurnInfo("Waiting...", false);
+            return;
+        }
+
+        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
+            confirmIdleMode = true;
+            endTurnBtn.setText("⚠️ IDLE UNITS!");
+            updateButtonColor();
+        } else {
+            confirmIdleMode = false;
+            mainController.getTurnController().forceEndTurn();
+        }
+    }
+
+    public void onOurTurnStarted() {
+        SwingUtilities.invokeLater(() -> {
+            endTurnBtn.setEnabled(true);
+            endTurnBtn.setText("END TURN");
+            endTurnBtn.setBackground(new Color(192, 57, 43));
+            confirmIdleMode = false;
+            setActiveTurnInfo(mainController.getNetworkManager() != null ? "You" : null, true);
+        });
+    }
+
+    // ─── Inter-panel Communication ────────────────────────────────────────────
+
+    public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
+        this.isMyTurn = isMyTurn;
+        mainController.setMyTurn(isMyTurn);
+        SwingUtilities.invokeLater(() -> {
+            if (activePlayerName == null) {
+                activeTurnLabel.setText("🎮 Single Player");
+                activeTurnLabel.setBackground(new Color(35, 40, 52));
+            } else if (isMyTurn) {
+                activeTurnLabel.setText("✅ YOUR TURN");
+                activeTurnLabel.setBackground(new Color(39, 120, 60));
+            } else {
+                activeTurnLabel.setText("⏳ " + activePlayerName + "'s Turn");
+                activeTurnLabel.setBackground(new Color(60, 40, 20));
+            }
+        });
+    }
+
+    public void updateDiplomacyStatus(Map<String, String[]> playerStatuses) {
+        SwingUtilities.invokeLater(() -> {
+            diplomacyPanel.removeAll();
+            if (playerStatuses == null || playerStatuses.isEmpty()) {
+                diplomacyPanel.setVisible(false);
                 return;
             }
-            JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            new TradeInboxDialog(parentFrame, mainController.getNetworkManager(), pendingOffers).setVisible(true);
+            for (Map.Entry<String, String[]> entry : playerStatuses.entrySet()) {
+                String name   = entry.getValue()[0];
+                String status = entry.getValue()[1];
+                Color bg = switch (status) {
+                    case "Enemy"  -> new Color(140, 30, 30);
+                    case "Allied" -> new Color(30, 100, 30);
+                    default       -> new Color(50, 55, 70);
+                };
+                String icon = switch (status) {
+                    case "Enemy" -> "⚔️"; case "Allied" -> "🤝"; default -> "🔘";
+                };
+                JLabel badge = new JLabel(icon + " " + name);
+                badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                badge.setForeground(Color.WHITE);
+                badge.setOpaque(true);
+                badge.setBackground(bg);
+                badge.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(bg.brighter(), 1),
+                        new EmptyBorder(2, 5, 2, 5)));
+                badge.setToolTipText(name + ": " + status);
+                diplomacyPanel.add(badge);
+            }
+            diplomacyPanel.setVisible(true);
+            diplomacyPanel.revalidate();
+            diplomacyPanel.repaint();
         });
-        return btn;
     }
+
+    public void updateTradeInbox(List<TradeOffer> offers) {
+        this.pendingOffers = offers;
+        SwingUtilities.invokeLater(() -> {
+            if (offers.isEmpty()) {
+                inboxBtn.setText("📥 Inbox");
+                inboxBtn.setBackground(new Color(40, 44, 52));
+            } else {
+                inboxBtn.setText("📥 Inbox (" + offers.size() + ")");
+                inboxBtn.setBackground(new Color(230, 126, 34));
+            }
+        });
+    }
+
+    // ─── Chat Logic ───────────────────────────────────────────────────────────
 
     private JPanel buildChatDrawer() {
         JPanel drawer = new JPanel(new BorderLayout(4, 4));
@@ -386,10 +414,8 @@ public class HUDPanel extends JPanel
         chatInput.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(52, 130, 215), 1),
                 new EmptyBorder(4, 8, 4, 8)));
-        chatInput.setToolTipText("Type a message and press Enter to send");
         chatInput.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
+            @Override public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) sendChatMessage();
             }
         });
@@ -397,7 +423,6 @@ public class HUDPanel extends JPanel
         JLabel chatHeader = new JLabel("💬 Game Chat");
         chatHeader.setFont(new Font("Segoe UI", Font.BOLD, 12));
         chatHeader.setForeground(new Color(52, 130, 215));
-
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
         top.add(chatHeader, BorderLayout.WEST);
@@ -411,13 +436,9 @@ public class HUDPanel extends JPanel
     private void toggleChat() {
         chatVisible = !chatVisible;
         Container parent = getParent();
-        if (parent instanceof JPanel wrapper
-                && wrapper.getLayout() instanceof BorderLayout) {
-            if (chatVisible) {
-                wrapper.add(chatDrawer, BorderLayout.SOUTH);
-            } else {
-                wrapper.remove(chatDrawer);
-            }
+        if (parent instanceof JPanel wrapper && wrapper.getLayout() instanceof BorderLayout) {
+            if (chatVisible) wrapper.add(chatDrawer, BorderLayout.SOUTH);
+            else wrapper.remove(chatDrawer);
             wrapper.revalidate();
             wrapper.repaint();
         }
@@ -428,7 +449,6 @@ public class HUDPanel extends JPanel
     private void sendChatMessage() {
         String text = chatInput.getText().trim();
         if (text.isEmpty()) return;
-
         NetworkManager nm = mainController.getNetworkManager();
         if (nm != null) {
             nm.sendRequest(gson.toJson(new network.messages.lobby.ChatSendRequest(text)));
@@ -438,91 +458,23 @@ public class HUDPanel extends JPanel
         chatInput.setText("");
     }
 
-    private void handleEndTurn() {
-        if (gamePanel.isAnimating() || mainController.isProcessingTurn()) return;
-
-        NetworkManager nm = mainController.getNetworkManager();
-        if (nm != null) {
-            nm.sendRequest(gson.toJson(new EndTurnRequest()));
-            endTurnBtn.setEnabled(false);
-            endTurnBtn.setText("⏳ Waiting...");
-            confirmIdleMode = false;
-            setActiveTurnInfo("Waiting...", false);
-            return;
-        }
-
-        if (!confirmIdleMode && mainController.getTurnController().hasIdleUnits()) {
-            confirmIdleMode = true;
-            endTurnBtn.setText("⚠️ IDLE UNITS! CONFIRM");
-            updateButtonColor();
-        } else {
-            confirmIdleMode = false;
-            mainController.getTurnController().forceEndTurn();
-        }
+    public void appendGameChatMessage(String formattedMessage) {
+        SwingUtilities.invokeLater(() -> {
+            chatArea.append(formattedMessage);
+            chatArea.setCaretPosition(chatArea.getDocument().getLength());
+        });
     }
 
-    private void updateButtonColor() {
-        endTurnBtn.setBackground(confirmIdleMode ? new Color(230, 126, 34) : new Color(192, 57, 43));
-    }
-
-    private void resetEndTurnButton() {
-        if (confirmIdleMode) {
-            confirmIdleMode = false;
-            endTurnBtn.setText("END TURN");
-            updateButtonColor();
-        }
-    }
-
-    private String fmt(Inventory inv, ResourceType type, int net) {
-        int amount = inv.getResourceAmount(type);
-        int cap    = inv.getCapacity(type);
-        String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
-        String sign     = net > 0 ? "+" : "";
-        return amount + "<span style='color:#7f8c8d'>/" + cap + "</span> "
-                + "(<span style='color:" + netColor + "'>" + sign + net + "</span>)";
-    }
-
-    private String formatHappiness(int h) {
-        String sign = h > 0 ? "+" : "";
-        String label; String color;
-        if      (h >= 3)  { label = "✨ Golden Age"; color = "#f1c40f"; }
-        else if (h >= -2) { label = "😊 Normal";     color = "#2ecc71"; }
-        else if (h >= -4) { label = "😠 Discontent"; color = "#e67e22"; }
-        else              { label = "🔥 Rebellion";  color = "#e74c3c"; }
-        return sign + h + " <span style='color:" + color
-                + "; font-size:11px;'>[" + label + "]</span>";
-    }
-
-    private String formatSeason(Season s) {
-        return switch (s) {
-            case SPRING -> "<span style='color:#a8e063;'>🌸 Spring</span>";
-            case SUMMER -> "<span style='color:#f9d423;'>☀️ Summer</span>";
-            case AUTUMN -> "<span style='color:#e67e22;'>🍂 Autumn</span>";
-            case WINTER -> "<span style='color:#a8d8ea;'>❄️ Winter</span>";
-        };
-    }
-
-    private String seasonTooltip(Season s) {
-        return switch (s) {
-            case SPRING -> "<html><b style='color:#a8e063;'>🌸 Spring</b><br/>Farms & Stables +1 Food/turn</html>";
-            case SUMMER -> "<html><b style='color:#f9d423;'>☀️ Summer</b><br/>No seasonal effects</html>";
-            case AUTUMN -> "<html><b style='color:#e67e22;'>🍂 Autumn</b><br/>Water +1 AP | Flood risk</html>";
-            case WINTER -> "<html><b style='color:#a8d8ea;'>❄️ Winter</b><br/>Farms −1 Food | Land +1 AP</html>";
-        };
-    }
+    // ─── Alerts & UI Components ───────────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(new Color(180, 20, 20));
         card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 4, 0, 0, new Color(255, 50, 50)),
-                new EmptyBorder(6, 12, 6, 12)));
-        JLabel label = new JLabel(
-                "<html><body style='color:white;'>"
-                        + "<b>⚠️ STARVATION!</b>"
-                        + "<span style='color:#ffaaaa; font-size:11px;'> Population frozen | -1 AP/unit</span>"
-                        + "</body></html>");
+                BorderFactory.createMatteBorder(0, 3, 0, 0, new Color(255, 50, 50)),
+                new EmptyBorder(4, 8, 4, 8)));
+        JLabel label = new JLabel("<html><body style='color:white; font-size:11px;'><b>⚠️ STARVING</b></body></html>");
         card.add(label, BorderLayout.CENTER);
         return card;
     }
@@ -572,9 +524,7 @@ public class HUDPanel extends JPanel
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(new Color(120, 60, 0));
         p.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
-        JLabel msg = new JLabel(
-                "<html><center><span style='color:white;'>" + message + "</span></center></html>",
-                SwingConstants.CENTER);
+        JLabel msg = new JLabel("<html><center><span style='color:white;'>" + message + "</span></center></html>", SwingConstants.CENTER);
         msg.setBorder(new EmptyBorder(10, 18, 10, 18));
         p.add(msg);
         notif.setContentPane(p);
@@ -585,30 +535,38 @@ public class HUDPanel extends JPanel
         new Timer(3500, e -> notif.dispose()) {{ setRepeats(false); start(); }};
     }
 
+    private String seasonTooltip(Season s) {
+        return switch (s) {
+            case SPRING -> "<html><b style='color:#a8e063;'>🌸 Spring</b><br/>Farms & Stables +1 Food/turn</html>";
+            case SUMMER -> "<html><b style='color:#f9d423;'>☀️ Summer</b><br/>No seasonal effects</html>";
+            case AUTUMN -> "<html><b style='color:#e67e22;'>🍂 Autumn</b><br/>Water +1 AP | Flood risk</html>";
+            case WINTER -> "<html><b style='color:#a8d8ea;'>❄️ Winter</b><br/>Farms −1 Food | Land +1 AP</html>";
+        };
+    }
+
     private static class HUDCard extends JPanel {
         private final JLabel label;
-        private final String title;
-        private final String titleStyle;
+        private final String iconPrefix;
 
-        HUDCard(String title, Color accent, boolean isAlert) {
-            this.title      = title;
-            this.titleStyle = isAlert ? "color:white;" : "color:#bdc3c7;";
+        HUDCard(String iconPrefix, Color accent, boolean isAlert) {
+            this.iconPrefix = iconPrefix;
             setLayout(new BorderLayout());
             setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52));
             setOpaque(true);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 4, 0, 0, accent),
-                    new EmptyBorder(6, 12, 6, 12)));
+                    BorderFactory.createMatteBorder(0, 3, 0, 0, accent),
+                    new EmptyBorder(4, 8, 4, 8)));
             label = new JLabel();
             add(label, BorderLayout.CENTER);
         }
 
         void updateValue(String valueText) {
-            label.setText("<html><body style='font-family:Segoe UI; font-size:13px;'>"
-                    + "<span style='" + titleStyle + "'>" + title + ":</span> "
-                    + valueText + "</body></html>");
+            label.setText("<html><body style='font-family:Segoe UI; font-size:12px; color:white;'>"
+                    + "<b>" + iconPrefix + "</b> " + valueText + "</body></html>");
         }
     }
+
+    // ─── Event Listener Implementations ──────────────────────────────────────
 
     @Override public void onResourceChanged(ResourceType t, int a)             { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit u, int oq, int or_, int nq, int nr) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }
