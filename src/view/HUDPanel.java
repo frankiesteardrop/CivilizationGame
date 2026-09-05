@@ -19,9 +19,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Top HUD bar: Responsive layout using BorderLayout.
+ * Top HUD bar: Highly optimized and responsive layout using BorderLayout.
  * West: Turn Indicator & Diplomacy
- * Center: Scrollable Resource Cards
+ * Center: Compact Resource Cards (No clipping, completely visible)
  * East: Fixed-size Action Buttons
  */
 public class HUDPanel extends JPanel
@@ -66,27 +66,28 @@ public class HUDPanel extends JPanel
         this.mainController = mainController;
         this.gamePanel      = gamePanel;
 
-        setLayout(new BorderLayout(10, 0));
+        // تغییر Layout و کاهش فاصله‌ها برای جلوگیری از تداخل
+        setLayout(new BorderLayout(4, 0));
         setBackground(new Color(25, 28, 33));
-        setPreferredSize(new Dimension(0, 52)); // ارتفاع ثابت برای جلوگیری از پرش تصویر
+        setPreferredSize(new Dimension(0, 48)); // تنظیم ارتفاع مینیمال و استاندارد
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(41, 128, 185)),
-                new EmptyBorder(5, 10, 5, 10)));
+                new EmptyBorder(4, 6, 4, 6)));
 
         // ─── 1. West Panel: Turn Info & Diplomacy ─────────────────────────────
-        JPanel westPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        JPanel westPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         westPanel.setOpaque(false);
 
         activeTurnLabel = new JLabel("🎮 Single Player");
-        activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        activeTurnLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
         activeTurnLabel.setForeground(new Color(189, 195, 199));
         activeTurnLabel.setOpaque(true);
         activeTurnLabel.setBackground(new Color(35, 40, 52));
         activeTurnLabel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(44, 62, 80), 1),
-                new EmptyBorder(4, 10, 4, 10)));
+                new EmptyBorder(3, 6, 3, 6)));
 
-        diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        diplomacyPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         diplomacyPanel.setOpaque(false);
         diplomacyPanel.setVisible(false);
 
@@ -94,8 +95,9 @@ public class HUDPanel extends JPanel
         westPanel.add(diplomacyPanel);
         add(westPanel, BorderLayout.WEST);
 
-        // ─── 2. Center Panel: Scrollable Resources ────────────────────────────
-        infoContainer = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        // ─── 2. Center Panel: Compact Resource Cards ──────────────────────────
+        // حذف JScrollPane و استفاده از یک FlowLayout فشرده در مرکز
+        infoContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 0));
         infoContainer.setOpaque(false);
 
         foodCard      = new HUDCard("🍔", new Color(46, 204, 113), false);
@@ -122,21 +124,13 @@ public class HUDPanel extends JPanel
         infoContainer.add(turnCard);
         infoContainer.add(starvationAlertCard);
 
-        JScrollPane scrollPane = new JScrollPane(infoContainer);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
-        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_HIDDEN);
-
-        // Use a wrapper to keep the scroll pane vertically centered
         JPanel centerWrapper = new JPanel(new BorderLayout());
         centerWrapper.setOpaque(false);
-        centerWrapper.add(scrollPane, BorderLayout.CENTER);
+        centerWrapper.add(infoContainer, BorderLayout.CENTER);
         add(centerWrapper, BorderLayout.CENTER);
 
         // ─── 3. East Panel: Action Buttons ────────────────────────────────────
-        JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         eastPanel.setOpaque(false);
 
         inboxBtn   = buildActionButton("📥 Inbox", new Color(40, 44, 52), Color.WHITE);
@@ -240,7 +234,7 @@ public class HUDPanel extends JPanel
         int amount = inv.getResourceAmount(type);
         String netColor = net < 0 ? "#e74c3c" : "#2ecc71";
         String sign     = net > 0 ? "+" : "";
-        return amount + " <span style='color:" + netColor + "; font-size:10px;'>(" + sign + net + ")</span>";
+        return amount + " <span style='color:" + netColor + "; font-size:9px;'>(" + sign + net + ")</span>";
     }
 
     private String fmtTooltip(Inventory inv, ResourceType type, int net) {
@@ -252,11 +246,11 @@ public class HUDPanel extends JPanel
 
     private JButton buildActionButton(String text, Color bg, Color fg) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 11)); // کاهش سایز فونت برای فشردگی
         btn.setBackground(bg);
         btn.setForeground(fg);
         btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(6, 14, 6, 14));
+        btn.setBorder(new EmptyBorder(4, 10, 4, 10)); // کاهش پدینگ داخلی دکمه
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
         btn.addMouseListener(new MouseAdapter() {
@@ -472,9 +466,9 @@ public class HUDPanel extends JPanel
         card.setBackground(new Color(180, 20, 20));
         card.setOpaque(true);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 3, 0, 0, new Color(255, 50, 50)),
-                new EmptyBorder(4, 8, 4, 8)));
-        JLabel label = new JLabel("<html><body style='color:white; font-size:11px;'><b>⚠️ STARVING</b></body></html>");
+                BorderFactory.createMatteBorder(0, 2, 0, 0, new Color(255, 50, 50)),
+                new EmptyBorder(2, 6, 2, 6)));
+        JLabel label = new JLabel("<html><body style='color:white; font-size:10px;'><b>⚠️ STARVING</b></body></html>");
         card.add(label, BorderLayout.CENTER);
         return card;
     }
@@ -486,10 +480,10 @@ public class HUDPanel extends JPanel
         p.setBackground(new Color(180, 20, 20));
         p.setBorder(BorderFactory.createLineBorder(new Color(255, 80, 80), 2));
         JLabel msg = new JLabel(
-                "<html><center><b style='color:white; font-size:16px;'>⚠️ STARVATION!</b><br/>"
-                        + "<span style='color:#ffcccc;'>Population frozen. Units lose 1 AP/turn.</span></center></html>",
+                "<html><center><b style='color:white; font-size:14px;'>⚠️ STARVATION!</b><br/>"
+                        + "<span style='color:#ffcccc; font-size:11px;'>Population frozen. Units lose 1 AP/turn.</span></center></html>",
                 SwingConstants.CENTER);
-        msg.setBorder(new EmptyBorder(15, 25, 15, 25));
+        msg.setBorder(new EmptyBorder(10, 20, 10, 20));
         p.add(msg);
         alert.setContentPane(p);
         alert.pack();
@@ -505,10 +499,10 @@ public class HUDPanel extends JPanel
         p.setBackground(new Color(39, 174, 96));
         p.setBorder(BorderFactory.createLineBorder(new Color(46, 204, 113), 2));
         JLabel msg = new JLabel(
-                "<html><center><b style='color:white;'>✅ Production Complete!</b><br/>"
-                        + "<span style='color:#d5f5e3;'>" + itemName + " is ready.</span></center></html>",
+                "<html><center><b style='color:white; font-size:12px;'>✅ Production Complete!</b><br/>"
+                        + "<span style='color:#d5f5e3; font-size:11px;'>" + itemName + " is ready.</span></center></html>",
                 SwingConstants.CENTER);
-        msg.setBorder(new EmptyBorder(12, 20, 12, 20));
+        msg.setBorder(new EmptyBorder(8, 16, 8, 16));
         p.add(msg);
         notif.setContentPane(p);
         notif.pack();
@@ -524,8 +518,8 @@ public class HUDPanel extends JPanel
         JPanel p = new JPanel(new BorderLayout());
         p.setBackground(new Color(120, 60, 0));
         p.setBorder(BorderFactory.createLineBorder(new Color(230, 120, 0), 2));
-        JLabel msg = new JLabel("<html><center><span style='color:white;'>" + message + "</span></center></html>", SwingConstants.CENTER);
-        msg.setBorder(new EmptyBorder(10, 18, 10, 18));
+        JLabel msg = new JLabel("<html><center><span style='color:white; font-size:11px;'>" + message + "</span></center></html>", SwingConstants.CENTER);
+        msg.setBorder(new EmptyBorder(8, 14, 8, 14));
         p.add(msg);
         notif.setContentPane(p);
         notif.pack();
@@ -554,14 +548,14 @@ public class HUDPanel extends JPanel
             setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52));
             setOpaque(true);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 3, 0, 0, accent),
-                    new EmptyBorder(4, 8, 4, 8)));
+                    BorderFactory.createMatteBorder(0, 2, 0, 0, accent), // کاهش کلفتی بردر
+                    new EmptyBorder(2, 5, 2, 5))); // فشرده‌سازی حداکثری
             label = new JLabel();
             add(label, BorderLayout.CENTER);
         }
 
         void updateValue(String valueText) {
-            label.setText("<html><body style='font-family:Segoe UI; font-size:12px; color:white;'>"
+            label.setText("<html><body style='font-family:Segoe UI; font-size:11px; color:white;'>"
                     + "<b>" + iconPrefix + "</b> " + valueText + "</body></html>");
         }
     }
