@@ -7,8 +7,9 @@ import controller.MenuAction;
 import model.*;
 import network.client.NetworkManager;
 import network.messages.game.AttackRequest;
-import network.messages.game.CraftItemRequest;
 import network.messages.game.CancelProductionRequest;
+import network.messages.game.CraftItemRequest;
+import network.messages.game.ItemUseRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -165,7 +166,7 @@ public class ContextMenuFactory {
             return actions;
         }
 
-        Inventory inv = mc.getGameMap().getTownHall().getInventory();
+        Inventory inv = mc.getGameMap().getPlayerInventory(mc.getMyPlayerId());
         Gson gson = new Gson();
 
         for (Apothecary.ItemType itemType : Apothecary.ItemType.values()) {
@@ -221,50 +222,129 @@ public class ContextMenuFactory {
         NetworkManager nm = mc.getNetworkManager();
         boolean isSameHex = (selectedUnit.getQ() == targetHex.getQ() && selectedUnit.getR() == targetHex.getR());
 
-        if (!isSameHex && selectedUnit.getAttackRange() > 0) {
-            return buildAttackMenu(mc, selectedUnit, targetHex);
-        }
-        if (selectedUnit.getType() == UnitType.BUILDER) {
-            Builder builder = (Builder) selectedUnit;
-            Building existing = targetHex.getBuilding();
-            if (existing != null && !existing.isDestroyed()) {
-                boolean canDestroy = mc.getBuildController().canDestroy(targetHex, "BUILDING", 0, builder);
-                BuildingType bType = existing.getType();
-                actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
-                        canDestroy, getDestroyDisabledReason(bType, builder),
-                        () -> mc.getBuildController().destroyStructure(builder, targetHex, "BUILDING", 0, nm))
-                        .setConfirmation("Destroy " + bType.name() + "?\n\n⚠️ No resources will be refunded.\nWorkers inside will be relocated."));
-            } else if (!targetHex.isInsideBorder()) {
-                actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
-            } else {
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.LUMBER_MILL, "🌲 Lumber Mill", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.FARM,        "🌾 Farm", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STABLE,      "🐄 Stable", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)", nm));
+        Inventory inv = mc.getGameMap().getPlayerInventory(selectedUnit.getOwnerId());
+        Gson gson = new Gson();
 
-                boolean hasDockDiscount = mc.getGameMap().getTownHall().getDiscountedDocks() > 0;
-                String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.DOCK, dockLabel, nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.MONUMENT, "🏛️ Monument", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.BAZAAR,   "⚖️ Bazaar [TH L2]", nm));
-                actions.add(createBuildAction(mc, builder, targetHex, BuildingType.APOTHECARY,"⚗️ Apothecary [TH L2, Plains]", nm));
+        if (!isSameHex) {
+            // منطق حمله
+            if (selectedUnit.getAttackRange() > 0) {
+                actions.addAll(buildAttackMenu(mc, selectedUnit, targetHex));
             }
-        } else if (selectedUnit.getType() == UnitType.WORKER) {
-            Worker worker = (Worker) selectedUnit;
-            if (worker.isStationed()) {
-                actions.add(new MenuAction("🚪 Leave Facility", mc.getUnitController().canEject(worker), () -> mc.getUnitController().handleEject(worker, nm)));
-            } else {
-                Building b = targetHex.getBuilding();
-                if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL
-                        && b.getType() != BuildingType.MONUMENT && b.getMaxWorkers() > 0) {
 
-                    boolean can = mc.getUnitController().canStation(worker, targetHex, mc.getGameMap());
-                    actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
-                            () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap(), nm)));
+            // منطق آیتم تله‌پورت (گام ۴)
+            if (inv.hasItem("TELEPORT")) {
+                boolean isValidDest = targetHex.isExplored() &&
+                        targetHex.getTerrainType() != TerrainType.SEA &&
+                        targetHex.getTerrainType() != TerrainType.MOUNTAIN_RANGE &&
+                        !mc.getGameMap().hasUnitAt(targetHex.getQ(), targetHex.getR());
+                boolean canUse = !selectedUnit.hasUsedItemThisTurn() && isValidDest;
+                String reason = selectedUnit.hasUsedItemThisTurn() ? "Already used an item this turn" : "Invalid destination";
+
+                actions.add(new MenuAction("✨ Teleport Here (Free Action)", canUse, canUse ? null : reason, () -> {
+                    if (nm != null) {
+                        nm.sendRequest(gson.toJson(new ItemUseRequest(selectedUnit.getQ(), selectedUnit.getR(), "TELEPORT", targetHex.getQ(), targetHex.getR())));
+                    } else {
+                        inv.consumeItem("TELEPORT");
+                        selectedUnit.setUsedItemThisTurn(true);
+                        selectedUnit.moveTo(targetHex.getQ(), targetHex.getR(), 0);
+                        mc.getGameMap().updateFogOfWar();
+                    }
+                }));
+            }
+
+            // منطق تسخیر هکس
+            if (mc.isCapturable(selectedUnit, targetHex)) {
+                List<Unit> attackers = mc.getGameMap().getUnits().stream()
+                        .filter(u -> u.isAlive() && u.getQ() == selectedUnit.getQ() && u.getR() == selectedUnit.getR()
+                                && (u.getType() == UnitType.SWORDSMAN || u.getType() == UnitType.ARCHER || u.getType() == UnitType.CAVALRY))
+                        .collect(Collectors.toList());
+
+                boolean canCapture = !attackers.isEmpty() && attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
+                actions.add(new MenuAction("🏴 Capture Hex (1 AP)", canCapture,
+                        canCapture ? "No defenders — seize this hex" : "Need military unit with AP ≥ 1",
+                        () -> {
+                            attackers.stream().filter(u -> u.getCurrentAP() >= 1).findFirst()
+                                    .ifPresent(u -> u.consumeAP(1));
+                            targetHex.setInsideBorder(true);
+                            targetHex.setExplored(true);
+                            mc.getGameMap().updateFogOfWar();
+                            GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
+                        }));
+            }
+        } else {
+            // منطق‌های مربوط به هکس فعلی (مصرف آیتم‌های تحرک و مبارزه)
+
+            if (inv.hasItem("MOBILITY")) {
+                boolean canUse = !selectedUnit.hasUsedItemThisTurn();
+                actions.add(new MenuAction("⚡ Use Mobility Potion (+2 AP)", canUse, canUse ? null : "Already used an item this turn", () -> {
+                    if (nm != null) {
+                        nm.sendRequest(gson.toJson(new ItemUseRequest(selectedUnit.getQ(), selectedUnit.getR(), "MOBILITY", 0, 0)));
+                    } else {
+                        inv.consumeItem("MOBILITY");
+                        selectedUnit.setUsedItemThisTurn(true);
+                        selectedUnit.addTemporaryAP(2);
+                        GameEventDispatcher.fireUnitStateChanged(selectedUnit);
+                    }
+                }));
+            }
+
+            if (inv.hasItem("COMBAT")) {
+                boolean canUse = !selectedUnit.hasUsedItemThisTurn();
+                actions.add(new MenuAction("⚔️ Use Combat Potion (+1 Dice, +5 Siege)", canUse, canUse ? null : "Already used an item this turn", () -> {
+                    if (nm != null) {
+                        nm.sendRequest(gson.toJson(new ItemUseRequest(selectedUnit.getQ(), selectedUnit.getR(), "COMBAT", 0, 0)));
+                    } else {
+                        inv.consumeItem("COMBAT");
+                        selectedUnit.setUsedItemThisTurn(true);
+                        selectedUnit.setTemporaryCombatDiceBonus(1);
+                        selectedUnit.setTemporarySiegeBonus(5);
+                        GameEventDispatcher.fireUnitStateChanged(selectedUnit);
+                    }
+                }));
+            }
+
+            if (selectedUnit.getType() == UnitType.BUILDER) {
+                Builder builder = (Builder) selectedUnit;
+                Building existing = targetHex.getBuilding();
+                if (existing != null && !existing.isDestroyed()) {
+                    boolean canDestroy = mc.getBuildController().canDestroy(targetHex, "BUILDING", 0, builder);
+                    BuildingType bType = existing.getType();
+                    actions.add(new MenuAction("🗑️ Destroy " + bType.name() + " (-1 AP, no refund)",
+                            canDestroy, getDestroyDisabledReason(bType, builder),
+                            () -> mc.getBuildController().destroyStructure(builder, targetHex, "BUILDING", 0, nm))
+                            .setConfirmation("Destroy " + bType.name() + "?\n\n⚠️ No resources will be refunded.\nWorkers inside will be relocated."));
+                } else if (!targetHex.isInsideBorder()) {
+                    actions.add(new MenuAction("⛔ Must be inside your borders", false, null));
                 } else {
-                    actions.add(new MenuAction("⛔ No workable facility here", false, null));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.LUMBER_MILL, "🌲 Lumber Mill", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.FARM,        "🌾 Farm", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STABLE,      "🐄 Stable", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.STONE_MINE,  "⛏️ Stone Mine", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.IRON_MINE,   "🔩 Iron Mine", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.SETTLEMENT,  "🏘️ Settlement (⚠️ -1 Happiness)", nm));
+
+                    boolean hasDockDiscount = mc.getGameMap().getTownHall().getDiscountedDocks() > 0;
+                    String dockLabel = hasDockDiscount ? "⚓ Dock [🎉 FREE by Mission!]" : "⚓ Dock [TH L2]";
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.DOCK, dockLabel, nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.MONUMENT, "🏛️ Monument", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.BAZAAR,   "⚖️ Bazaar [TH L2]", nm));
+                    actions.add(createBuildAction(mc, builder, targetHex, BuildingType.APOTHECARY,"⚗️ Apothecary [TH L2, Plains]", nm));
+                }
+            } else if (selectedUnit.getType() == UnitType.WORKER) {
+                Worker worker = (Worker) selectedUnit;
+                if (worker.isStationed()) {
+                    actions.add(new MenuAction("🚪 Leave Facility", mc.getUnitController().canEject(worker), () -> mc.getUnitController().handleEject(worker, nm)));
+                } else {
+                    Building b = targetHex.getBuilding();
+                    if (b != null && !b.isDestroyed() && b.getType() != BuildingType.TOWN_HALL
+                            && b.getType() != BuildingType.MONUMENT && b.getMaxWorkers() > 0) {
+
+                        boolean can = mc.getUnitController().canStation(worker, targetHex, mc.getGameMap());
+                        actions.add(new MenuAction("⚙️ Station in " + b.getType().name(), can,
+                                () -> mc.getUnitController().handleStation(worker, targetHex, mc.getGameMap(), nm)));
+                    } else {
+                        actions.add(new MenuAction("⛔ No workable facility here", false, null));
+                    }
                 }
             }
         }
@@ -357,19 +437,6 @@ public class ContextMenuFactory {
             }
         }
 
-        if (mc.isCapturable(selectedUnit, targetHex)) {
-            boolean canCapture = !attackers.isEmpty() && attackers.stream().anyMatch(u -> u.getCurrentAP() >= 1);
-            actions.add(new MenuAction("🏴 Capture Hex (1 AP)", canCapture,
-                    canCapture ? "No defenders — seize this hex" : "Need military unit with AP ≥ 1",
-                    () -> {
-                        attackers.stream().filter(u -> u.getCurrentAP() >= 1).findFirst()
-                                .ifPresent(u -> u.consumeAP(1));
-                        targetHex.setInsideBorder(true);
-                        targetHex.setExplored(true);
-                        map.updateFogOfWar();
-                        GameEventDispatcher.fireBorderExpanded(targetHex.getQ(), targetHex.getR());
-                    }));
-        }
         return actions;
     }
 
