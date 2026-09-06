@@ -101,32 +101,99 @@ public class GameStateManager {
         broadcastCustomizedStates();
     }
 
+    // --- مدیریت متمرکز و ایمن خروج/حذف پلیرها (SRP/DRY Fix) ---
+
     public synchronized void handlePlayerDisconnected(String clientId) {
         if (serverTurnProcessor == null) return;
+        System.out.println("[Server] Player disconnected during game: " + playerNames.getOrDefault(clientId, clientId));
+        removePlayerFully(clientId, "DISCONNECT");
+    }
 
-        String playerName = playerNames.getOrDefault(clientId, clientId);
-        System.out.println("[Server] Player disconnected during game: " + playerName);
+    private void checkPlayerElimination(String playerId) {
+        boolean hasActiveTH = masterMap.getHexes().stream().anyMatch(h ->
+                h.getBuilding() != null
+                        && h.getBuilding().getType() == BuildingType.TOWN_HALL
+                        && !h.getBuilding().isDestroyed()
+                        && playerId.equals(h.getBuilding().getOwnerId()));
 
-        cancelAllTradesForPlayer(clientId);
+        if (!hasActiveTH) {
+            removePlayerFully(playerId, "ELIMINATION");
+        }
+    }
 
-        server.broadcast(gson.toJson(new GameNotificationMessage("⚠️ Player " + playerName + " has disconnected.")));
+    private void removePlayerFully(String playerId, String reasonType) {
+        boolean wasActivePlayer = (!players.isEmpty() && players.get(currentPlayerIndex).getId().equals(playerId));
+        String name = playerNames.getOrDefault(playerId, playerId);
 
-        if (players.get(currentPlayerIndex).getId().equals(clientId)) {
-            server.broadcast(gson.toJson(new GameNotificationMessage("⏭️ " + playerName + "'s turn was automatically skipped.")));
-
-            serverTurnProcessor.processTurn(masterMap);
-
-            currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
-            if (currentPlayerIndex == 0) {
-                masterMap.incrementTurn();
+        // 1. پاکسازی کامل مموری از دارایی‌های پلیر (Atomic Cleanup)
+        masterMap.removeUnitsWhere(u -> playerId.equals(u.getOwnerId()));
+        for (Hex h : masterMap.getHexes()) {
+            if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
+                h.getBuilding().takeDamage(9999);
+                h.setBuilding(null);
             }
+        }
+        cancelAllTradesForPlayer(playerId);
+        diplomacyStates.remove(playerId);
+        tradeInboxes.remove(playerId);
+        pendingWatReports.remove(playerId);
 
+        // 2. اعلان سراسری
+        if ("DISCONNECT".equals(reasonType)) {
+            server.broadcast(gson.toJson(new GameNotificationMessage("⚠️ Player " + name + " disconnected and has been removed from the match.")));
+        } else {
+            server.broadcast(gson.toJson(new GameNotificationMessage("💀 " + name + " has been eliminated from the game!")));
+        }
+
+        // 3. خروج ایمن از صف نوبت‌ها بدون جابه‌جایی مخرب ایندکس
+        removePlayerFromTurnOrder(playerId);
+
+        // 4. بررسی شرط پیروزی نهایی (Win Condition)
+        if (players.size() == 1) {
+            String winnerName = playerNames.getOrDefault(players.get(0).getId(), "Unknown");
+            server.broadcast(gson.toJson(new GameNotificationMessage("🏆 " + winnerName + " has won the game!")));
+            return;
+        }
+
+        // 5. رسیدگی به شیفت شدن نوبت
+        if (wasActivePlayer && !players.isEmpty()) {
+            server.broadcast(gson.toJson(new GameNotificationMessage("⏭️ " + name + "'s turn was automatically skipped.")));
+            serverTurnProcessor.processTurn(masterMap);
             String nextPlayerId = players.get(currentPlayerIndex).getId();
             deliverWatReports(nextPlayerId);
-
+            broadcastCustomizedStates();
+        } else if (!players.isEmpty()) {
             broadcastCustomizedStates();
         }
     }
+
+    private void removePlayerFromTurnOrder(String playerId) {
+        int removedIndex = -1;
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getId().equals(playerId)) {
+                removedIndex = i;
+                break;
+            }
+        }
+
+        if (removedIndex == -1) return;
+
+        players.remove(removedIndex);
+
+        if (players.isEmpty()) return;
+
+        // خنثی‌سازی باگ Index Shift
+        if (removedIndex < currentPlayerIndex) {
+            currentPlayerIndex--;
+        } else if (removedIndex == currentPlayerIndex) {
+            if (currentPlayerIndex >= players.size()) {
+                currentPlayerIndex = 0;
+                masterMap.incrementTurn();
+            }
+        }
+    }
+
+    // --------------------------------------------------------
 
     public synchronized void handleCraftItemRequest(String clientId, CraftItemRequest req) {
         if (!isActivePlayer(clientId)) {
@@ -708,6 +775,7 @@ public class GameStateManager {
     }
 
     public synchronized void broadcastCustomizedStates() {
+        if (players.isEmpty()) return;
         String activePlayerId = players.get(currentPlayerIndex).getId();
 
         for (LobbyPlayer player : players) {
@@ -718,45 +786,6 @@ public class GameStateManager {
 
             GameStateBroadcast update = new GameStateBroadcast(activePlayerId, masterMap.getCurrentTurn(), filteredMapJson);
             server.sendToClient(clientId, gson.toJson(update));
-        }
-    }
-
-    private void checkPlayerElimination(String playerId) {
-        boolean hasActiveTH = masterMap.getHexes().stream().anyMatch(h ->
-                h.getBuilding() != null
-                        && h.getBuilding().getType() == BuildingType.TOWN_HALL
-                        && !h.getBuilding().isDestroyed()
-                        && playerId.equals(h.getBuilding().getOwnerId()));
-
-        if (!hasActiveTH) {
-            // حذف کامل و ایمن یونیت‌های پلیر مغلوب
-            masterMap.removeUnitsWhere(u -> playerId.equals(u.getOwnerId()));
-
-            for (Hex h : masterMap.getHexes()) {
-                if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
-                    h.getBuilding().takeDamage(9999);
-                    h.setBuilding(null);
-                }
-            }
-
-            cancelAllTradesForPlayer(playerId);
-
-            String name = playerNames.getOrDefault(playerId, playerId);
-            server.broadcast(gson.toJson(new GameNotificationMessage("💀 " + name + " has been eliminated from the game!")));
-
-            // --- WIN CHECK LOGIC ---
-            List<LobbyPlayer> activePlayers = players.stream()
-                    .filter(p -> masterMap.getHexes().stream().anyMatch(h ->
-                            h.getBuilding() != null
-                                    && h.getBuilding().getType() == BuildingType.TOWN_HALL
-                                    && !h.getBuilding().isDestroyed()
-                                    && p.getId().equals(h.getBuilding().getOwnerId())))
-                    .toList();
-
-            if (activePlayers.size() == 1) {
-                String winnerName = playerNames.getOrDefault(activePlayers.get(0).getId(), "Unknown");
-                server.broadcast(gson.toJson(new GameNotificationMessage("🏆 " + winnerName + " has won the game!")));
-            }
         }
     }
 
@@ -836,6 +865,7 @@ public class GameStateManager {
     }
 
     private boolean isActivePlayer(String clientId) {
+        if (players.isEmpty()) return false;
         return players.get(currentPlayerIndex).getId().equals(clientId);
     }
 
