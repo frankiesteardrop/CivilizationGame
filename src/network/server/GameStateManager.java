@@ -90,11 +90,18 @@ public class GameStateManager {
         }
 
         System.out.println("[Server] End-of-turn for: " + playerNames.getOrDefault(clientId, clientId));
-        serverTurnProcessor.processTurn(masterMap);
+
+        // 🔴 منطق ایزوله شده‌ی پایان نوبت فردی
+        serverTurnProcessor.processPlayerTurnEnd(masterMap, clientId);
 
         currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
-        if (currentPlayerIndex == 0) {
+
+        // 🔴 منطق راند جهانی
+        boolean isNewRound = (currentPlayerIndex == 0);
+        if (isNewRound) {
             masterMap.incrementTurn();
+            serverTurnProcessor.processGlobalRoundEnd(masterMap);
+            System.out.println("[Server] Global Round " + masterMap.getCurrentTurn() + " Started.");
         }
 
         databaseManager.saveGameSession("active_match", gson.toJson(masterMap));
@@ -155,7 +162,16 @@ public class GameStateManager {
 
         if (wasActivePlayer && !players.isEmpty()) {
             server.broadcast(gson.toJson(new GameNotificationMessage("⏭️ " + name + "'s turn was automatically skipped.")));
-            serverTurnProcessor.processTurn(masterMap);
+
+            // 🔴 شبیه‌سازی پایان نوبت پلیری که مرده است
+            serverTurnProcessor.processPlayerTurnEnd(masterMap, playerId);
+
+            boolean isNewRound = (currentPlayerIndex == 0);
+            if (isNewRound) {
+                masterMap.incrementTurn();
+                serverTurnProcessor.processGlobalRoundEnd(masterMap);
+            }
+
             String nextPlayerId = players.get(currentPlayerIndex).getId();
             deliverWatReports(nextPlayerId);
             broadcastCustomizedStates();
@@ -181,43 +197,26 @@ public class GameStateManager {
         } else if (removedIndex == currentPlayerIndex) {
             if (currentPlayerIndex >= players.size()) {
                 currentPlayerIndex = 0;
-                masterMap.incrementTurn();
             }
         }
     }
 
     public synchronized void handleCraftItemRequest(String clientId, CraftItemRequest req) {
-        if (!isActivePlayer(clientId)) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
-            return;
-        }
+        if (!isActivePlayer(clientId)) return;
         Hex hex = masterMap.getHexAt(req.getApothecaryQ(), req.getApothecaryR());
-        if (hex == null || !(hex.getBuilding() instanceof Apothecary apothecary)) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("No Apothecary found at the specified location.")));
-            return;
-        }
-        if (!clientId.equals(hex.getBuilding().getOwnerId())) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("You do not own this Apothecary.")));
-            return;
-        }
-        if (!apothecary.canQueueItem()) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("This Apothecary is already crafting: " + apothecary.getCurrentlyCrafting())));
-            return;
-        }
+        if (hex == null || !(hex.getBuilding() instanceof Apothecary apothecary)) return;
+        if (!clientId.equals(hex.getBuilding().getOwnerId())) return;
+        if (!apothecary.canQueueItem()) return;
+
         String itemName = req.getItemName();
-        if (!Apothecary.ItemType.isValid(itemName)) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Unknown item type: " + itemName)));
-            return;
-        }
+        if (!Apothecary.ItemType.isValid(itemName)) return;
         Apothecary.ItemType itemType = Apothecary.ItemType.valueOf(itemName);
         Inventory inv = getPlayerInventory(clientId);
         if (inv == null || !inv.hasEnough(ResourceType.FOOD,  itemType.getFoodCost())
                 || !inv.hasEnough(ResourceType.STONE, itemType.getStoneCost())
                 || !inv.hasEnough(ResourceType.IRON,  itemType.getIronCost())
-                || !inv.hasEnough(ResourceType.WOOD,  itemType.getWoodCost())) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Not enough resources to craft " + itemType.getDisplayName())));
-            return;
-        }
+                || !inv.hasEnough(ResourceType.WOOD,  itemType.getWoodCost())) return;
+
         inv.consumeResource(ResourceType.FOOD,  itemType.getFoodCost());
         inv.consumeResource(ResourceType.STONE, itemType.getStoneCost());
         inv.consumeResource(ResourceType.IRON,  itemType.getIronCost());
@@ -228,20 +227,11 @@ public class GameStateManager {
     }
 
     public synchronized void handleTradeOffer(String clientId, TradeOfferRequest req) {
-        if (!isActivePlayer(clientId)) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
-            return;
-        }
+        if (!isActivePlayer(clientId)) return;
         String targetId = req.getTargetPlayerId();
-        if (targetId == null || targetId.equals(clientId)) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid trade target.")));
-            return;
-        }
+        if (targetId == null || targetId.equals(clientId)) return;
         Inventory offererInv = getPlayerInventory(clientId);
-        if (offererInv == null || !offererInv.hasEnough(req.getOfferType(), req.getOfferAmount())) {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Insufficient resources.")));
-            return;
-        }
+        if (offererInv == null || !offererInv.hasEnough(req.getOfferType(), req.getOfferAmount())) return;
         offererInv.lockResource(req.getOfferType(), req.getOfferAmount());
         TradeOffer offer = new TradeOffer(clientId, playerNames.get(clientId), targetId,
                 req.getOfferType(), req.getOfferAmount(), req.getRequestType(), req.getRequestAmount());
@@ -352,7 +342,6 @@ public class GameStateManager {
         Hex target = masterMap.getHexAt(req.getHexQ(), req.getHexR());
 
         if (u != null && target != null) {
-            // 🔴 Context Switch: به BuildController می‌گوییم که الان داریم برای این پلیر پردازش می‌کنیم
             masterMap.setActiveTownHall(masterMap.getPlayerTownHall(clientId));
             try {
                 if ("STATION".equals(req.getActionType()) && u instanceof Worker worker) {
@@ -404,7 +393,6 @@ public class GameStateManager {
                     }
                 }
             } finally {
-                // پاکسازی Context برای جلوگیری از نشت اطلاعات به بقیه پردازش‌ها
                 masterMap.clearActiveTownHall();
             }
         }

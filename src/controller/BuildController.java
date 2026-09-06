@@ -76,11 +76,17 @@ public class BuildController {
 
         Building newBuilding = BuildingFactory.createBuilding(type);
         newBuilding.setOwnerId(builder.getOwnerId());
-        hex.setBuilding(newBuilding);
 
+        // 🔴 FIX: اتصال تاون‌هالِ جدید به امپراتوری مرکزیِ بازیکن
         if (type == BuildingType.TOWN_HALL) {
+            Empire playerEmpire = gameMap.getEmpire(builder.getOwnerId());
+            if (playerEmpire != null) {
+                ((TownHall) newBuilding).setEmpire(playerEmpire);
+            }
             gameMap.expandBorderAt(hex.getQ(), hex.getR());
         }
+
+        hex.setBuilding(newBuilding);
 
         gameMap.updateFogOfWar();
         gameMap.removeDeadUnits();
