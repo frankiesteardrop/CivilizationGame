@@ -448,7 +448,7 @@ public class GameStateManager {
             return;
         }
 
-        // 1. اعتبارسنجی کامل پیش از جهش (Validation Block)
+        // 1. Validation Block
         switch (req.getItemName()) {
             case "TELEPORT" -> {
                 Hex dest = masterMap.getHexAt(req.getDestQ(), req.getDestR());
@@ -471,11 +471,11 @@ public class GameStateManager {
             }
         }
 
-        // 2. اعمال تغییرات وضعیت (Mutation Block)
+        // 2. Mutation Block
         playerInv.consumeItem(req.getItemName());
         target.setUsedItemThisTurn(true);
 
-        // 3. اجرای نهایی (Execution Block)
+        // 3. Execution Block
         switch (req.getItemName()) {
             case "TELEPORT" -> target.moveTo(req.getDestQ(), req.getDestR(), 0);
             case "MOBILITY" -> target.addTemporaryAP(2);
@@ -557,7 +557,7 @@ public class GameStateManager {
             return;
         }
 
-        if (targetOwnerId != null && isSiegeAttack) {
+        if (targetOwnerId != null) {
             checkPlayerElimination(targetOwnerId);
         }
 
@@ -729,10 +729,8 @@ public class GameStateManager {
                         && playerId.equals(h.getBuilding().getOwnerId()));
 
         if (!hasActiveTH) {
-            masterMap.getUnits().stream()
-                    .filter(u -> playerId.equals(u.getOwnerId()))
-                    .forEach(u -> u.takeDamage(u.getMaxHp() + 1));
-            masterMap.removeDeadUnits();
+            // حذف کامل و ایمن یونیت‌های پلیر مغلوب
+            masterMap.removeUnitsWhere(u -> playerId.equals(u.getOwnerId()));
 
             for (Hex h : masterMap.getHexes()) {
                 if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
@@ -743,7 +741,22 @@ public class GameStateManager {
 
             cancelAllTradesForPlayer(playerId);
 
-            server.broadcast(gson.toJson(new GameNotificationMessage("💀 " + playerNames.getOrDefault(playerId, playerId) + " has been eliminated from the game!")));
+            String name = playerNames.getOrDefault(playerId, playerId);
+            server.broadcast(gson.toJson(new GameNotificationMessage("💀 " + name + " has been eliminated from the game!")));
+
+            // --- WIN CHECK LOGIC ---
+            List<LobbyPlayer> activePlayers = players.stream()
+                    .filter(p -> masterMap.getHexes().stream().anyMatch(h ->
+                            h.getBuilding() != null
+                                    && h.getBuilding().getType() == BuildingType.TOWN_HALL
+                                    && !h.getBuilding().isDestroyed()
+                                    && p.getId().equals(h.getBuilding().getOwnerId())))
+                    .toList();
+
+            if (activePlayers.size() == 1) {
+                String winnerName = playerNames.getOrDefault(activePlayers.get(0).getId(), "Unknown");
+                server.broadcast(gson.toJson(new GameNotificationMessage("🏆 " + winnerName + " has won the game!")));
+            }
         }
     }
 
