@@ -4,6 +4,7 @@ import model.maps.PreDesignedMaps;
 import network.messages.lobby.LobbyPlayer;
 import network.messages.lobby.LobbyUpdateBroadcast;
 import network.messages.lobby.ChatMessageBroadcast;
+import network.messages.lobby.PlayerIdAssignedMessage;
 import com.google.gson.Gson;
 
 import java.time.LocalTime;
@@ -40,6 +41,10 @@ public class LobbyManager {
         LobbyPlayer newPlayer = new LobbyPlayer(clientId, username, isHost);
         lobbyPlayers.put(clientId, newPlayer);
         System.out.println("[Lobby] Player joined: " + username + " (host=" + isHost + ")");
+
+        // ارسال شناسه معتبر (UUID) به کلاینت متصل شده
+        server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(clientId)));
+
         broadcastLobbyState();
     }
 
@@ -67,13 +72,6 @@ public class LobbyManager {
 
     // ─── Map Selection (B10) ──────────────────────────────────────────────────
 
-    /**
-     * Updates the selected map if the request comes from the host.
-     * Broadcasts the updated lobby state with the new selection to all clients.
-     *
-     * @param clientId the client requesting the change (must be host)
-     * @param mapId    the ID of the map to select
-     */
     public synchronized void setSelectedMap(String clientId, String mapId) {
         LobbyPlayer requester = lobbyPlayers.get(clientId);
         if (requester == null || !requester.isHost()) {

@@ -5,7 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/network/messages/lobby/PlayerIdAssignedMessage.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/server/LobbyManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/LobbyManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/MainFrame.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainFrame.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,7 +117,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/model/GameMap.java</url>
-          <line>502</line>
+          <line>536</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>

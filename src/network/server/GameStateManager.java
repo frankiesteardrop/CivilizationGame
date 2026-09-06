@@ -443,29 +443,48 @@ public class GameStateManager {
         }
 
         Inventory playerInv = getPlayerInventory(clientId);
-        if (playerInv == null || !playerInv.consumeItem(req.getItemName())) {
+        if (playerInv == null || !playerInv.hasItem(req.getItemName())) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("You do not have this item in your inventory!")));
             return;
         }
 
-        target.setUsedItemThisTurn(true);
-
+        // 1. اعتبارسنجی کامل پیش از جهش (Validation Block)
         switch (req.getItemName()) {
             case "TELEPORT" -> {
                 Hex dest = masterMap.getHexAt(req.getDestQ(), req.getDestR());
-                if (dest != null && !masterMap.hasUnitAt(dest.getQ(), dest.getR()) && dest.isExplored() && dest.getTerrainType() != TerrainType.MOUNTAIN_RANGE && dest.getTerrainType() != TerrainType.SEA) {
-                    target.moveTo(dest.getQ(), dest.getR(), 0);
-                } else {
-                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid teleport destination!")));
+                if (dest == null) {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("مقصد خارج از نقشه است.")));
+                    return;
+                }
+                if (masterMap.hasUnitAt(dest.getQ(), dest.getR())) {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("hex مقصد اشغال است.")));
+                    return;
+                }
+                if (!dest.isExplored(clientId)) {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("این منطقه کشف نشده است.")));
+                    return;
+                }
+                if (dest.getTerrainType() == TerrainType.MOUNTAIN_RANGE || dest.getTerrainType() == TerrainType.SEA) {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("terrain غیرقابل عبور برای این unit.")));
                     return;
                 }
             }
+        }
+
+        // 2. اعمال تغییرات وضعیت (Mutation Block)
+        playerInv.consumeItem(req.getItemName());
+        target.setUsedItemThisTurn(true);
+
+        // 3. اجرای نهایی (Execution Block)
+        switch (req.getItemName()) {
+            case "TELEPORT" -> target.moveTo(req.getDestQ(), req.getDestR(), 0);
             case "MOBILITY" -> target.addTemporaryAP(2);
             case "COMBAT"   -> {
                 target.setTemporaryCombatDiceBonus(1);
                 target.setTemporarySiegeBonus(5);
             }
         }
+
         broadcastCustomizedStates();
     }
 
@@ -553,8 +572,6 @@ public class GameStateManager {
 
         broadcastCustomizedStates();
     }
-
-    // ─── توابع جدید اعتبارسنجی سمت سرور برای گام دوم ───────────────────────
 
     public synchronized void handleMoveRequest(String clientId, MoveRequest req) {
         if (!isActivePlayer(clientId)) {

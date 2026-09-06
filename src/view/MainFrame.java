@@ -90,7 +90,7 @@ public class MainFrame extends JFrame {
         cleanUpGameView();
 
         NetworkManager networkManager = new NetworkManager();
-        networkManager.setMyClientId(username);
+        // حذف جعل هویت کلاینت: networkManager.setMyClientId(username);
 
         LobbyController lobbyController = new LobbyController(networkManager);
         lobbyController.setMyUsername(username);
@@ -102,7 +102,9 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainContainer, "LOBBY");
 
         ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
-        dispatcher.setMyPlayerId(username);
+
+        // 🔴 FIX: متد مخرب dispatcher.setMyPlayerId(username); حذف شد
+        // حالا کلاینت باید منتظر دریافت رویداد PLAYER_ID_ASSIGNED بماند.
 
         dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
 
@@ -120,7 +122,7 @@ public class MainFrame extends JFrame {
 
         networkManager.setMessageHandler(dispatcher);
         networkManager.connect(serverIp, 8080);
-        networkManager.sendRequest(gson.toJson(new network.messages.lobby.JoinLobbyRequest(username)));
+        networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username)));
     }
 
     // ─── Multiplayer Game View ────────────────────────────────────────────────
@@ -130,7 +132,6 @@ public class MainFrame extends JFrame {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
-        // 🔴 FIX: جلوگیری از رندر مجدد مپ کامل (استفاده از Client Stub)
         GameMap renderMap = GameMap.createClientStub(20);
         mainController = new MainController(renderMap);
         mainController.setNetworkManager(networkManager);
@@ -141,8 +142,8 @@ public class MainFrame extends JFrame {
 
         if (dispatcher != null && hudPanel != null) {
             dispatcher.setHudPanel(hudPanel);
-            dispatcher.setMainController(mainController); // متصل کردن کنترلر برای دریافت نقشه
-            dispatcher.setGamePanel(gamePanel);           // متصل کردن پنل برای Repaint
+            dispatcher.setMainController(mainController);
+            dispatcher.setGamePanel(gamePanel);
         }
 
         System.out.println("[MainFrame] Multiplayer game view started.");

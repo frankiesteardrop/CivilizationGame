@@ -6,6 +6,7 @@ import controller.LobbyController;
 import network.messages.game.*;
 import network.messages.lobby.ChatMessageBroadcast;
 import network.messages.lobby.LobbyUpdateBroadcast;
+import network.messages.lobby.PlayerIdAssignedMessage;
 import view.HUDPanel;
 import view.GamePanel;
 
@@ -21,7 +22,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     private String myPlayerId = null;
     private HUDPanel hudPanel = null;
 
-    // فیلدهای حیاتی برای آپدیت کلاینت
     private MainController mainController = null;
     private GamePanel gamePanel = null;
 
@@ -45,7 +45,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     public void setMyPlayerId(String id)                             { myPlayerId = id; }
     public void setHudPanel(HUDPanel panel)                          { hudPanel = panel; }
 
-    // ست‌کننده‌های جدید
     public void setMainController(MainController mc)                 { this.mainController = mc; }
     public void setGamePanel(GamePanel gp)                           { this.gamePanel = gp; }
 
@@ -54,6 +53,21 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     @Override
     public void onMessage(String messageType, String rawJson) {
         switch (messageType) {
+
+            // دریافت شناسه یکتا از سرور
+            case "PLAYER_ID_ASSIGNED" -> {
+                PlayerIdAssignedMessage msg = gson.fromJson(rawJson, PlayerIdAssignedMessage.class);
+                myPlayerId = msg.getAssignedId();
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    if (mainController != null) {
+                        mainController.setMyPlayerId(myPlayerId);
+                    }
+                    if (onMyPlayerIdReceived != null) {
+                        onMyPlayerIdReceived.accept(myPlayerId);
+                        onMyPlayerIdReceived = null;
+                    }
+                });
+            }
 
             case "LOBBY_UPDATE" -> {
                 LobbyUpdateBroadcast update = gson.fromJson(rawJson, LobbyUpdateBroadcast.class);
@@ -75,7 +89,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 if (onGameStarted != null) onGameStarted.run();
             }
 
-            // متد اصلاح شده برای دی‌سریالایز صحیح اطلاعات مپ و رندر آن
             case "GAME_STATE_UPDATE" -> {
                 GameStateBroadcast broadcast = gson.fromJson(rawJson, GameStateBroadcast.class);
                 if (onGameStateUpdate != null) onGameStateUpdate.accept(broadcast);
@@ -93,11 +106,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                         String activeId   = broadcast.getActivePlayerId();
                         boolean isMyTurn  = activeId != null && activeId.equals(myPlayerId);
                         hudPanel.setActiveTurnInfo(activeId, isMyTurn);
-
-                        if (myPlayerId != null && onMyPlayerIdReceived != null) {
-                            onMyPlayerIdReceived.accept(myPlayerId);
-                            onMyPlayerIdReceived = null;
-                        }
 
                         if (mainController != null) {
                             mainController.setMyTurn(isMyTurn);
