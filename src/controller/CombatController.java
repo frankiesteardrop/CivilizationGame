@@ -1,7 +1,6 @@
 package controller;
 
 import model.*;
-import model.CombatResult; // 🔴 FIX: Explicit Import to force compiler resolution
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -88,10 +87,12 @@ public class CombatController {
 
         if (isSiegeAttack) {
             int siegeDmg = handleSiegeAttack(validAttackers, sourceHex, targetHex, targetHasWall);
-            return new CombatResult(siegeDmg, 0, new ArrayList<>(), new ArrayList<>());
+            // 🔴 FIX: پارامتر جدید اضافه شد (0 برای کشته‌های مهاجم)
+            return new CombatResult(siegeDmg, 0, 0, new ArrayList<>(), new ArrayList<>());
         }
 
-        if (validDefenders.isEmpty()) return new CombatResult(0, 0, new ArrayList<>(), new ArrayList<>());
+        // 🔴 FIX: پارامتر جدید اضافه شد (0 برای کشته‌های مهاجم)
+        if (validDefenders.isEmpty()) return new CombatResult(0, 0, 0, new ArrayList<>(), new ArrayList<>());
 
         int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
         int defenderDiceCount = isTargetAnimal ? 1 : 2;
@@ -145,7 +146,8 @@ public class CombatController {
         map.removeDeadUnits();
         GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
 
-        return new CombatResult(defenderTakesDmg, attackerTakesDmg, attackerRolls, defenderRolls);
+        // 🔴 FIX: پارامتر جدید اضافه شد (attackerTakesDmg)
+        return new CombatResult(0, defenderTakesDmg, attackerTakesDmg, attackerRolls, defenderRolls);
     }
 
     private int handleSiegeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex, boolean targetHasWall) {

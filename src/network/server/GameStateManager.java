@@ -6,7 +6,7 @@ import controller.CombatController;
 import controller.UnitController;
 import controller.UpgradeController;
 import model.*;
-import model.CombatResult; // 🔴 FIX: Explicit Import to force compiler resolution
+import model.CombatResult; // 🔴 Explicit Import to force compiler resolution
 import model.maps.MapDefinition;
 import model.maps.PreDesignedMaps;
 import network.messages.game.*;
@@ -246,13 +246,16 @@ public class GameStateManager {
                     .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
             int unitsLost = (int) (aliveBefore - aliveAfter);
 
+            // 🔴 FIX: استفاده از توابع Getter ایمن و کپسوله‌شده به جای دسترسی مستقیم
             WarReport report = new WarReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
                     targetHex.getQ(), targetHex.getR(),
-                    unitsLost, result.attackerTakesDmg,
-                    isSiegeAttack ? result.defenderTakesDmg : 0,
+                    unitsLost,
+                    result.getAttackerUnitsDestroyed(),
+                    isSiegeAttack ? result.getSiegeDamage() : 0,
                     isSiegeAttack,
-                    result.attackerRolls, result.defenderRolls
+                    result.getAttackerDice(),
+                    result.getDefenderDice()
             );
             pendingWarReports.computeIfAbsent(targetOwnerId, k -> new ArrayList<>()).add(report);
         }
