@@ -105,25 +105,72 @@ public class GameServer {
                     sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot start game: not all players are ready, or you are not the host.")));
                 }
             }
+            // 🔴 FIX: هندل کردن لود از لابی پیش از ساخت مپ پیش‌فرض
+            case "LOAD_GAME" -> {
+                LobbyPlayer player = lobbyManager.getLobbyPlayers().get(clientId);
+                if (player != null && player.isHost()) {
+                    JsonObject reqObj = JsonParser.parseString(json).getAsJsonObject();
+                    String slot = reqObj.get("slot").getAsString();
+                    String stateJson = databaseManager.loadGameSession(slot);
+                    if (stateJson != null) {
+                        this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers(), "alpha", databaseManager);
+                        if (gameStateManager.loadGameFromJson(stateJson)) {
+                            lobbyManager.notifyGameStarted();
+                        } else {
+                            sendToClient(clientId, gson.toJson(new ErrorResponse("Failed to parse save file data.")));
+                            this.gameStateManager = null;
+                        }
+                    } else {
+                        sendToClient(clientId, gson.toJson(new ErrorResponse("Save file not found on server.")));
+                    }
+                } else {
+                    sendToClient(clientId, gson.toJson(new ErrorResponse("Only the host can load a game.")));
+                }
+            }
             default -> System.out.println("[Server] Unknown lobby message: " + type);
         }
     }
 
     private void handleGameMessage(String clientId, String type, String json) {
         switch (type) {
+            // 🔴 FIX: مدیریت لود و سیو در حین بازی (از منوی Pause کلاینت)
+            case "LOAD_GAME" -> {
+                LobbyPlayer player = lobbyManager.getLobbyPlayers().get(clientId);
+                if (player != null && player.isHost()) {
+                    JsonObject reqObj = JsonParser.parseString(json).getAsJsonObject();
+                    String slot = reqObj.get("slot").getAsString();
+                    String stateJson = databaseManager.loadGameSession(slot);
+                    if (stateJson != null) {
+                        if (!gameStateManager.loadGameFromJson(stateJson)) {
+                            sendToClient(clientId, gson.toJson(new ErrorResponse("Failed to parse save file data.")));
+                        }
+                    } else {
+                        sendToClient(clientId, gson.toJson(new ErrorResponse("Save file not found on server.")));
+                    }
+                } else {
+                    sendToClient(clientId, gson.toJson(new ErrorResponse("Only the host can load a game.")));
+                }
+            }
+            case "SAVE_GAME" -> {
+                LobbyPlayer player = lobbyManager.getLobbyPlayers().get(clientId);
+                if (player != null && player.isHost()) {
+                    JsonObject reqObj = JsonParser.parseString(json).getAsJsonObject();
+                    String slot = reqObj.get("slot").getAsString();
+                    gameStateManager.saveGameToJson(slot);
+                    sendToClient(clientId, gson.toJson(new GameNotificationMessage("✅ Game saved successfully to " + slot)));
+                } else {
+                    sendToClient(clientId, gson.toJson(new ErrorResponse("Only the host can save the game.")));
+                }
+            }
             case "END_TURN"         -> gameStateManager.handleEndTurn(clientId);
             case "ATTACK_REQUEST"   -> gameStateManager.handleAttackRequest(clientId, gson.fromJson(json, AttackRequest.class));
             case "ITEM_USE"         -> gameStateManager.handleItemUseRequest(clientId, gson.fromJson(json, ItemUseRequest.class));
             case "DIPLOMACY_ACTION" -> gameStateManager.handleDiplomacyRequest(clientId, gson.fromJson(json, DiplomacyRequest.class));
-
-            // 🔴 ترید و سیستم لغو (Cancel Trade)
             case "TRADE_OFFER"      -> gameStateManager.handleTradeOffer(clientId, gson.fromJson(json, TradeOfferRequest.class));
             case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId, gson.fromJson(json, TradeResponseRequest.class));
             case "TRADE_CANCEL"     -> gameStateManager.handleCancelTrade(clientId, gson.fromJson(json, CancelTradeRequest.class));
-
             case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId, gson.fromJson(json, CraftItemRequest.class));
             case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId, gson.fromJson(json, AllianceResponseRequest.class));
-
             case "MOVE_REQUEST"     -> gameStateManager.handleMoveRequest(clientId, gson.fromJson(json, MoveRequest.class));
             case "BUILD_REQUEST"    -> gameStateManager.handleBuildRequest(clientId, gson.fromJson(json, BuildRequest.class));
             case "TRAIN_REQUEST"    -> gameStateManager.handleTrainRequest(clientId, gson.fromJson(json, TrainRequest.class));

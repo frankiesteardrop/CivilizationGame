@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import controller.MainController;
 import controller.AudioController;
 import controller.LobbyController;
-import controller.SaveLoadController;
 import model.GameEventDispatcher;
 import model.GameMap;
 import network.client.ClientMessageDispatcher;
@@ -31,7 +30,7 @@ public class MainFrame extends JFrame {
     private final Gson gson = new Gson();
 
     public MainFrame() {
-        setTitle("Civilization VI");
+        setTitle("Civilization Sharif");
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setSize(1280, 800);
         setLocationRelativeTo(null);
@@ -109,7 +108,6 @@ public class MainFrame extends JFrame {
 
         networkManager.setMessageHandler(dispatcher);
         networkManager.connect(serverIp, 8080);
-
         networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username, password)));
     }
 
@@ -118,7 +116,6 @@ public class MainFrame extends JFrame {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
-        // 🔴 FIX M-20: استفاده از متد فکتوری برای ساخت نقشه خالی در کلاینت بدون اتلاف CPU
         GameMap renderMap = GameMap.createClientStub(20);
 
         mainController = new MainController(renderMap);
@@ -159,19 +156,59 @@ public class MainFrame extends JFrame {
         }
     }
 
+    // 🔴 FIX: متد لود اصلاح شد تا مستقیماً به سرور متصل شده و درخواست لود بفرستد
     public void loadGameFromMenu(String slot) {
-        GameMap loadedMap = SaveLoadController.loadGameMap(slot);
-        if (loadedMap == null) {
-            JOptionPane.showMessageDialog(this, "Save file not found or corrupted!",
-                    "Load Error", JOptionPane.ERROR_MESSAGE);
-            return;
+        MultiplayerSetupDialog dialog = new MultiplayerSetupDialog(this);
+        dialog.setVisible(true);
+
+        String username = dialog.getUsername();
+        String password = dialog.getPassword();
+        boolean isHost = dialog.isHostMode();
+
+        if (username == null) return;
+
+        if (isHost) {
+            GameServer gameServer = new GameServer();
+            Thread serverThread = new Thread(gameServer::start, "game-server");
+            serverThread.setDaemon(true);
+            serverThread.start();
+            try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+            connectToLoadGame("localhost", username, password, slot);
+        } else {
+            connectToLoadGame(dialog.getServerIp(), username, password, slot);
         }
+    }
+
+    private void connectToLoadGame(String serverIp, String username, String password, String slot) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
-        mainController = new MainController(loadedMap);
-        buildGameView();
-        cardLayout.show(mainContainer, "GAME_UI");
-        gamePanel.requestFocusInWindow();
+
+        NetworkManager networkManager = new NetworkManager();
+        LobbyController lobbyController = new LobbyController(networkManager);
+        lobbyController.setMyUsername(username);
+
+        LobbyPanel lobbyPanel = new LobbyPanel(lobbyController);
+        JPanel lobbyWrapper = new JPanel(new BorderLayout());
+        lobbyWrapper.add(lobbyPanel, BorderLayout.CENTER);
+        mainContainer.add(lobbyWrapper, "LOBBY");
+        cardLayout.show(mainContainer, "LOBBY");
+
+        ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
+        dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
+        dispatcher.setOnDisconnected(() -> {
+            JOptionPane.showMessageDialog(this, "Disconnected from the server.", "Connection Lost", JOptionPane.WARNING_MESSAGE);
+            returnToMainMenu();
+        });
+
+        // 🔴 FIX: به محض دریافت ID، درخواست لود را به سرور می‌فرستیم
+        dispatcher.setOnMyPlayerIdReceived(myId -> {
+            String loadReq = String.format("{\"type\":\"LOAD_GAME\", \"slot\":\"%s\"}", slot);
+            networkManager.sendRequest(loadReq);
+        });
+
+        networkManager.setMessageHandler(dispatcher);
+        networkManager.connect(serverIp, 8080);
+        networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username, password)));
     }
 
     public void returnToMainMenu() {
