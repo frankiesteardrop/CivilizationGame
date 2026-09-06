@@ -1,6 +1,8 @@
 package network.server;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class DatabaseManager {
@@ -9,7 +11,6 @@ public class DatabaseManager {
 
     public DatabaseManager(String dbPath) {
         try {
-            // اتصال به دیتابیس SQLite از طریق JDBC
             connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
             initTables();
             System.out.println("✅ [Database] SQLite database initialized successfully at: " + dbPath);
@@ -20,7 +21,6 @@ public class DatabaseManager {
 
     private void initTables() throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            // جدول کاربران و احراز هویت
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS players (
                     id TEXT PRIMARY KEY,
@@ -30,7 +30,6 @@ public class DatabaseManager {
                 )
             """);
 
-            // جدول ذخیره وضعیت سشن‌های بازی (برای قابلیت Save/Load سرور)
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS game_sessions (
                     id TEXT PRIMARY KEY,
@@ -40,7 +39,6 @@ public class DatabaseManager {
                 )
             """);
 
-            // جدول تاریخچه چت‌ها
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
                     id TEXT PRIMARY KEY,
@@ -60,11 +58,9 @@ public class DatabaseManager {
             ResultSet rs = pstmtCheck.executeQuery();
 
             if (rs.next()) {
-                // کاربر از قبل وجود دارد -> بررسی صحت رمز عبور (ساده‌شده با hashCode برای مقیاس این پروژه)
                 String storedHash = rs.getString("password_hash");
                 return storedHash.equals(String.valueOf(password.hashCode()));
             } else {
-                // کاربر جدید -> ثبت‌نام در دیتابیس
                 String queryInsert = "INSERT INTO players (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement pstmtInsert = connection.prepareStatement(queryInsert)) {
                     pstmtInsert.setString(1, clientId);
@@ -99,6 +95,34 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.err.println("❌ [Database] Failed to save game session: " + e.getMessage());
         }
+    }
+
+    public synchronized String loadGameSession(String sessionId) {
+        String query = "SELECT state_json FROM game_sessions WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, sessionId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("state_json");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ [Database] Failed to load session: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public synchronized List<String> getAllSessionIds() {
+        List<String> ids = new ArrayList<>();
+        String query = "SELECT id FROM game_sessions ORDER BY last_updated DESC";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                ids.add(rs.getString("id"));
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ [Database] Failed to fetch session IDs: " + e.getMessage());
+        }
+        return ids;
     }
 
     public synchronized void saveChatMessage(String sessionId, String senderId, String text) {

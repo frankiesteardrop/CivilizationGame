@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import model.*;
 import network.client.NetworkManager;
 import network.messages.game.MoveRequest;
+import network.messages.game.BuildRequest;
 
 public class UnitController {
 
@@ -50,7 +51,6 @@ public class UnitController {
         return unit.getCurrentAP() >= cost;
     }
 
-    // متد جدید برای کلاینت بی‌حالت
     public void executeMoveNetwork(Unit unit, Hex targetHex, GameMap map, NetworkManager nm) {
         if (nm != null) {
             nm.sendRequest(new Gson().toJson(new MoveRequest(unit.getQ(), unit.getR(), targetHex.getQ(), targetHex.getR())));
@@ -174,7 +174,7 @@ public class UnitController {
 
     public boolean handleStation(Worker worker, Hex hex, GameMap map, NetworkManager nm) {
         if (nm != null) {
-            nm.sendRequest(new Gson().toJson(new network.messages.game.BuildRequest(worker.getQ(), worker.getR(), "STATION", "NONE", hex.getQ(), hex.getR(), 0)));
+            nm.sendRequest(new Gson().toJson(new BuildRequest(worker.getQ(), worker.getR(), "STATION", "NONE", hex.getQ(), hex.getR(), 0)));
             return true;
         }
         if (!canStation(worker, hex, map)) return false;
@@ -183,7 +183,7 @@ public class UnitController {
 
     public void handleEject(Worker worker, NetworkManager nm) {
         if (nm != null) {
-            nm.sendRequest(new Gson().toJson(new network.messages.game.BuildRequest(worker.getQ(), worker.getR(), "EJECT", "NONE", worker.getQ(), worker.getR(), 0)));
+            nm.sendRequest(new Gson().toJson(new BuildRequest(worker.getQ(), worker.getR(), "EJECT", "NONE", worker.getQ(), worker.getR(), 0)));
             return;
         }
         if (worker != null && worker.isStationed()) worker.eject();
@@ -193,7 +193,11 @@ public class UnitController {
         return worker != null && worker.isAlive() && worker.isStationed();
     }
 
-    public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
+    public boolean handleExpandBorder(BorderExpander expander, GameMap map, NetworkManager nm) {
+        if (nm != null) {
+            nm.sendRequest(new Gson().toJson(new BuildRequest(expander.getQ(), expander.getR(), "EXPAND", "NONE", expander.getQ(), expander.getR(), 0)));
+            return true;
+        }
         if (!expander.canExpand(map)) return false;
         int q = expander.getQ();
         int r = expander.getR();
@@ -201,8 +205,11 @@ public class UnitController {
         map.expandBorderAt(q, r);
         map.updateFogOfWar();
         expander.kill();
-        GameEventDispatcher.fireBorderExpanded(q, r);
         return true;
+    }
+
+    public boolean handleExpandBorder(BorderExpander expander, GameMap map) {
+        return handleExpandBorder(expander, map, null);
     }
 
     public Unit selectUnitAt(Hex hex, GameMap map) {

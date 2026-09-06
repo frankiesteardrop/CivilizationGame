@@ -1,7 +1,6 @@
 package view;
 
 import controller.MainController;
-import controller.SaveLoadController;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -16,7 +15,6 @@ public class PauseMenuDialog extends JDialog {
     private static final Color ACCENT_GOLD  = new Color(220, 185, 45);
     private static final Color ACCENT_BLUE  = new Color(52, 130, 215);
     private static final Color ACCENT_GREEN = new Color(46, 180, 80);
-    private static final Color ACCENT_RED   = new Color(200, 45, 45);
     private static final Color BTN_RESUME   = new Color(39, 158, 85);
     private static final Color BTN_MENU     = new Color(45, 62, 80);
     private static final Color BTN_EXIT     = new Color(140, 30, 30);
@@ -25,7 +23,7 @@ public class PauseMenuDialog extends JDialog {
     private static final Color SLOT_BORDER  = new Color(48, 55, 70);
 
     private static final String[] SLOTS  = {"slot1", "slot2", "slot3"};
-    private static final String[] LABELS = {"Slot 1", "Slot 2", "Slot 3"};
+    private static final String[] LABELS = {"Server Slot 1", "Server Slot 2", "Server Slot 3"};
 
     private final MainController mainController;
     private final MainFrame      mainFrame;
@@ -38,7 +36,7 @@ public class PauseMenuDialog extends JDialog {
         this.isLocked       = isLocked;
 
         setUndecorated(true);
-        setSize(720, 590);
+        setSize(720, 520);
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
@@ -50,7 +48,6 @@ public class PauseMenuDialog extends JDialog {
 
         buildUI();
     }
-
 
     private void buildUI() {
         JPanel root = new JPanel(new BorderLayout(0, 0));
@@ -94,14 +91,14 @@ public class PauseMenuDialog extends JDialog {
         JPanel savesSection = new JPanel(new BorderLayout(0, 8));
         savesSection.setOpaque(false);
 
-        JLabel slotsLabel = new JLabel("SAVE  /  LOAD", SwingConstants.LEFT);
+        JLabel slotsLabel = new JLabel("SERVER SAVE / LOAD", SwingConstants.LEFT);
         slotsLabel.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 10));
         slotsLabel.setForeground(TEXT_DIM);
         slotsLabel.setBorder(new EmptyBorder(12, 2, 4, 0));
         savesSection.add(slotsLabel, BorderLayout.NORTH);
 
         if (isLocked) {
-            JLabel lockWarn = new JLabel("⚠️  Cannot save during unit movement or turn processing.");
+            JLabel lockWarn = new JLabel("⚠️ Cannot save during unit movement or turn processing.");
             lockWarn.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 11));
             lockWarn.setForeground(new Color(230, 125, 30));
             lockWarn.setBorder(new EmptyBorder(0, 2, 4, 0));
@@ -138,89 +135,33 @@ public class PauseMenuDialog extends JDialog {
         title.setForeground(ACCENT_GOLD);
         card.add(title, BorderLayout.NORTH);
 
-        SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata(slotName);
-
-        JPanel infoPanel = new JPanel(new GridLayout(0, 1, 0, 2));
-        infoPanel.setOpaque(false);
-        infoPanel.setBorder(new EmptyBorder(4, 0, 4, 0));
-
-        if (meta != null && !meta.isEmpty) {
-            addInfoRow(infoPanel, "⏳", "Turn " + meta.turnNumber);
-            addInfoRow(infoPanel, "🌍", meta.season);
-            addInfoRow(infoPanel, "🏰", "TH Level " + meta.thLevel);
-            addInfoRow(infoPanel, "📊", meta.gameSummary);
-            addInfoRow(infoPanel, "🕐", meta.saveTime);
-        } else {
-            JLabel emptyLabel = new JLabel("[ EMPTY ]", SwingConstants.CENTER);
-            emptyLabel.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.ITALIC, 12));
-            emptyLabel.setForeground(TEXT_DIM);
-            emptyLabel.setBorder(new EmptyBorder(8, 0, 8, 0));
-            infoPanel.add(emptyLabel);
-        }
-        card.add(infoPanel, BorderLayout.CENTER);
-
         JPanel btnPanel = new JPanel(new GridLayout(2, 1, 0, 4));
         btnPanel.setOpaque(false);
         btnPanel.setBorder(new EmptyBorder(6, 0, 0, 0));
 
-
         boolean canSave = !isLocked;
-        JButton saveBtn = buildCardButton("💾  Save", canSave ? ACCENT_BLUE : new Color(45, 52, 65), canSave);
-        if (!canSave) {
-            saveBtn.setToolTipText("Cannot save while processing — wait or resume and save normally");
-        } else {
-            final SaveLoadController.SaveMetadata existingMeta = meta;
-            final String slot  = slotName;
-            final String label = slotLabel;
+        JButton saveBtn = buildCardButton("💾  Save to Server", canSave ? ACCENT_BLUE : new Color(45, 52, 65), canSave);
+        if (canSave) {
             saveBtn.addActionListener(e -> {
-                if (existingMeta != null && !existingMeta.isEmpty) {
-                    String msg = String.format(
-                            "<html><center><b>Overwrite %s?</b><br/><br/>"
-                                    + "<span style='color:#aaaaaa'>Turn %d &nbsp;|&nbsp; %s &nbsp;|&nbsp; TH Lv %d<br/>%s</span>"
-                                    + "<br/><br/><span style='color:#e74c3c'>⚠️ This cannot be undone.</span></center></html>",
-                            label, existingMeta.turnNumber, existingMeta.season,
-                            existingMeta.thLevel, existingMeta.saveTime
-                    );
-                    int confirm = JOptionPane.showConfirmDialog(
-                            this, msg, "Overwrite Save?",
-                            JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE
-                    );
-                    if (confirm != JOptionPane.YES_OPTION) return;
-                }
-                boolean success = mainController.getSaveLoadController().saveGame(slot);
-                if (success) dispose();
+                mainController.getSaveLoadController().saveGame(slotName);
+                dispose();
             });
         }
 
-        boolean canLoad = (meta != null && !meta.isEmpty);
-        JButton loadBtn = buildCardButton("📂  Load", canLoad ? ACCENT_GREEN : new Color(45, 52, 65), canLoad);
-        if (!canLoad) {
-            loadBtn.setToolTipText("Slot is empty — nothing to load");
-        } else if (mainFrame != null) {
-            final String slot = slotName;
-            loadBtn.addActionListener(e -> {
-                int confirm = JOptionPane.showConfirmDialog(
-                        this,
-                        "<html><center><b>Load " + slotLabel + "?</b><br/><br/>"
-                                + "<span style='color:#e74c3c'>⚠️ All unsaved progress will be lost!</span><br/>"
-                                + "<span style='color:#aaaaaa'>Consider saving first.</span></center></html>",
-                        "Load Game?",
-                        JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE
-                );
-                if (confirm == JOptionPane.YES_OPTION) {
-                    dispose();
-                    mainFrame.loadGameFromMenu(slot);
-                }
-            });
-        }
+        JButton loadBtn = buildCardButton("📂  Load from Server", ACCENT_GREEN, true);
+        loadBtn.addActionListener(e -> {
+            if (mainController.getNetworkManager() != null) {
+                mainController.getNetworkManager().sendRequest(String.format("{\"type\":\"LOAD_GAME\", \"slot\":\"%s\"}", slotName));
+            }
+            dispose();
+        });
 
         btnPanel.add(saveBtn);
         btnPanel.add(loadBtn);
-        card.add(btnPanel, BorderLayout.SOUTH);
+        card.add(btnPanel, BorderLayout.CENTER);
 
         return card;
     }
-
 
     private JPanel buildAutosaveCard() {
         JPanel card = new JPanel(new BorderLayout(10, 0));
@@ -230,43 +171,24 @@ public class PauseMenuDialog extends JDialog {
                 new EmptyBorder(10, 14, 10, 14)
         ));
 
-        JLabel iconLabel = new JLabel("🔄  Autosave:");
+        JLabel iconLabel = new JLabel("🔄  Server Autosave:");
         iconLabel.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.BOLD, 12));
         iconLabel.setForeground(new Color(80, 195, 120));
         card.add(iconLabel, BorderLayout.WEST);
 
-        SaveLoadController.SaveMetadata meta = SaveLoadController.readSlotMetadata("autosave");
-        JLabel infoLabel;
-        if (meta != null && !meta.isEmpty) {
-            infoLabel = new JLabel(String.format(
-                    "Turn %d  |  %s  |  TH Lv %d  |  %s",
-                    meta.turnNumber, meta.season, meta.thLevel, meta.saveTime
-            ));
-        } else {
-            infoLabel = new JLabel("No autosave available yet.");
-        }
+        JLabel infoLabel = new JLabel("Managed safely on the remote server.");
         infoLabel.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 12));
         infoLabel.setForeground(TEXT_DIM);
         card.add(infoLabel, BorderLayout.CENTER);
 
-        // دکمه Load Autosave
-        if (meta != null && !meta.isEmpty && mainFrame != null) {
-            JButton loadBtn = buildCardButton("Load", new Color(38, 85, 55), true);
-            loadBtn.addActionListener(e -> {
-                int confirm = JOptionPane.showConfirmDialog(
-                        this,
-                        "<html><center><b>Load Autosave?</b><br/>"
-                                + "<span style='color:#e74c3c'>⚠️ Unsaved progress will be lost!</span></center></html>",
-                        "Load Autosave?",
-                        JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE
-                );
-                if (confirm == JOptionPane.YES_OPTION) {
-                    dispose();
-                    mainFrame.loadGameFromMenu("autosave");
-                }
-            });
-            card.add(loadBtn, BorderLayout.EAST);
-        }
+        JButton loadBtn = buildCardButton("Load Autosave", new Color(38, 85, 55), true);
+        loadBtn.addActionListener(e -> {
+            if (mainController.getNetworkManager() != null) {
+                mainController.getNetworkManager().sendRequest("{\"type\":\"LOAD_GAME\", \"slot\":\"autosave\"}");
+            }
+            dispose();
+        });
+        card.add(loadBtn, BorderLayout.EAST);
 
         return card;
     }
@@ -303,15 +225,6 @@ public class PauseMenuDialog extends JDialog {
         panel.add(menuBtn);
         panel.add(exitBtn);
         return panel;
-    }
-
-    // ─── UI Helpers ──────────────────────────────────────────────────────────
-
-    private void addInfoRow(JPanel panel, String icon, String value) {
-        JLabel row = new JLabel(icon + "  " + value);
-        row.setFont(new Font(UIConfig.FONT_SEGOE_UI, Font.PLAIN, 11));
-        row.setForeground(TEXT_DIM);
-        panel.add(row);
     }
 
     private JButton buildWideButton(String text, Color bg, Color fg, int fontSize) {

@@ -31,7 +31,6 @@ public class BuildController {
                     && inv.hasEnough(ResourceType.IRON, 100);
         }
 
-        // 🔴 FIX M-17: جایگزینی مقایسه String با مقایسه ایمن Enum
         if (type == BuildingType.APOTHECARY) {
             if (hex.getTerrainType() != TerrainType.PLAINS) return false;
             if (getPlayerTownHallLevel(builder.getOwnerId()) < 2) return false;
@@ -53,7 +52,7 @@ public class BuildController {
     public void buildStructure(Builder builder, BuildingType type, Hex hex, NetworkManager nm) {
         if (nm != null) {
             nm.sendRequest(new Gson().toJson(new BuildRequest(builder.getQ(), builder.getR(), "BUILD", type.name(), hex.getQ(), hex.getR(), 0)));
-            return;
+            return; // Client execution ends here. Strictly stateless.
         }
         if (!canBuild(type, hex, builder)) return;
 
@@ -87,11 +86,8 @@ public class BuildController {
         }
 
         hex.setBuilding(newBuilding);
-
         gameMap.updateFogOfWar();
         gameMap.removeDeadUnits();
-
-        GameEventDispatcher.fireBuildingConstructed(hex);
     }
 
     private Inventory getPlayerInventory(String ownerId) {
@@ -133,11 +129,7 @@ public class BuildController {
         builder.consumeAP(1);
         builder.useCharge();
         hex.setRoad(true);
-
         gameMap.removeDeadUnits();
-        GameEventDispatcher.fireUnitStateChanged(builder);
-        GameEventDispatcher.fireBuildingConstructed(hex);
-        GameEventDispatcher.fireNotification("🛣️ Road successfully constructed!");
     }
 
     public boolean canBuildWall(Hex hex, int dir, Builder builder) {
@@ -183,9 +175,6 @@ public class BuildController {
         if (neighbor != null) neighbor.setWall((dir + 3) % 6, true, 100);
 
         gameMap.removeDeadUnits();
-        GameEventDispatcher.fireUnitStateChanged(builder);
-        GameEventDispatcher.fireBuildingConstructed(hex);
-        GameEventDispatcher.fireNotification("🧱 Defensive wall successfully constructed!");
     }
 
     public boolean canDestroy(Hex hex, String type, int dir, Builder builder) {
@@ -220,16 +209,12 @@ public class BuildController {
 
         if (type.equals("BUILDING")) {
             hex.setBuilding(null);
-            GameEventDispatcher.fireBuildingDestroyed(hex);
         } else if (type.equals("ROAD")) {
             hex.setRoad(false);
-            GameEventDispatcher.fireBuildingConstructed(hex);
         } else if (type.equals("WALL")) {
             hex.setWall(dir, false, 0);
             Hex neighbor = gameMap.getNeighbor(hex, dir);
             if (neighbor != null) neighbor.setWall((dir + 3) % 6, false, 0);
-            GameEventDispatcher.fireBuildingConstructed(hex);
         }
-        GameEventDispatcher.fireUnitStateChanged(builder);
     }
 }
