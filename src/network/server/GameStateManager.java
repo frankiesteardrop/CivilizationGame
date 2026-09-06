@@ -6,7 +6,7 @@ import controller.CombatController;
 import controller.UnitController;
 import controller.UpgradeController;
 import model.*;
-import model.CombatResult; // 🔴 Explicit Import to force compiler resolution
+import model.CombatResult;
 import model.maps.MapDefinition;
 import model.maps.PreDesignedMaps;
 import network.messages.game.*;
@@ -124,6 +124,8 @@ public class GameStateManager {
         diplomacyStates.remove(playerId);
         tradeInboxes.remove(playerId);
         pendingWarReports.remove(playerId);
+        pendingAllianceRequests.values().removeIf(v -> v.equals(playerId));
+        pendingAllianceRequests.remove(playerId);
 
         if ("DISCONNECT".equals(reasonType)) {
             server.broadcast(gson.toJson(new GameNotificationMessage("⚠️ Player " + name + " disconnected and has been removed from the match.")));
@@ -246,7 +248,6 @@ public class GameStateManager {
                     .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
             int unitsLost = (int) (aliveBefore - aliveAfter);
 
-            // 🔴 FIX: استفاده از توابع Getter ایمن و کپسوله‌شده به جای دسترسی مستقیم
             WarReport report = new WarReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
                     targetHex.getQ(), targetHex.getR(),
@@ -325,15 +326,52 @@ public class GameStateManager {
     public synchronized void handleDiplomacyRequest(String clientId, DiplomacyRequest req) {
         String targetId = req.getTargetPlayerId();
         if (!isValidTarget(clientId, targetId)) return;
+
         if ("DECLARE_WAR".equals(req.getAction())) {
             setDiplomaticStatus(clientId, targetId, "Enemy");
             setDiplomaticStatus(targetId, clientId, "Enemy");
             server.broadcast(gson.toJson(new DiplomacyBroadcast("WAR_DECLARED", clientId, playerNames.get(clientId), targetId, playerNames.get(targetId), "War declared!")));
             broadcastCustomizedStates();
+
+        } else if ("REQUEST_ALLIANCE".equals(req.getAction())) {
+            String currentStatus = getDiplomaticStatus(clientId, targetId);
+            if ("Enemy".equals(currentStatus) || "Allied".equals(currentStatus)) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot request alliance in your current diplomatic state.")));
+                return;
+            }
+            pendingAllianceRequests.put(targetId, clientId);
+            server.sendToClient(targetId, gson.toJson(new DiplomacyBroadcast("ALLIANCE_REQUESTED", clientId, playerNames.get(clientId), targetId, playerNames.get(targetId), playerNames.get(clientId) + " requested an alliance.")));
+            server.sendToClient(clientId, gson.toJson(new GameNotificationMessage("Alliance request sent to " + playerNames.get(targetId) + ".")));
+
+        } else if ("BREAK_ALLIANCE".equals(req.getAction())) {
+            if ("Allied".equals(getDiplomaticStatus(clientId, targetId))) {
+                setDiplomaticStatus(clientId, targetId, "Neutral");
+                setDiplomaticStatus(targetId, clientId, "Neutral");
+                server.broadcast(gson.toJson(new DiplomacyBroadcast("ALLIANCE_BROKEN", clientId, playerNames.get(clientId), targetId, playerNames.get(targetId), playerNames.get(clientId) + " broke the alliance with " + playerNames.get(targetId) + ".")));
+                broadcastCustomizedStates();
+            }
         }
     }
 
-    public synchronized void handleAllianceResponse(String clientId, AllianceResponseRequest req) {}
+    public synchronized void handleAllianceResponse(String clientId, AllianceResponseRequest req) {
+        String requesterId = req.getRequesterId();
+
+        if (!requesterId.equals(pendingAllianceRequests.get(clientId))) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("No pending alliance request from this player.")));
+            return;
+        }
+
+        if (req.isAccepted()) {
+            setDiplomaticStatus(clientId, requesterId, "Allied");
+            setDiplomaticStatus(requesterId, clientId, "Allied");
+            server.broadcast(gson.toJson(new DiplomacyBroadcast("ALLIANCE_FORMED", requesterId, playerNames.get(requesterId), clientId, playerNames.get(clientId), playerNames.get(requesterId) + " and " + playerNames.get(clientId) + " have formed an alliance!")));
+            broadcastCustomizedStates();
+        } else {
+            server.sendToClient(requesterId, gson.toJson(new DiplomacyBroadcast("ALLIANCE_REJECTED", clientId, playerNames.get(clientId), requesterId, playerNames.get(requesterId), playerNames.get(clientId) + " rejected your alliance request.")));
+        }
+
+        pendingAllianceRequests.remove(clientId);
+    }
 
     public synchronized void handleItemUseRequest(String clientId, ItemUseRequest req) {
         if (!isActivePlayer(clientId)) return;

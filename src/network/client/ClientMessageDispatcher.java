@@ -117,7 +117,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 });
             }
 
-            // 🔴 FIX M-18: اصلاح نام به WAR_REPORT
             case "WAR_REPORT" -> {
                 WarReportBroadcast report = gson.fromJson(rawJson, WarReportBroadcast.class);
                 if (report.getReports() != null) {
@@ -140,7 +139,24 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
             case "DIPLOMACY_EVENT" -> {
                 DiplomacyBroadcast event = gson.fromJson(rawJson, DiplomacyBroadcast.class);
 
-                // در GAME_START نیازی به پاپ‌آپ مزاحم نیست، فقط پنل آپدیت می‌شود
+                // --- هندل کردن درخواست اتحاد در سمت کلاینت ---
+                if ("ALLIANCE_REQUESTED".equals(event.getEventType()) && myPlayerId.equals(event.getTargetId())) {
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        int choice = javax.swing.JOptionPane.showConfirmDialog(
+                                null,
+                                event.getInitiatorName() + " has requested a permanent alliance with you.\nDo you accept?",
+                                "Alliance Request 🤝",
+                                javax.swing.JOptionPane.YES_NO_OPTION,
+                                javax.swing.JOptionPane.QUESTION_MESSAGE
+                        );
+                        boolean accepted = (choice == javax.swing.JOptionPane.YES_OPTION);
+                        if (mainController != null && mainController.getNetworkManager() != null) {
+                            mainController.getNetworkManager().sendRequest(gson.toJson(new AllianceResponseRequest(event.getInitiatorId(), accepted)));
+                        }
+                    });
+                    return; // چون یک پاپ‌آپ است، نیازی به لاگ نرمال نداریم
+                }
+
                 if (!"GAME_START".equals(event.getEventType())) {
                     model.GameEventDispatcher.fireNotification(event.getAnnouncementText());
                 }
@@ -175,7 +191,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     private void updateHudDiplomacy(DiplomacyBroadcast event) {
         if (hudPanel == null || myPlayerId == null) return;
 
-        // منطق نمایش برای EVENTهای سینگل مثل WAR_DECLARED
         if (!"GAME_START".equals(event.getEventType())) {
             String initiatorId   = event.getInitiatorId();
             String initiatorName = event.getInitiatorName();
@@ -207,7 +222,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
             statusMap.put(otherPlayerId, new String[]{ otherPlayerName, newStatus });
             hudPanel.updateDiplomacyStatus(statusMap);
         } else {
-            // برای GAME_START یک لیست خالی یا پیش‌فرض می‌فرستیم که HUD بیدار شود
             Map<String, String[]> initMap = new LinkedHashMap<>();
             hudPanel.updateDiplomacyStatus(initMap);
         }
