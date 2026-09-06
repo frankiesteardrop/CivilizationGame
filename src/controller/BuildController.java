@@ -31,7 +31,8 @@ public class BuildController {
                     && inv.hasEnough(ResourceType.IRON, 100);
         }
 
-        if (type.name().equals("APOTHECARY")) {
+        // 🔴 FIX M-17: جایگزینی مقایسه String با مقایسه ایمن Enum
+        if (type == BuildingType.APOTHECARY) {
             if (hex.getTerrainType() != TerrainType.PLAINS) return false;
             if (getPlayerTownHallLevel(builder.getOwnerId()) < 2) return false;
         }
@@ -77,7 +78,6 @@ public class BuildController {
         Building newBuilding = BuildingFactory.createBuilding(type);
         newBuilding.setOwnerId(builder.getOwnerId());
 
-        // 🔴 FIX: اتصال تاون‌هالِ جدید به امپراتوری مرکزیِ بازیکن
         if (type == BuildingType.TOWN_HALL) {
             Empire playerEmpire = gameMap.getEmpire(builder.getOwnerId());
             if (playerEmpire != null) {

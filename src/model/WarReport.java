@@ -4,7 +4,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 
-public class WatReport {
+public class WarReport {
 
     private final String id;
     private final String attackerPlayerId;
@@ -16,12 +16,11 @@ public class WatReport {
     private final boolean isSiegeAttack;
     private final long   createdAt;
 
-    // 🔴 فیلدهای جدید برای شفافیت جنگ
     private final List<Integer> attackerDice;
     private final List<Integer> defenderDice;
     private final int attackerLosses;
 
-    public WatReport(String attackerPlayerId, String attackerPlayerName,
+    public WarReport(String attackerPlayerId, String attackerPlayerName,
                      int targetQ, int targetR,
                      int defenderUnitsDestroyed, int attackerLosses,
                      int siegeDamageDealt, boolean isSiegeAttack,

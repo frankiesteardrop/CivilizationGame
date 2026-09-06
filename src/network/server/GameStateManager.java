@@ -27,7 +27,7 @@ public class GameStateManager {
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, String>> diplomacyStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> pendingAllianceRequests = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<TradeOffer>> tradeInboxes = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, List<WatReport>> pendingWatReports = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, List<WarReport>> pendingWarReports = new ConcurrentHashMap<>();
     private final Map<String, String> playerNames = new HashMap<>();
 
     private ServerTurnProcessor serverTurnProcessor;
@@ -59,7 +59,7 @@ public class GameStateManager {
 
             playerNames.put(playerId, players.get(i).getUsername());
             tradeInboxes.put(playerId, new ArrayList<>());
-            pendingWatReports.put(playerId, new ArrayList<>());
+            pendingWarReports.put(playerId, new ArrayList<>());
         }
 
         for (LobbyPlayer p1 : players) {
@@ -76,7 +76,6 @@ public class GameStateManager {
         this.serverTurnProcessor = new ServerTurnProcessor(masterMap);
         server.broadcast(gson.toJson(new GameStartBroadcast()));
 
-        // 🔴 FIX M-14: ارسال رویداد آغاز دیپلماسی برای بیدار کردن HUDPanel
         server.broadcast(gson.toJson(new DiplomacyBroadcast("GAME_START", "server", "Server", "all", "All", "Game Initialized")));
 
         broadcastCustomizedStates();
@@ -93,7 +92,7 @@ public class GameStateManager {
         }
         databaseManager.saveGameSession("active_match", gson.toJson(masterMap));
         String nextPlayerId = players.get(currentPlayerIndex).getId();
-        deliverWatReports(nextPlayerId);
+        deliverWarReports(nextPlayerId);
         broadcastCustomizedStates();
     }
 
@@ -123,7 +122,7 @@ public class GameStateManager {
         cancelAllTradesForPlayer(playerId);
         diplomacyStates.remove(playerId);
         tradeInboxes.remove(playerId);
-        pendingWatReports.remove(playerId);
+        pendingWarReports.remove(playerId);
 
         if ("DISCONNECT".equals(reasonType)) {
             server.broadcast(gson.toJson(new GameNotificationMessage("⚠️ Player " + name + " disconnected and has been removed from the match.")));
@@ -148,7 +147,7 @@ public class GameStateManager {
                 serverTurnProcessor.processGlobalRoundEnd(masterMap);
             }
             String nextPlayerId = players.get(currentPlayerIndex).getId();
-            deliverWatReports(nextPlayerId);
+            deliverWarReports(nextPlayerId);
             broadcastCustomizedStates();
         } else if (!players.isEmpty()) {
             broadcastCustomizedStates();
@@ -217,7 +216,6 @@ public class GameStateManager {
 
         String targetOwnerId = getTargetOwnerId(targetHex);
 
-        // 🔴 FIX M-15: ثبت تعداد دقیق نیروهای مدافع قبل از نبرد
         long aliveBefore = 0;
         if (targetOwnerId != null) {
             aliveBefore = masterMap.getUnits().stream()
@@ -243,13 +241,11 @@ public class GameStateManager {
         }
 
         if (targetOwnerId != null && !targetOwnerId.equals(clientId)) {
-
-            // 🔴 FIX M-15: محاسبه دقیق تلفات بر اساس تفاضل قبل و بعد
             long aliveAfter = masterMap.getUnits().stream()
                     .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
             int unitsLost = (int) (aliveBefore - aliveAfter);
 
-            WatReport report = new WatReport(
+            WarReport report = new WarReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
                     targetHex.getQ(), targetHex.getR(),
                     unitsLost, result.attackerTakesDmg,
@@ -257,7 +253,7 @@ public class GameStateManager {
                     isSiegeAttack,
                     result.attackerRolls, result.defenderRolls
             );
-            pendingWatReports.computeIfAbsent(targetOwnerId, k -> new ArrayList<>()).add(report);
+            pendingWarReports.computeIfAbsent(targetOwnerId, k -> new ArrayList<>()).add(report);
         }
         broadcastCustomizedStates();
     }
@@ -597,10 +593,10 @@ public class GameStateManager {
         return null;
     }
 
-    private void deliverWatReports(String playerId) {
-        List<WatReport> reports = pendingWatReports.get(playerId);
+    private void deliverWarReports(String playerId) {
+        List<WarReport> reports = pendingWarReports.get(playerId);
         if (reports == null || reports.isEmpty()) return;
-        server.sendToClient(playerId, gson.toJson(new WatReportBroadcast(new ArrayList<>(reports))));
+        server.sendToClient(playerId, gson.toJson(new WarReportBroadcast(new ArrayList<>(reports))));
         reports.clear();
     }
 }

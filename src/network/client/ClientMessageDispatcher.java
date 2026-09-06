@@ -54,7 +54,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     public void onMessage(String messageType, String rawJson) {
         switch (messageType) {
 
-            // دریافت شناسه یکتا از سرور
             case "PLAYER_ID_ASSIGNED" -> {
                 PlayerIdAssignedMessage msg = gson.fromJson(rawJson, PlayerIdAssignedMessage.class);
                 myPlayerId = msg.getAssignedId();
@@ -118,10 +117,11 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 });
             }
 
-            case "WAT_REPORT" -> {
-                WatReportBroadcast report = gson.fromJson(rawJson, WatReportBroadcast.class);
+            // 🔴 FIX M-18: اصلاح نام به WAR_REPORT
+            case "WAR_REPORT" -> {
+                WarReportBroadcast report = gson.fromJson(rawJson, WarReportBroadcast.class);
                 if (report.getReports() != null) {
-                    for (model.WatReport wr : report.getReports()) {
+                    for (model.WarReport wr : report.getReports()) {
                         model.GameEventDispatcher.fireNotification(wr.toDisplayText());
                     }
                 }
@@ -139,7 +139,12 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
 
             case "DIPLOMACY_EVENT" -> {
                 DiplomacyBroadcast event = gson.fromJson(rawJson, DiplomacyBroadcast.class);
-                model.GameEventDispatcher.fireNotification(event.getAnnouncementText());
+
+                // در GAME_START نیازی به پاپ‌آپ مزاحم نیست، فقط پنل آپدیت می‌شود
+                if (!"GAME_START".equals(event.getEventType())) {
+                    model.GameEventDispatcher.fireNotification(event.getAnnouncementText());
+                }
+
                 if (onDiplomacyEvent != null) onDiplomacyEvent.accept(event);
                 if (hudPanel != null) {
                     updateHudDiplomacy(event);
@@ -170,35 +175,41 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     private void updateHudDiplomacy(DiplomacyBroadcast event) {
         if (hudPanel == null || myPlayerId == null) return;
 
-        String initiatorId   = event.getInitiatorId();
-        String initiatorName = event.getInitiatorName();
-        String targetId      = event.getTargetId();
-        String targetName    = event.getTargetName();
+        // منطق نمایش برای EVENTهای سینگل مثل WAR_DECLARED
+        if (!"GAME_START".equals(event.getEventType())) {
+            String initiatorId   = event.getInitiatorId();
+            String initiatorName = event.getInitiatorName();
+            String targetId      = event.getTargetId();
+            String targetName    = event.getTargetName();
 
-        Map<String, String[]> statusMap = new LinkedHashMap<>();
+            Map<String, String[]> statusMap = new LinkedHashMap<>();
+            String otherPlayerId;
+            String otherPlayerName;
 
-        String otherPlayerId;
-        String otherPlayerName;
+            if (myPlayerId.equals(initiatorId)) {
+                otherPlayerId   = targetId;
+                otherPlayerName = targetName;
+            } else if (myPlayerId.equals(targetId)) {
+                otherPlayerId   = initiatorId;
+                otherPlayerName = initiatorName;
+            } else {
+                otherPlayerId   = initiatorId;
+                otherPlayerName = initiatorName;
+            }
 
-        if (myPlayerId.equals(initiatorId)) {
-            otherPlayerId   = targetId;
-            otherPlayerName = targetName;
-        } else if (myPlayerId.equals(targetId)) {
-            otherPlayerId   = initiatorId;
-            otherPlayerName = initiatorName;
+            String newStatus = switch (event.getEventType()) {
+                case "WAR_DECLARED"    -> "Enemy";
+                case "ALLIANCE_FORMED" -> "Allied";
+                case "ALLIANCE_BROKEN" -> "Neutral";
+                default                -> "Neutral";
+            };
+
+            statusMap.put(otherPlayerId, new String[]{ otherPlayerName, newStatus });
+            hudPanel.updateDiplomacyStatus(statusMap);
         } else {
-            otherPlayerId   = initiatorId;
-            otherPlayerName = initiatorName;
+            // برای GAME_START یک لیست خالی یا پیش‌فرض می‌فرستیم که HUD بیدار شود
+            Map<String, String[]> initMap = new LinkedHashMap<>();
+            hudPanel.updateDiplomacyStatus(initMap);
         }
-
-        String newStatus = switch (event.getEventType()) {
-            case "WAR_DECLARED"    -> "Enemy";
-            case "ALLIANCE_FORMED" -> "Allied";
-            case "ALLIANCE_BROKEN" -> "Neutral";
-            default                -> "Neutral";
-        };
-
-        statusMap.put(otherPlayerId, new String[]{ otherPlayerName, newStatus });
-        hudPanel.updateDiplomacyStatus(statusMap);
     }
 }
