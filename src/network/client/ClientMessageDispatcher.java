@@ -1,11 +1,13 @@
 package network.client;
 
 import com.google.gson.Gson;
+import controller.MainController;
 import controller.LobbyController;
 import network.messages.game.*;
 import network.messages.lobby.ChatMessageBroadcast;
 import network.messages.lobby.LobbyUpdateBroadcast;
 import view.HUDPanel;
+import view.GamePanel;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,6 +20,10 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
 
     private String myPlayerId = null;
     private HUDPanel hudPanel = null;
+
+    // فیلدهای حیاتی برای آپدیت کلاینت
+    private MainController mainController = null;
+    private GamePanel gamePanel = null;
 
     private Runnable                           onGameStarted;
     private Consumer<GameStateBroadcast>       onGameStateUpdate;
@@ -38,6 +44,11 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
     public void setOnDiplomacyEvent(Consumer<DiplomacyBroadcast> cb) { onDiplomacyEvent = cb; }
     public void setMyPlayerId(String id)                             { myPlayerId = id; }
     public void setHudPanel(HUDPanel panel)                          { hudPanel = panel; }
+
+    // ست‌کننده‌های جدید
+    public void setMainController(MainController mc)                 { this.mainController = mc; }
+    public void setGamePanel(GamePanel gp)                           { this.gamePanel = gp; }
+
     public void setOnMyPlayerIdReceived(java.util.function.Consumer<String> cb) { this.onMyPlayerIdReceived = cb; }
 
     @Override
@@ -64,24 +75,39 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 if (onGameStarted != null) onGameStarted.run();
             }
 
+            // متد اصلاح شده برای دی‌سریالایز صحیح اطلاعات مپ و رندر آن
             case "GAME_STATE_UPDATE" -> {
                 GameStateBroadcast broadcast = gson.fromJson(rawJson, GameStateBroadcast.class);
                 if (onGameStateUpdate != null) onGameStateUpdate.accept(broadcast);
 
-                if (hudPanel != null) {
-                    String activeId   = broadcast.getActivePlayerId();
-                    boolean isMyTurn  = activeId != null && activeId.equals(myPlayerId);
-                    hudPanel.setActiveTurnInfo(activeId, isMyTurn);
-
-                    if (myPlayerId != null && onMyPlayerIdReceived != null) {
-                        onMyPlayerIdReceived.accept(myPlayerId);
-                        onMyPlayerIdReceived = null;
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    String json = broadcast.getFilteredMapJson();
+                    if (json != null && !json.isBlank() && mainController != null) {
+                        mainController.applyServerState(json);
+                        if (gamePanel != null) {
+                            gamePanel.repaint();
+                        }
                     }
 
-                    if (isMyTurn) {
-                        hudPanel.onOurTurnStarted();
+                    if (hudPanel != null) {
+                        String activeId   = broadcast.getActivePlayerId();
+                        boolean isMyTurn  = activeId != null && activeId.equals(myPlayerId);
+                        hudPanel.setActiveTurnInfo(activeId, isMyTurn);
+
+                        if (myPlayerId != null && onMyPlayerIdReceived != null) {
+                            onMyPlayerIdReceived.accept(myPlayerId);
+                            onMyPlayerIdReceived = null;
+                        }
+
+                        if (mainController != null) {
+                            mainController.setMyTurn(isMyTurn);
+                        }
+
+                        if (isMyTurn) {
+                            hudPanel.onOurTurnStarted();
+                        }
                     }
-                }
+                });
             }
 
             case "WAT_REPORT" -> {
@@ -98,7 +124,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 if (onTradeInboxUpdate != null) {
                     onTradeInboxUpdate.accept(inbox);
                 }
-                // اتصال پیام سرور به HUDPanel کلاینت برای آپدیت صندوق ورودی (گام سوم)
                 if (hudPanel != null) {
                     hudPanel.updateTradeInbox(inbox.getPendingOffers());
                 }

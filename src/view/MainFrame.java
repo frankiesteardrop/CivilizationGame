@@ -67,34 +67,19 @@ public class MainFrame extends JFrame {
 
     // ─── Multiplayer: Host ────────────────────────────────────────────────────
 
-    /**
-     * Starts the game server on localhost and immediately connects as the host.
-     * The server runs on a daemon thread so it shuts down when the JVM exits.
-     *
-     * @param username the display name for this player in the lobby
-     */
     public void startServerMode(String username) {
-        // Launch GameServer in a background daemon thread
         GameServer gameServer = new GameServer();
         Thread serverThread = new Thread(gameServer::start, "game-server");
         serverThread.setDaemon(true);
         serverThread.start();
 
-        // Give the server a moment to bind the port
         try { Thread.sleep(400); } catch (InterruptedException ignored) {}
 
-        // Connect as a client to localhost
         connectToServer("localhost", username);
     }
 
     // ─── Multiplayer: Join ────────────────────────────────────────────────────
 
-    /**
-     * Connects to an existing game server at the given IP.
-     *
-     * @param username the display name for this player in the lobby
-     * @param serverIp the IP address (or hostname) of the game server
-     */
     public void joinServerMode(String username, String serverIp) {
         connectToServer(serverIp, username);
     }
@@ -117,17 +102,13 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainContainer, "LOBBY");
 
         ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
-        // We don't have a server-assigned ID yet; use username as a display-key
         dispatcher.setMyPlayerId(username);
 
-        // B5: switch to game view when server broadcasts GAME_START_BROADCAST
         dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
 
-        // B24: game state update — dispatcher handles turn indicator directly
         dispatcher.setOnGameStateUpdate(update -> {
             System.out.println("[Client] Game state updated — turn: " + update.getCurrentTurn()
                     + " | active: " + update.getActivePlayerId());
-            // HUD is updated by ClientMessageDispatcher.onMessage() → setActiveTurnInfo()
         });
 
         dispatcher.setOnDisconnected(() -> {
@@ -144,16 +125,13 @@ public class MainFrame extends JFrame {
 
     // ─── Multiplayer Game View ────────────────────────────────────────────────
 
-    /**
-     * Called by {@link ClientMessageDispatcher} when GAME_START_BROADCAST arrives.
-     * Switches from LobbyPanel to the main GamePanel in multiplayer mode.
-     */
     public void startMultiplayerMode(NetworkManager networkManager,
                                      ClientMessageDispatcher dispatcher) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
-        GameMap renderMap = new GameMap(20);
+        // 🔴 FIX: جلوگیری از رندر مجدد مپ کامل (استفاده از Client Stub)
+        GameMap renderMap = GameMap.createClientStub(20);
         mainController = new MainController(renderMap);
         mainController.setNetworkManager(networkManager);
 
@@ -161,18 +139,15 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainContainer, "GAME_UI");
         gamePanel.requestFocusInWindow();
 
-        // B23 + B24 + B25: wire HUD into dispatcher
         if (dispatcher != null && hudPanel != null) {
             dispatcher.setHudPanel(hudPanel);
+            dispatcher.setMainController(mainController); // متصل کردن کنترلر برای دریافت نقشه
+            dispatcher.setGamePanel(gamePanel);           // متصل کردن پنل برای Repaint
         }
 
         System.out.println("[MainFrame] Multiplayer game view started.");
     }
 
-    /**
-     * Re-enables the End Turn button on the HUD.
-     * Called from the GAME_STATE_UPDATE handler when this client's turn begins.
-     */
     public void notifyOurTurnStarted() {
         if (hudPanel != null) hudPanel.onOurTurnStarted();
     }

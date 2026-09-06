@@ -29,12 +29,7 @@ public class GameMap {
     }
 
     public GameMap(int radius, long randomSeed) {
-        this.radius   = radius;
-        this.hexes    = new Repository<>();
-        this.hexMap   = new HashMap<>();
-        this.units    = new Repository<>();
-        this.empires  = new HashMap<>();
-        this.townHall = new TownHall(0, 0);
+        this(radius, false); // مقداردهی اولیه استاب
         this.random   = new Random(randomSeed);
 
         generateMap();
@@ -44,6 +39,47 @@ public class GameMap {
         setupInitialTerritory();
         spawnInitialUnits();
         updateFogOfWar();
+    }
+
+    // کانستراکتور Private جدید برای تولید Stub (بدون Generate)
+    private GameMap(int radius, boolean isStub) {
+        this.radius   = radius;
+        this.hexes    = new Repository<>();
+        this.hexMap   = new HashMap<>();
+        this.units    = new Repository<>();
+        this.empires  = new HashMap<>();
+        this.townHall = new TownHall(0, 0);
+        this.random   = new Random();
+    }
+
+    // فکتوری متد برای ساخت نقشه خالی در کلاینت (استاب)
+    public static GameMap createClientStub(int radius) {
+        return new GameMap(radius, true);
+    }
+
+    // متد کلیدی: تزریق دیتای سرور به نقشه محلی کلاینت بدون تغییر Reference
+    public void updateFromServerState(GameMap serverMap) {
+        if (serverMap == null) return;
+
+        this.hexes.clear();
+        this.hexMap.clear();
+        for (Hex h : serverMap.getHexes()) {
+            this.hexes.add(h);
+            this.hexMap.put(h.getQ() + "," + h.getR(), h);
+        }
+
+        this.units.clear();
+        for (Unit u : serverMap.getUnits()) {
+            this.units.add(u);
+        }
+
+        this.empires.clear();
+        if (serverMap.getEmpires() != null) {
+            this.empires.putAll(serverMap.getEmpires());
+        }
+
+        this.currentTurn = serverMap.getCurrentTurn();
+        this.isStarving = serverMap.isStarving();
     }
 
     private void generateMap() {
@@ -258,7 +294,6 @@ public class GameMap {
             spawnHex.setTerrainType(TerrainType.PLAINS);
         }
 
-        // ساخت و تخصیص Empire به این بازیکن
         Empire emp = empires.computeIfAbsent(playerId, Empire::new);
 
         TownHall playerTH = new TownHall(spawnHex.getQ(), spawnHex.getR());
@@ -354,7 +389,6 @@ public class GameMap {
 
     public void incrementTurn() { currentTurn++; }
 
-    // ─── مدیریت یکپارچه و تفکیک‌شده‌ی Fog Of War (B26) ──────────────────────
     public void updateFogOfWar() {
         for (Hex hex : hexes.getAll()) hex.clearVisibility();
 
@@ -510,7 +544,6 @@ public class GameMap {
     public Hex        getHexAt(int q, int r) { return hexMap.get(q + "," + r); }
     public Random     getRandom()      { return random; }
 
-    // متدهای دسترسی جدید برای امپراتوری‌ها
     public Empire getEmpire(String playerId) { return empires.get(playerId); }
     public Map<String, Empire> getEmpires() { return empires; }
 

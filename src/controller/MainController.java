@@ -37,6 +37,19 @@ public class MainController {
         if (hasNoTribes) tribeController.spawnInitialTribes();
     }
 
+    // متد کلیدی: اعمال آپدیت‌های سرور بر روی مپ کلاینت (دی‌سریالایز با Gson)
+    public void applyServerState(String json) {
+        try {
+            com.google.gson.Gson customGson = new com.google.gson.Gson();
+            GameMap serverMap = customGson.fromJson(json, GameMap.class);
+            if (serverMap != null) {
+                this.gameMap.updateFromServerState(serverMap);
+            }
+        } catch (Exception e) {
+            System.err.println("[MainController] Failed to apply server state: " + e.getMessage());
+        }
+    }
+
     public void setNetworkManager(NetworkManager nm) { this.networkManager = nm; }
     public NetworkManager getNetworkManager()        { return networkManager; }
 
@@ -92,8 +105,6 @@ public class MainController {
         return hasAnimal || hasEnemyUnit || hasTribeEnemy;
     }
 
-    // متد کلیدی: صرفا نمایش منوی حمله را برای کلاینت فعال می کند.
-    // سرور باید تصمیم بگیرد که آیا حمله به لحاظ دیپلماتیک (وضعیت Enemy) معتبر است یا خیر.
     public boolean isAttackable(Hex hex) {
         if (hex == null) return false;
         if (isHostile(hex)) return true;
