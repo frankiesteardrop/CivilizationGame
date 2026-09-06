@@ -1,20 +1,58 @@
 package controller;
 
+import com.google.gson.Gson;
 import model.*;
 import model.trade.BazaarTradeStrategy;
 import model.trade.TradeStrategy;
 import model.trade.TradingPostTradeStrategy;
+import network.client.NetworkManager;
+import network.messages.game.TradeResponseRequest;
+import network.messages.game.CancelTradeRequest;
 
 public class TradeController implements TurnListener {
 
-    private final GameMap map;
+    private GameMap map;
+    private NetworkManager networkManager;
+    private final Gson gson = new Gson();
 
     public TradeController(GameMap map) {
         this.map = map;
         GameEventDispatcher.addListener(this);
     }
 
+    public TradeController(NetworkManager networkManager) {
+        this.networkManager = networkManager;
+    }
+
+    public TradeController(GameMap map, NetworkManager networkManager) {
+        this.map = map;
+        this.networkManager = networkManager;
+        GameEventDispatcher.addListener(this);
+    }
+
+    public void setNetworkManager(NetworkManager networkManager) {
+        this.networkManager = networkManager;
+    }
+
+    // ─── Multiplayer (P2P) Logic ──────────────────────────────────────────────
+
+    public void respondToTradeOffer(String tradeId, boolean accepted) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TradeResponseRequest(tradeId, accepted)));
+        }
+    }
+
+    // 🔴 מתد جدید برای کنسل کردن پیشنهاد ترید از سوی فرستنده (لایه MVC کامل شد)
+    public void cancelTradeOffer(String tradeId) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new CancelTradeRequest(tradeId)));
+        }
+    }
+
+    // ─── Single-Player & NPC Trade Logic ──────────────────────────────────────
+
     public Inventory getPlayerInventory() {
+        if (map == null) return null;
         return map.getTownHall().getInventory();
     }
 
@@ -39,6 +77,7 @@ public class TradeController implements TurnListener {
     }
 
     public TradePreview previewBazaarTrade(Bazaar bazaar, ResourceType give, ResourceType get) {
+        if (map == null) return new TradePreview(false, "Map not loaded", 0);
         if (give == get) return new TradePreview(false, "Cannot trade a resource for itself!", 0);
 
         int currentLevel = bazaar.getLevel();
@@ -66,6 +105,7 @@ public class TradeController implements TurnListener {
     }
 
     public TradePreview previewTradingPostTrade(ResourceType give, int amountToGive, ResourceType get) {
+        if (map == null) return new TradePreview(false, "Map not loaded", 0);
         if (give == get) return new TradePreview(false, "Cannot trade a resource for itself!", 0);
 
         Inventory inv = map.getTownHall().getInventory();
@@ -90,6 +130,7 @@ public class TradeController implements TurnListener {
     }
 
     public TradePreview previewTribeTrade(Tribe tribe, ResourceType give, int amountToGive, ResourceType get) {
+        if (map == null) return new TradePreview(false, "Map not loaded", 0);
         if (give == get) return new TradePreview(false, "Cannot trade same resource!", 0);
 
         Inventory inv = map.getTownHall().getInventory();
@@ -127,6 +168,7 @@ public class TradeController implements TurnListener {
     }
 
     private boolean executeTrade(ResourceType give, int amountToGive, ResourceType get, TradeStrategy strategy, Runnable onSuccess) {
+        if (map == null) return false;
         Inventory inv = map.getTownHall().getInventory();
         if (!inv.hasEnough(give, amountToGive)) return false;
         int received = strategy.calculateReceivedAmount(amountToGive, get, false);
@@ -138,7 +180,7 @@ public class TradeController implements TurnListener {
     }
 
     public boolean canUpgradeBazaar(Bazaar bazaar) {
-        if (bazaar == null || !bazaar.canUpgrade()) return false;
+        if (map == null || bazaar == null || !bazaar.canUpgrade()) return false;
         int stoneCost = (bazaar.getLevel() == 1) ? 30 : 60;
         return map.getTownHall().getInventory().hasEnough(ResourceType.STONE, stoneCost);
     }
@@ -154,6 +196,7 @@ public class TradeController implements TurnListener {
 
     @Override
     public void onTurnEnded(int newTurn) {
+        if (map == null) return;
         for (Hex hex : map.getHexes()) {
             Building b = hex.getBuilding();
             if (b == null || b.isDestroyed()) continue;

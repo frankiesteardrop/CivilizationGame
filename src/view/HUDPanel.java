@@ -2,6 +2,7 @@ package view;
 
 import com.google.gson.Gson;
 import controller.MainController;
+import controller.TradeController; // اضافه شد
 import model.*;
 import network.client.NetworkManager;
 import network.messages.game.EndTurnRequest;
@@ -18,12 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Top HUD bar: Highly optimized and responsive layout using BorderLayout.
- * West: Turn Indicator & Diplomacy
- * Center: Compact Resource Cards (No clipping, completely visible)
- * East: Fixed-size Action Buttons
- */
 public class HUDPanel extends JPanel
         implements ResourceListener, UnitListener, ProductionListener,
         TurnListener, BuildingListener, MapListener, NotificationListener {
@@ -66,15 +61,14 @@ public class HUDPanel extends JPanel
         this.mainController = mainController;
         this.gamePanel      = gamePanel;
 
-        // تغییر Layout و کاهش فاصله‌ها برای جلوگیری از تداخل
         setLayout(new BorderLayout(4, 0));
         setBackground(new Color(25, 28, 33));
-        setPreferredSize(new Dimension(0, 48)); // تنظیم ارتفاع مینیمال و استاندارد
+        setPreferredSize(new Dimension(0, 48));
         setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(41, 128, 185)),
                 new EmptyBorder(4, 6, 4, 6)));
 
-        // ─── 1. West Panel: Turn Info & Diplomacy ─────────────────────────────
+        // ─── 1. West Panel
         JPanel westPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         westPanel.setOpaque(false);
 
@@ -95,8 +89,7 @@ public class HUDPanel extends JPanel
         westPanel.add(diplomacyPanel);
         add(westPanel, BorderLayout.WEST);
 
-        // ─── 2. Center Panel: Compact Resource Cards ──────────────────────────
-        // حذف JScrollPane و استفاده از یک FlowLayout فشرده در مرکز
+        // ─── 2. Center Panel
         infoContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 0));
         infoContainer.setOpaque(false);
 
@@ -129,7 +122,7 @@ public class HUDPanel extends JPanel
         centerWrapper.add(infoContainer, BorderLayout.CENTER);
         add(centerWrapper, BorderLayout.CENTER);
 
-        // ─── 3. East Panel: Action Buttons ────────────────────────────────────
+        // ─── 3. East Panel
         JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         eastPanel.setOpaque(false);
 
@@ -144,8 +137,11 @@ public class HUDPanel extends JPanel
                 return;
             }
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            new TradeInboxDialog(parentFrame, mainController.getNetworkManager(), pendingOffers).setVisible(true);
+            // 🔴 MVC Fix: Inject TradeController instead of NetworkManager
+            TradeController tradeController = new TradeController(mainController.getNetworkManager());
+            new TradeInboxDialog(parentFrame, tradeController, pendingOffers).setVisible(true);
         });
+
         chatBtn.addActionListener(e -> toggleChat());
         pauseBtn.addActionListener(e -> gamePanel.openPauseMenu());
         endTurnBtn.addActionListener(e -> handleEndTurn());
@@ -156,7 +152,7 @@ public class HUDPanel extends JPanel
         eastPanel.add(endTurnBtn);
         add(eastPanel, BorderLayout.EAST);
 
-        // ─── Chat Drawer ──────────────────────────────────────────────────────
+        // ─── Chat Drawer
         chatDrawer = buildChatDrawer();
         chatDrawer.setVisible(false);
 
@@ -164,8 +160,6 @@ public class HUDPanel extends JPanel
         new Timer(500, e -> updateHUD()).start();
         updateHUD();
     }
-
-    // ─── Formatting Helpers (Minified for UI) ─────────────────────────────────
 
     private void updateHUD() {
         if (confirmIdleMode && !mainController.getTurnController().hasIdleUnits()) {
@@ -180,7 +174,6 @@ public class HUDPanel extends JPanel
         int netStone = mainController.getEconomyController().calculateNetProduction(map, ResourceType.STONE);
         int netIron  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.IRON);
 
-        // Update cards with minimal text and rich tooltips
         foodCard.updateValue(fmtConcise(inv, ResourceType.FOOD, netFood));
         foodCard.setToolTipText(fmtTooltip(inv, ResourceType.FOOD, netFood));
 
@@ -242,15 +235,13 @@ public class HUDPanel extends JPanel
                 type.name(), inv.getResourceAmount(type), inv.getCapacity(type), net);
     }
 
-    // ─── Button & UI Builders ─────────────────────────────────────────────────
-
     private JButton buildActionButton(String text, Color bg, Color fg) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 11)); // کاهش سایز فونت برای فشردگی
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
         btn.setBackground(bg);
         btn.setForeground(fg);
         btn.setFocusPainted(false);
-        btn.setBorder(new EmptyBorder(4, 10, 4, 10)); // کاهش پدینگ داخلی دکمه
+        btn.setBorder(new EmptyBorder(4, 10, 4, 10));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setOpaque(true);
         btn.addMouseListener(new MouseAdapter() {
@@ -310,8 +301,6 @@ public class HUDPanel extends JPanel
             setActiveTurnInfo(mainController.getNetworkManager() != null ? "You" : null, true);
         });
     }
-
-    // ─── Inter-panel Communication ────────────────────────────────────────────
 
     public void setActiveTurnInfo(String activePlayerName, boolean isMyTurn) {
         this.isMyTurn = isMyTurn;
@@ -377,8 +366,6 @@ public class HUDPanel extends JPanel
             }
         });
     }
-
-    // ─── Chat Logic ───────────────────────────────────────────────────────────
 
     private JPanel buildChatDrawer() {
         JPanel drawer = new JPanel(new BorderLayout(4, 4));
@@ -458,8 +445,6 @@ public class HUDPanel extends JPanel
             chatArea.setCaretPosition(chatArea.getDocument().getLength());
         });
     }
-
-    // ─── Alerts & UI Components ───────────────────────────────────────────────
 
     private JPanel createStarvationCard() {
         JPanel card = new JPanel(new BorderLayout());
@@ -548,8 +533,8 @@ public class HUDPanel extends JPanel
             setBackground(isAlert ? new Color(192, 57, 43) : new Color(40, 44, 52));
             setOpaque(true);
             setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createMatteBorder(0, 2, 0, 0, accent), // کاهش کلفتی بردر
-                    new EmptyBorder(2, 5, 2, 5))); // فشرده‌سازی حداکثری
+                    BorderFactory.createMatteBorder(0, 2, 0, 0, accent),
+                    new EmptyBorder(2, 5, 2, 5)));
             label = new JLabel();
             add(label, BorderLayout.CENTER);
         }
@@ -559,8 +544,6 @@ public class HUDPanel extends JPanel
                     + "<b>" + iconPrefix + "</b> " + valueText + "</body></html>");
         }
     }
-
-    // ─── Event Listener Implementations ──────────────────────────────────────
 
     @Override public void onResourceChanged(ResourceType t, int a)             { SwingUtilities.invokeLater(this::updateHUD); }
     @Override public void onUnitMoved(Unit u, int oq, int or_, int nq, int nr) { SwingUtilities.invokeLater(() -> { resetEndTurnButton(); updateHUD(); }); }

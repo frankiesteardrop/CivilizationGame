@@ -5,8 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
+      <change afterPath="$PROJECT_DIR$/src/network/messages/game/CancelTradeRequest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/controller/TradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TradeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/network/server/GameStateManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameStateManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/TradeInboxDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/TradeInboxDialog.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -114,7 +118,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/model/GameMap.java</url>
-          <line>536</line>
+          <line>585</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>

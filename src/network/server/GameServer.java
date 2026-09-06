@@ -18,7 +18,6 @@ public class GameServer {
 
     private final ConcurrentHashMap<String, ClientHandler> clients = new ConcurrentHashMap<>();
 
-    // مدیریت پایگاه داده
     private final DatabaseManager databaseManager = new DatabaseManager("civilization_sharif.db");
 
     private final LobbyManager   lobbyManager   = new LobbyManager(this, databaseManager);
@@ -99,7 +98,6 @@ public class GameServer {
             case "START_GAME"   -> {
                 if (lobbyManager.canStartGame(clientId)) {
                     String mapId = lobbyManager.getSelectedMapId();
-                    // پاس دادن دیتابیس به StateManager برای ذخیره سشن‌ها
                     this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers(), mapId, databaseManager);
                     lobbyManager.notifyGameStarted();
                     gameStateManager.initializeGame();
@@ -117,8 +115,12 @@ public class GameServer {
             case "ATTACK_REQUEST"   -> gameStateManager.handleAttackRequest(clientId, gson.fromJson(json, AttackRequest.class));
             case "ITEM_USE"         -> gameStateManager.handleItemUseRequest(clientId, gson.fromJson(json, ItemUseRequest.class));
             case "DIPLOMACY_ACTION" -> gameStateManager.handleDiplomacyRequest(clientId, gson.fromJson(json, DiplomacyRequest.class));
+
+            // 🔴 ترید و سیستم لغو (Cancel Trade)
             case "TRADE_OFFER"      -> gameStateManager.handleTradeOffer(clientId, gson.fromJson(json, TradeOfferRequest.class));
             case "TRADE_RESPONSE"   -> gameStateManager.handleTradeResponse(clientId, gson.fromJson(json, TradeResponseRequest.class));
+            case "TRADE_CANCEL"     -> gameStateManager.handleCancelTrade(clientId, gson.fromJson(json, CancelTradeRequest.class));
+
             case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId, gson.fromJson(json, CraftItemRequest.class));
             case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId, gson.fromJson(json, AllianceResponseRequest.class));
 

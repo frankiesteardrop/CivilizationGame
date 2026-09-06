@@ -1,17 +1,9 @@
 package model;
 
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
-/**
- * Records the details of a combat incident during another player's turn.
- *
- * <p>Created by {@link network.server.GameStateManager} when an attack
- * affects a player during their opponent's turn. Delivered to the affected
- * player at the start of their next turn as a "war report" per the spec.
- *
- * <p>Both {@code id} and {@code createdAt} satisfy the spec requirement for
- * all server-managed entities to have a unique identifier and a creation timestamp.
- */
 public class WatReport {
 
     private final String id;
@@ -24,19 +16,29 @@ public class WatReport {
     private final boolean isSiegeAttack;
     private final long   createdAt;
 
+    // 🔴 فیلدهای جدید برای شفافیت جنگ
+    private final List<Integer> attackerDice;
+    private final List<Integer> defenderDice;
+    private final int attackerLosses;
+
     public WatReport(String attackerPlayerId, String attackerPlayerName,
                      int targetQ, int targetR,
-                     int defenderUnitsDestroyed, int siegeDamageDealt,
-                     boolean isSiegeAttack) {
+                     int defenderUnitsDestroyed, int attackerLosses,
+                     int siegeDamageDealt, boolean isSiegeAttack,
+                     List<Integer> attackerDice, List<Integer> defenderDice) {
         this.id                    = UUID.randomUUID().toString();
         this.attackerPlayerId      = attackerPlayerId;
         this.attackerPlayerName    = attackerPlayerName;
         this.targetQ               = targetQ;
         this.targetR               = targetR;
         this.defenderUnitsDestroyed = defenderUnitsDestroyed;
+        this.attackerLosses        = attackerLosses;
         this.siegeDamageDealt      = siegeDamageDealt;
         this.isSiegeAttack         = isSiegeAttack;
         this.createdAt             = System.currentTimeMillis();
+
+        this.attackerDice = (attackerDice != null) ? new ArrayList<>(attackerDice) : new ArrayList<>();
+        this.defenderDice = (defenderDice != null) ? new ArrayList<>(defenderDice) : new ArrayList<>();
     }
 
     public String  getId()                     { return id; }
@@ -49,18 +51,18 @@ public class WatReport {
     public boolean isSiegeAttack()             { return isSiegeAttack; }
     public long    getCreatedAt()              { return createdAt; }
 
-    /**
-     * Returns a human-readable summary of this war report for display in the UI.
-     */
     public String toDisplayText() {
-        if (isSiegeAttack) {
-            return String.format(
-                    "⚔️ [War Report] %s attacked your hex (%d,%d) and dealt %d siege damage!",
-                    attackerPlayerName, targetQ, targetR, siegeDamageDealt);
+        StringBuilder sb = new StringBuilder();
+        sb.append("⚔️ [War Report] ").append(attackerPlayerName);
+        sb.append(" attacked hex (").append(targetQ).append(",").append(targetR).append(")\n");
+        if (!isSiegeAttack) {
+            sb.append("Attacker dice: ").append(attackerDice).append("\n");
+            sb.append("Defender dice: ").append(defenderDice).append("\n");
+            sb.append("Your units lost: ").append(defenderUnitsDestroyed).append("\n");
+            sb.append("Attacker units lost: ").append(attackerLosses);
         } else {
-            return String.format(
-                    "⚔️ [War Report] %s attacked your units at (%d,%d) — %d of your units were destroyed!",
-                    attackerPlayerName, targetQ, targetR, defenderUnitsDestroyed);
+            sb.append("Siege damage dealt to your buildings: ").append(siegeDamageDealt);
         }
+        return sb.toString();
     }
 }

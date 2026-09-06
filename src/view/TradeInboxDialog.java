@@ -1,9 +1,7 @@
 package view;
 
-import com.google.gson.Gson;
+import controller.TradeController;
 import model.TradeOffer;
-import network.client.NetworkManager;
-import network.messages.game.TradeResponseRequest;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -12,12 +10,11 @@ import java.util.List;
 
 public class TradeInboxDialog extends JDialog {
 
-    private final NetworkManager networkManager;
-    private final Gson gson = new Gson();
+    private final TradeController tradeController; // 🔴 MVC Fix: Only talk to the Controller
 
-    public TradeInboxDialog(JFrame parent, NetworkManager networkManager, List<TradeOffer> pendingOffers) {
+    public TradeInboxDialog(JFrame parent, TradeController tradeController, List<TradeOffer> pendingOffers) {
         super(parent, "Trade Inbox", true);
-        this.networkManager = networkManager;
+        this.tradeController = tradeController;
 
         setSize(450, 500);
         setLocationRelativeTo(parent);
@@ -105,7 +102,7 @@ public class TradeInboxDialog extends JDialog {
         acceptBtn.setForeground(Color.WHITE);
         acceptBtn.setFocusPainted(false);
         acceptBtn.addActionListener(e -> {
-            networkManager.sendRequest(gson.toJson(new TradeResponseRequest(offer.getId(), true)));
+            tradeController.respondToTradeOffer(offer.getId(), true);
             dispose();
         });
 
@@ -114,7 +111,7 @@ public class TradeInboxDialog extends JDialog {
         rejectBtn.setForeground(Color.WHITE);
         rejectBtn.setFocusPainted(false);
         rejectBtn.addActionListener(e -> {
-            networkManager.sendRequest(gson.toJson(new TradeResponseRequest(offer.getId(), false)));
+            tradeController.respondToTradeOffer(offer.getId(), false);
             dispose();
         });
 

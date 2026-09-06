@@ -14,44 +14,43 @@ public class CombatController {
         DamageHandler swordsman = new SwordsmanDamageHandler();
         DamageHandler archer    = new ArcherDamageHandler();
         DamageHandler cavalry   = new CavalryDamageHandler();
-        DamageHandler catapult  = new CatapultDamageHandler(); // B15: add catapult to chain
+        DamageHandler catapult  = new CatapultDamageHandler();
         DamageHandler civilian  = new CivilianDamageHandler();
 
         swordsman.setNext(archer);
         archer.setNext(cavalry);
-        cavalry.setNext(catapult); // B15: catapult after cavalry
+        cavalry.setNext(catapult);
         catapult.setNext(civilian);
         this.damageChain = swordsman;
     }
 
-    public int executeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex,
-                             boolean isSiegeAttack, boolean isTargetAnimal,
-                             boolean targetHasWall) {
+    // 🔴 خروجی متد از int به CombatResult تغییر یافت
+    public CombatResult executeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex,
+                                      boolean isSiegeAttack, boolean isTargetAnimal,
+                                      boolean targetHasWall) {
 
         int dist = map.getHexDistance(sourceHex.getQ(), sourceHex.getR(), targetHex.getQ(), targetHex.getR());
-        if (dist > 2 || dist < 1) return -1;
+        if (dist > 2 || dist < 1) return null;
 
         List<Unit> validAttackers = attackers.stream()
                 .filter(u -> u.getAttackRange() >= dist && u.isAlive())
                 .collect(Collectors.toList());
 
-        // B15: allow CATAPULT for range-2 attacks (in addition to ARCHER)
         if (dist == 2) {
             validAttackers = validAttackers.stream()
-                    .filter(u -> u.getType() == UnitType.ARCHER
-                            || u.getType() == UnitType.CATAPULT)
+                    .filter(u -> u.getType() == UnitType.ARCHER || u.getType() == UnitType.CATAPULT)
                     .collect(Collectors.toList());
         }
 
-        if (validAttackers.isEmpty()) return -1;
-        if (validAttackers.stream().anyMatch(u -> u.getCurrentAP() < 1)) return -1;
+        if (validAttackers.isEmpty()) return null;
+        if (validAttackers.stream().anyMatch(u -> u.getCurrentAP() < 1)) return null;
 
         if (dist == 1) {
             long swords    = validAttackers.stream().filter(u -> u.getType() == UnitType.SWORDSMAN).count();
             long archers   = validAttackers.stream().filter(u -> u.getType() == UnitType.ARCHER).count();
             long cavs      = validAttackers.stream().filter(u -> u.getType() == UnitType.CAVALRY).count();
-            long catapults = validAttackers.stream().filter(u -> u.getType() == UnitType.CATAPULT).count(); // B15
-            if (swords > 2 || archers > 2 || cavs > 1 || catapults > 1) return -1;
+            long catapults = validAttackers.stream().filter(u -> u.getType() == UnitType.CATAPULT).count();
+            if (swords > 2 || archers > 2 || cavs > 1 || catapults > 1) return null;
         }
 
         validAttackers.forEach(u -> u.consumeAP(1));
@@ -64,7 +63,7 @@ public class CombatController {
                         : (u.getType() == UnitType.SWORDSMAN
                         || u.getType() == UnitType.ARCHER
                         || u.getType() == UnitType.CAVALRY
-                        || u.getType() == UnitType.CATAPULT   // B15: catapult can be targeted
+                        || u.getType() == UnitType.CATAPULT
                         || u.getType() == UnitType.WORKER
                         || u.getType() == UnitType.BUILDER
                         || u.getType() == UnitType.EXPLORER
@@ -88,12 +87,12 @@ public class CombatController {
         }
 
         if (isSiegeAttack) {
-            return handleSiegeAttack(validAttackers, sourceHex, targetHex, targetHasWall);
+            int siegeDmg = handleSiegeAttack(validAttackers, sourceHex, targetHex, targetHasWall);
+            return new CombatResult(siegeDmg, 0, new ArrayList<>(), new ArrayList<>());
         }
 
-        if (validDefenders.isEmpty()) return 0;
+        if (validDefenders.isEmpty()) return new CombatResult(0, 0, new ArrayList<>(), new ArrayList<>());
 
-        // B15: attackerDiceCount counts distinct unit types among attackers
         int attackerDiceCount = (dist == 2) ? 1 : (int) validAttackers.stream().map(Unit::getType).distinct().count();
         int defenderDiceCount = isTargetAnimal ? 1 : 2;
         int wallModifier      = (dist == 1 && targetHasWall) ? 2 : 0;
@@ -145,7 +144,9 @@ public class CombatController {
 
         map.removeDeadUnits();
         GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
-        return defenderTakesDmg;
+
+        // برگرداندن شیء جامع بجای عدد خشک و خالی
+        return new CombatResult(defenderTakesDmg, attackerTakesDmg, attackerRolls, defenderRolls);
     }
 
     private int handleSiegeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex, boolean targetHasWall) {
@@ -197,9 +198,6 @@ public class CombatController {
                 GameEventDispatcher.fireBuildingDestroyed(targetHex);
             }
         }
-
-        GameEventDispatcher.fireCombatTriggered(new ArrayList<>(), new ArrayList<>(), 0, siegeDmg);
-        map.removeDeadUnits();
         return siegeDmg;
     }
 
