@@ -9,7 +9,6 @@ public class GameMap {
     private final Map<String, Hex> hexMap;
     private final Repository<Unit> units;
 
-    // فیلد جدید برای مدیریت متمرکز امپراتوری‌ها
     private final Map<String, Empire> empires;
 
     private final int radius;
@@ -29,7 +28,7 @@ public class GameMap {
     }
 
     public GameMap(int radius, long randomSeed) {
-        this(radius, false); // مقداردهی اولیه استاب
+        this(radius, false);
         this.random   = new Random(randomSeed);
 
         generateMap();
@@ -41,7 +40,6 @@ public class GameMap {
         updateFogOfWar();
     }
 
-    // کانستراکتور Private جدید برای تولید Stub (بدون Generate)
     private GameMap(int radius, boolean isStub) {
         this.radius   = radius;
         this.hexes    = new Repository<>();
@@ -52,12 +50,10 @@ public class GameMap {
         this.random   = new Random();
     }
 
-    // فکتوری متد برای ساخت نقشه خالی در کلاینت (استاب)
     public static GameMap createClientStub(int radius) {
         return new GameMap(radius, true);
     }
 
-    // متد کلیدی: تزریق دیتای سرور به نقشه محلی کلاینت بدون تغییر Reference
     public void updateFromServerState(GameMap serverMap) {
         if (serverMap == null) return;
 
@@ -294,6 +290,9 @@ public class GameMap {
             spawnHex.setTerrainType(TerrainType.PLAINS);
         }
 
+        // 🔴 FIX: تضمین منابع برای نقطه‌ی اسپاون این پلیر
+        ensureResourcesNearPoint(spawnHex.getQ(), spawnHex.getR());
+
         Empire emp = empires.computeIfAbsent(playerId, Empire::new);
 
         TownHall playerTH = new TownHall(spawnHex.getQ(), spawnHex.getR());
@@ -330,6 +329,56 @@ public class GameMap {
         addUnit(w2);
 
         updateFogOfWar();
+    }
+
+    // 🔴 FIX: متد جدید برای یافتن و تزریق منابع اطراف نقطه‌ی اسپاون چندنفره
+    private void ensureResourcesNearPoint(int cQ, int cR) {
+        boolean hasWood = hexes.getAll().stream()
+                .anyMatch(h -> getHexDistance(cQ, cR, h.getQ(), h.getR()) <= 2
+                        && h.getTerrainType() == TerrainType.FOREST);
+
+        if (!hasWood) {
+            Hex target = findBestResourceCandidate(cQ, cR);
+            if (target != null) {
+                target.setTerrainType(TerrainType.FOREST);
+                target.clearResourceCompletely(ResourceType.FOOD);
+                target.addResource(ResourceType.WOOD, GameConfig.SEED_FOREST_WOOD);
+            }
+        }
+
+        boolean hasFood = hexes.getAll().stream()
+                .anyMatch(h -> getHexDistance(cQ, cR, h.getQ(), h.getR()) <= 2
+                        && h.hasResource(ResourceType.FOOD));
+
+        if (!hasFood) {
+            Hex target = findBestResourceCandidate(cQ, cR);
+            if (target != null) {
+                target.setTerrainType(TerrainType.MEADOW);
+                target.clearResourceCompletely(ResourceType.WOOD);
+                target.addResource(ResourceType.FOOD, GameConfig.SEED_MEADOW_FOOD);
+                target.setResourceSubtype(random.nextBoolean() ? ResourceSubtype.WHEAT : ResourceSubtype.RICE);
+            }
+        }
+    }
+
+    private Hex findBestResourceCandidate(int cQ, int cR) {
+        List<Hex> candidates = new ArrayList<>();
+        for (Hex hex : hexes.getAll()) {
+            int dist = getHexDistance(cQ, cR, hex.getQ(), hex.getR());
+            if (dist > 0 && dist <= 2) {
+                if (hex.getTerrainType() != TerrainType.MOUNTAIN
+                        && hex.getTerrainType() != TerrainType.FOREST
+                        && hex.getTerrainType() != TerrainType.SEA
+                        && hex.getTerrainType() != TerrainType.MOUNTAIN_RANGE
+                        && hex.getBuilding() == null) {
+                    candidates.add(hex);
+                }
+            }
+        }
+        if (!candidates.isEmpty()) {
+            return candidates.get(random.nextInt(candidates.size()));
+        }
+        return null;
     }
 
     public void clearCenterSetup() {

@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameStateManager {
 
     private final GameServer server;
-    private final DatabaseManager databaseManager; // اضافه شده
+    private final DatabaseManager databaseManager;
     private final Gson gson;
 
     private GameMap masterMap;
@@ -36,7 +36,7 @@ public class GameStateManager {
 
     public GameStateManager(GameServer server, ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers, String selectedMapId, DatabaseManager databaseManager) {
         this.server             = server;
-        this.databaseManager    = databaseManager; // اضافه شده
+        this.databaseManager    = databaseManager;
         this.gson               = new Gson();
         this.players            = new ArrayList<>(lobbyPlayers.values());
         this.currentPlayerIndex = 0;
@@ -97,7 +97,6 @@ public class GameStateManager {
             masterMap.incrementTurn();
         }
 
-        // 💾 ذخیره وضعیت سشن بازی در دیتابیس بعد از پایان هر نوبت
         databaseManager.saveGameSession("active_match", gson.toJson(masterMap));
 
         String nextPlayerId = players.get(currentPlayerIndex).getId();
@@ -105,8 +104,6 @@ public class GameStateManager {
 
         broadcastCustomizedStates();
     }
-
-    // (سایر متدها بدون تغییر باقی می‌مانند...)
 
     public synchronized void handlePlayerDisconnected(String clientId) {
         if (serverTurnProcessor == null) return;
@@ -345,19 +342,73 @@ public class GameStateManager {
     }
 
     public synchronized void handleBuildRequest(String clientId, BuildRequest req) {
-        if (!isActivePlayer(clientId)) return;
-        Unit u = masterMap.getUnits().stream().filter(x -> x.getQ() == req.getUnitQ() && x.getR() == req.getUnitR() && clientId.equals(x.getOwnerId())).findFirst().orElse(null);
+        if (!isActivePlayer(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
+            return;
+        }
+        Unit u = masterMap.getUnits().stream()
+                .filter(x -> x.getQ() == req.getUnitQ() && x.getR() == req.getUnitR() && clientId.equals(x.getOwnerId()))
+                .findFirst().orElse(null);
         Hex target = masterMap.getHexAt(req.getHexQ(), req.getHexR());
-        if (u instanceof Builder builder && target != null) {
-            BuildController bc = new BuildController(masterMap);
-            if ("BUILD".equals(req.getActionType())) {
-                BuildingType type = BuildingType.valueOf(req.getStructureType());
-                if (bc.canBuild(type, target, builder)) {
-                    bc.buildStructure(builder, type, target, null);
-                    broadcastCustomizedStates();
+
+        if (u != null && target != null) {
+            // 🔴 Context Switch: به BuildController می‌گوییم که الان داریم برای این پلیر پردازش می‌کنیم
+            masterMap.setActiveTownHall(masterMap.getPlayerTownHall(clientId));
+            try {
+                if ("STATION".equals(req.getActionType()) && u instanceof Worker worker) {
+                    UnitController uc = new UnitController();
+                    if (uc.canStation(worker, target, masterMap)) {
+                        uc.handleStation(worker, target, masterMap, null);
+                        broadcastCustomizedStates();
+                        return;
+                    }
+                } else if ("EJECT".equals(req.getActionType()) && u instanceof Worker worker) {
+                    UnitController uc = new UnitController();
+                    if (uc.canEject(worker)) {
+                        uc.handleEject(worker, null);
+                        broadcastCustomizedStates();
+                        return;
+                    }
+                } else if (u instanceof Builder builder) {
+                    BuildController bc = new BuildController(masterMap);
+                    switch (req.getActionType()) {
+                        case "BUILD" -> {
+                            BuildingType type = BuildingType.valueOf(req.getStructureType());
+                            if (bc.canBuild(type, target, builder)) {
+                                bc.buildStructure(builder, type, target, null);
+                                broadcastCustomizedStates();
+                                return;
+                            }
+                        }
+                        case "ROAD" -> {
+                            if (bc.canBuildRoad(target, builder)) {
+                                bc.buildRoad(builder, target, null);
+                                broadcastCustomizedStates();
+                                return;
+                            }
+                        }
+                        case "WALL" -> {
+                            if (bc.canBuildWall(target, req.getDir(), builder)) {
+                                bc.buildWall(builder, target, req.getDir(), null);
+                                broadcastCustomizedStates();
+                                return;
+                            }
+                        }
+                        case "DESTROY" -> {
+                            if (bc.canDestroy(target, req.getStructureType(), req.getDir(), builder)) {
+                                bc.destroyStructure(builder, target, req.getStructureType(), req.getDir(), null);
+                                broadcastCustomizedStates();
+                                return;
+                            }
+                        }
+                    }
                 }
+            } finally {
+                // پاکسازی Context برای جلوگیری از نشت اطلاعات به بقیه پردازش‌ها
+                masterMap.clearActiveTownHall();
             }
         }
+        server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid build/action request or missing prerequisites.")));
     }
 
     public synchronized void handleTrainRequest(String clientId, TrainRequest req) {
