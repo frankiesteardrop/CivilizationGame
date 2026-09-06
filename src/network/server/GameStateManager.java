@@ -267,7 +267,28 @@ public class GameStateManager {
             }
             if (offer != null) break;
         }
-        if (offer == null) return;
+
+        if (offer == null) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Trade offer not found or already processed.")));
+            return;
+        }
+
+        boolean isTarget = clientId.equals(offer.getTargetId());
+
+        // 🔴 FIX: اعتبارسنجی نوبت پلیر و منابع برای تایید ترید
+        if (isTarget && req.isAccepted()) {
+            if (!isActivePlayer(clientId)) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn! You can only ACCEPT trades during your turn.")));
+                return;
+            }
+
+            Inventory targetInv = getPlayerInventory(clientId);
+            if (targetInv == null || !targetInv.hasEnough(offer.getRequestType(), offer.getRequestAmount())) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("You don't have enough resources to accept this trade anymore!")));
+                return;
+            }
+        }
+
         if (req.isAccepted()) {
             Inventory targetInv = getPlayerInventory(clientId);
             Inventory offererInv = getPlayerInventory(offer.getOffererId());
@@ -344,7 +365,6 @@ public class GameStateManager {
         }
     }
 
-    // 🔴 3. هندلر ساخت و ساز - اضافه شدن پیام‌های خطای دقیق و اختصاصی
     public synchronized void handleBuildRequest(String clientId, BuildRequest req) {
         if (!isActivePlayer(clientId)) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
@@ -387,7 +407,6 @@ public class GameStateManager {
                                 return;
                             }
 
-                            // 🔴 تولید پیام خطای دقیق برای رفع باگ ۱۱
                             String reason;
                             if (builder.getCharges() <= 0) {
                                 reason = "Builder has no charges left!";
