@@ -75,6 +75,10 @@ public class GameStateManager {
         this.fogOfWarFilter    = new FogOfWarFilter(gson);
         this.serverTurnProcessor = new ServerTurnProcessor(masterMap);
         server.broadcast(gson.toJson(new GameStartBroadcast()));
+
+        // 🔴 FIX M-14: ارسال رویداد آغاز دیپلماسی برای بیدار کردن HUDPanel
+        server.broadcast(gson.toJson(new DiplomacyBroadcast("GAME_START", "server", "Server", "all", "All", "Game Initialized")));
+
         broadcastCustomizedStates();
     }
 
@@ -212,6 +216,14 @@ public class GameStateManager {
         if (attackers.isEmpty()) return;
 
         String targetOwnerId = getTargetOwnerId(targetHex);
+
+        // 🔴 FIX M-15: ثبت تعداد دقیق نیروهای مدافع قبل از نبرد
+        long aliveBefore = 0;
+        if (targetOwnerId != null) {
+            aliveBefore = masterMap.getUnits().stream()
+                    .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
+        }
+
         CombatController cc = new CombatController(masterMap);
         boolean isTargetAnimal = masterMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getType() == UnitType.BEAR && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR());
         boolean hasEnemyUnit = masterMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && !clientId.equals(u.getOwnerId()));
@@ -231,10 +243,16 @@ public class GameStateManager {
         }
 
         if (targetOwnerId != null && !targetOwnerId.equals(clientId)) {
+
+            // 🔴 FIX M-15: محاسبه دقیق تلفات بر اساس تفاضل قبل و بعد
+            long aliveAfter = masterMap.getUnits().stream()
+                    .filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
+            int unitsLost = (int) (aliveBefore - aliveAfter);
+
             WatReport report = new WatReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
                     targetHex.getQ(), targetHex.getR(),
-                    result.defenderTakesDmg, result.attackerTakesDmg,
+                    unitsLost, result.attackerTakesDmg,
                     isSiegeAttack ? result.defenderTakesDmg : 0,
                     isSiegeAttack,
                     result.attackerRolls, result.defenderRolls
@@ -275,7 +293,6 @@ public class GameStateManager {
 
         boolean isTarget = clientId.equals(offer.getTargetId());
 
-        // 🔴 FIX: اعتبارسنجی نوبت پلیر و منابع برای تایید ترید
         if (isTarget && req.isAccepted()) {
             if (!isActivePlayer(clientId)) {
                 server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn! You can only ACCEPT trades during your turn.")));

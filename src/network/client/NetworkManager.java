@@ -7,6 +7,9 @@ import network.udp.UdpHeartbeatClient;
 import javax.swing.SwingUtilities;
 import java.io.*;
 import java.net.Socket;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class NetworkManager {
 
@@ -19,7 +22,11 @@ public class NetworkManager {
     private UdpHeartbeatClient udpHeartbeat;
 
     private String myClientId = "unknown";
-    private String jwtToken = null; // نگهداری توکن دریافتی
+    private String jwtToken = null;
+
+    // 🔴 حفظ اصلاحیه‌ی M-12 (صف برای جلوگیری از Reordering)
+    private final BlockingQueue<String> sendQueue = new LinkedBlockingQueue<>();
+    private Thread senderThread;
 
     public void setMessageHandler(ServerMessageHandler handler) {
         this.messageHandler = handler;
@@ -45,6 +52,22 @@ public class NetworkManager {
             listenerThread.setName("network-listener");
             listenerThread.start();
 
+            // 🔴 اجرای Sender اختصاصی برای صف
+            senderThread = new Thread(() -> {
+                try {
+                    while (isConnected || !sendQueue.isEmpty()) {
+                        String msg = sendQueue.poll(500, TimeUnit.MILLISECONDS);
+                        if (msg != null && out != null) {
+                            out.println(msg);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "network-sender");
+            senderThread.setDaemon(true);
+            senderThread.start();
+
             udpHeartbeat = new UdpHeartbeatClient(host, myClientId);
             udpHeartbeat.start();
 
@@ -55,20 +78,18 @@ public class NetworkManager {
     }
 
     public void sendRequest(String jsonMessage) {
-        if (isConnected && out != null) {
-            // تزریق توکن به ریشه JSON قبل از ارسال به سرور
-            if (jwtToken != null) {
-                try {
-                    JsonObject obj = JsonParser.parseString(jsonMessage).getAsJsonObject();
-                    obj.addProperty("token", jwtToken);
-                    jsonMessage = obj.toString();
-                } catch (Exception e) {
-                    System.err.println("[Client] Failed to attach token: " + e.getMessage());
-                }
+        if (!isConnected) return;
+        if (jwtToken != null) {
+            try {
+                JsonObject obj = JsonParser.parseString(jsonMessage).getAsJsonObject();
+                obj.addProperty("token", jwtToken);
+                jsonMessage = obj.toString();
+            } catch (Exception e) {
+                System.err.println("[Client] Failed to attach token: " + e.getMessage());
             }
-            final String finalMsg = jsonMessage;
-            new Thread(() -> out.println(finalMsg)).start();
         }
+        // ارسال پیام به صف (بدون ساخت ترد جدید)
+        sendQueue.offer(jsonMessage);
     }
 
     public boolean isConnected() { return isConnected; }
@@ -79,6 +100,7 @@ public class NetworkManager {
 
     public void disconnect() {
         isConnected = false;
+        if (senderThread != null) senderThread.interrupt();
         if (udpHeartbeat != null) udpHeartbeat.stop();
         try { if (socket != null) socket.close(); } catch (IOException ignored) {}
     }
@@ -92,12 +114,19 @@ public class NetworkManager {
                     final String msg  = incomingJson;
                     final String type = extractMessageType(msg);
 
-                    // استخراج و ذخیره توکن از پیام تخصیص شناسه
                     if ("PLAYER_ID_ASSIGNED".equals(type)) {
                         try {
                             JsonObject obj = JsonParser.parseString(msg).getAsJsonObject();
                             if (obj.has("jwtToken")) {
                                 setJwtToken(obj.get("jwtToken").getAsString());
+                            }
+                            // 🔴 FIX M-16: همگام‌سازی UDP با UUID قطعی سرور
+                            if (obj.has("clientId")) {
+                                String realUUID = obj.get("clientId").getAsString();
+                                setMyClientId(realUUID);
+                                if (udpHeartbeat != null) {
+                                    udpHeartbeat.updateClientId(realUUID);
+                                }
                             }
                         } catch(Exception ignored){}
                     }
@@ -112,6 +141,7 @@ public class NetworkManager {
                 }
             } catch (IOException e) {
                 isConnected = false;
+                if (senderThread != null) senderThread.interrupt();
                 if (udpHeartbeat != null) udpHeartbeat.stop();
                 System.out.println("⚠️ [Client] Disconnected from server.");
                 SwingUtilities.invokeLater(() -> {
