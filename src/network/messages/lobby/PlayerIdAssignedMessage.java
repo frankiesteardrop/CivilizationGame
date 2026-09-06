@@ -2,20 +2,17 @@ package network.messages.lobby;
 
 import network.messages.Message;
 
-/**
- * Sent by the server to a specific client immediately after they join the lobby
- * to assign them their authoritative UUID.
- */
 public class PlayerIdAssignedMessage extends Message {
 
     private final String assignedId;
+    private final String jwtToken; // فیلد جدید برای انتقال توکن از سرور
 
-    public PlayerIdAssignedMessage(String assignedId) {
+    public PlayerIdAssignedMessage(String assignedId, String jwtToken) {
         super("PLAYER_ID_ASSIGNED");
         this.assignedId = assignedId;
+        this.jwtToken = jwtToken;
     }
 
-    public String getAssignedId() {
-        return assignedId;
-    }
+    public String getAssignedId() { return assignedId; }
+    public String getJwtToken() { return jwtToken; }
 }

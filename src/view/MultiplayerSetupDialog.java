@@ -6,10 +6,6 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-/**
- * Dialog that lets the player either host a game (start a server on localhost)
- * or join an existing game by entering the server's IP address.
- */
 public class MultiplayerSetupDialog extends JDialog {
 
     private static final Color BG_DARK      = new Color(18, 22, 30);
@@ -20,28 +16,28 @@ public class MultiplayerSetupDialog extends JDialog {
     private static final Color TEXT_MAIN    = new Color(225, 230, 240);
     private static final Color TEXT_DIM     = new Color(130, 140, 158);
 
-    // ── B FIX: removed 'final' — both fields are initialized inside helper methods,
-    //    not in the constructor, so 'final' causes "cannot assign to final variable" ──
     private JTextField usernameField;
+    private JPasswordField passwordField; // فیلد پسورد
     private JTextField ipField;
 
     private final JTabbedPane tabs;
 
     private String  username = null;
+    private String  password = null;
     private String  serverIp = null;
     private boolean hostMode = false;
 
     public MultiplayerSetupDialog(Frame parent) {
         super(parent, "Multiplayer Setup", true);
         setUndecorated(true);
-        setSize(440, 360);
+        setSize(440, 420); // تغییر ابعاد برای جا دادن فیلد جدید
         setLocationRelativeTo(parent);
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(BG_DARK);
         root.setBorder(BorderFactory.createLineBorder(ACCENT_GOLD, 2));
 
-        // ── Header ────────────────────────────────────────────────────────────
+        // ── Header
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(new Color(22, 27, 38));
         header.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -51,27 +47,37 @@ public class MultiplayerSetupDialog extends JDialog {
         header.add(title, BorderLayout.CENTER);
         root.add(header, BorderLayout.NORTH);
 
-        // ── Username field (shared between Host and Join) ──────────────────────
+        // ── Auth field (Username + Password)
+        JPanel authPanel = new JPanel(new GridLayout(2, 1, 0, 10));
+        authPanel.setBackground(BG_DARK);
+        authPanel.setBorder(new EmptyBorder(12, 20, 4, 20));
+
         JPanel usernamePanel = new JPanel(new BorderLayout(8, 0));
-        usernamePanel.setBackground(BG_DARK);
-        usernamePanel.setBorder(new EmptyBorder(12, 20, 4, 20));
-        JLabel usernameLabel = new JLabel("Your Username:");
+        usernamePanel.setOpaque(false);
+        JLabel usernameLabel = new JLabel("Username:");
         usernameLabel.setForeground(TEXT_DIM);
         usernameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        // Initialized here in the constructor — no 'final' needed
         usernameField = new JTextField("Player1");
-        usernameField.setBackground(BG_CARD);
-        usernameField.setForeground(TEXT_MAIN);
-        usernameField.setCaretColor(TEXT_MAIN);
-        usernameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        usernameField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(60, 70, 90), 1),
-                new EmptyBorder(6, 10, 6, 10)));
-        usernamePanel.add(usernameLabel,  BorderLayout.WEST);
-        usernamePanel.add(usernameField,  BorderLayout.CENTER);
+        styleTextField(usernameField);
+        usernamePanel.add(usernameLabel, BorderLayout.WEST);
+        usernamePanel.add(usernameField, BorderLayout.CENTER);
 
-        // ── Tabs: Host / Join ──────────────────────────────────────────────────
+        JPanel passwordPanel = new JPanel(new BorderLayout(12, 0));
+        passwordPanel.setOpaque(false);
+        JLabel passwordLabel = new JLabel("Password:");
+        passwordLabel.setForeground(TEXT_DIM);
+        passwordLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        passwordField = new JPasswordField();
+        styleTextField(passwordField);
+        passwordPanel.add(passwordLabel, BorderLayout.WEST);
+        passwordPanel.add(passwordField, BorderLayout.CENTER);
+
+        authPanel.add(usernamePanel);
+        authPanel.add(passwordPanel);
+
+        // ── Tabs
         tabs = new JTabbedPane();
         tabs.setBackground(BG_DARK);
         tabs.setForeground(TEXT_MAIN);
@@ -79,14 +85,12 @@ public class MultiplayerSetupDialog extends JDialog {
         tabs.addTab("🖥️  Host Game", buildHostPanel());
         tabs.addTab("🌐  Join Game", buildJoinPanel());
 
-        // ── Center ────────────────────────────────────────────────────────────
         JPanel center = new JPanel(new BorderLayout(0, 4));
         center.setBackground(BG_DARK);
-        center.add(usernamePanel, BorderLayout.NORTH);
-        center.add(tabs,          BorderLayout.CENTER);
+        center.add(authPanel, BorderLayout.NORTH);
+        center.add(tabs,      BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
 
-        // ── Footer ────────────────────────────────────────────────────────────
         JButton cancelBtn = buildButton("✕  Cancel", new Color(80, 40, 40), Color.WHITE);
         cancelBtn.addActionListener(e -> dispose());
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
@@ -98,7 +102,15 @@ public class MultiplayerSetupDialog extends JDialog {
         setContentPane(root);
     }
 
-    // ─── Tab Panels ───────────────────────────────────────────────────────────
+    private void styleTextField(JTextField field) {
+        field.setBackground(BG_CARD);
+        field.setForeground(TEXT_MAIN);
+        field.setCaretColor(TEXT_MAIN);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(60, 70, 90), 1),
+                new EmptyBorder(6, 10, 6, 10)));
+    }
 
     private JPanel buildHostPanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -114,8 +126,9 @@ public class MultiplayerSetupDialog extends JDialog {
 
         JButton hostBtn = buildButton("🖥️  Start Server & Host", ACCENT_GREEN, Color.WHITE);
         hostBtn.addActionListener(e -> {
-            if (validateUsername()) {
+            if (validateAuth()) {
                 username = usernameField.getText().trim();
+                password = new String(passwordField.getPassword());
                 serverIp = "localhost";
                 hostMode = true;
                 dispose();
@@ -143,23 +156,17 @@ public class MultiplayerSetupDialog extends JDialog {
         ipLabel.setForeground(TEXT_DIM);
         ipLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        // Initialized here — NOT in the constructor, hence 'final' was illegal
         ipField = new JTextField("192.168.1.1");
-        ipField.setBackground(BG_CARD);
-        ipField.setForeground(TEXT_MAIN);
-        ipField.setCaretColor(TEXT_MAIN);
-        ipField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        ipField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(60, 70, 90), 1),
-                new EmptyBorder(6, 10, 6, 10)));
+        styleTextField(ipField);
 
         ipPanel.add(ipLabel, BorderLayout.WEST);
-        ipPanel.add(ipField,  BorderLayout.CENTER);
+        ipPanel.add(ipField, BorderLayout.CENTER);
 
-        JButton joinBtn = buildButton("🌐  Connect & Join Lobby", ACCENT_BLUE, Color.WHITE);
+        JButton joinBtn = buildButton("🌐  Connect & Join", ACCENT_BLUE, Color.WHITE);
         joinBtn.addActionListener(e -> {
-            if (validateUsername() && validateIp()) {
+            if (validateAuth() && validateIp()) {
                 username = usernameField.getText().trim();
+                password = new String(passwordField.getPassword());
                 serverIp = ipField.getText().trim();
                 hostMode = false;
                 dispose();
@@ -175,31 +182,27 @@ public class MultiplayerSetupDialog extends JDialog {
         return panel;
     }
 
-    // ─── Validation ───────────────────────────────────────────────────────────
-
-    private boolean validateUsername() {
+    private boolean validateAuth() {
         String name = usernameField.getText().trim();
+        String pwd = new String(passwordField.getPassword());
         if (name.isEmpty() || name.length() > 20) {
-            JOptionPane.showMessageDialog(this,
-                    "Please enter a username (1–20 characters).",
-                    "Invalid Username", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please enter a username (1–20 chars).", "Invalid", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        if (pwd.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Password is required for server authentication.", "Invalid", JOptionPane.WARNING_MESSAGE);
             return false;
         }
         return true;
     }
 
     private boolean validateIp() {
-        String ip = ipField.getText().trim();
-        if (ip.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Please enter the server IP address.",
-                    "Invalid IP", JOptionPane.WARNING_MESSAGE);
+        if (ipField.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter the server IP.", "Invalid", JOptionPane.WARNING_MESSAGE);
             return false;
         }
         return true;
     }
-
-    // ─── UI Helper ────────────────────────────────────────────────────────────
 
     private JButton buildButton(String text, Color bg, Color fg) {
         JButton btn = new JButton(text);
@@ -218,9 +221,8 @@ public class MultiplayerSetupDialog extends JDialog {
         return btn;
     }
 
-    // ─── Results ──────────────────────────────────────────────────────────────
-
     public String  getUsername() { return username; }
+    public String  getPassword() { return password; }
     public String  getServerIp() { return serverIp; }
     public boolean isHostMode()  { return hostMode; }
 }

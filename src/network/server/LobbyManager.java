@@ -1,6 +1,7 @@
 package network.server;
 
 import model.maps.PreDesignedMaps;
+import network.messages.game.ErrorResponse;
 import network.messages.lobby.LobbyPlayer;
 import network.messages.lobby.LobbyUpdateBroadcast;
 import network.messages.lobby.ChatMessageBroadcast;
@@ -13,10 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Manages the pre-game lobby: player list, ready status, host assignment,
- * map selection, and chat.
- */
 public class LobbyManager {
 
     private final GameServer server;
@@ -24,7 +21,6 @@ public class LobbyManager {
     private final Gson gson;
     private boolean isGameStarted = false;
 
-    /** The map ID selected by the host. Defaults to the first available map. */
     private String selectedMapId = PreDesignedMaps.getDefaultMapId();
 
     public LobbyManager(GameServer server) {
@@ -33,17 +29,24 @@ public class LobbyManager {
         this.gson         = new Gson();
     }
 
-    // ─── Player Management ────────────────────────────────────────────────────
-
-    public synchronized void addPlayer(String clientId, String username) {
+    public synchronized void addPlayer(String clientId, String username, String password) {
         if (isGameStarted) return;
+
+        // در اینجا به دلیل اینکه در حال حاضر دیتابیس (JDBC) راه‌اندازی نشده،
+        // در صورت عدم ارسال پسورد صرفاً ارور می‌دهیم. لاجیک اعتبارسنجی دیتابیس در گام بعدی (C-7) کامل می‌شود.
+        if (password == null || password.isEmpty()) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Password is required for authentication.")));
+            return;
+        }
+
         boolean isHost = lobbyPlayers.isEmpty();
         LobbyPlayer newPlayer = new LobbyPlayer(clientId, username, isHost);
         lobbyPlayers.put(clientId, newPlayer);
         System.out.println("[Lobby] Player joined: " + username + " (host=" + isHost + ")");
 
-        // ارسال شناسه معتبر (UUID) به کلاینت متصل شده
-        server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(clientId)));
+        // 🔐 تولید JWT و ارسال به کلاینت به همراه ID اختصاصی
+        String generatedToken = JwtUtility.generateToken(username, clientId);
+        server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(clientId, generatedToken)));
 
         broadcastLobbyState();
     }
@@ -70,8 +73,6 @@ public class LobbyManager {
         }
     }
 
-    // ─── Map Selection (B10) ──────────────────────────────────────────────────
-
     public synchronized void setSelectedMap(String clientId, String mapId) {
         LobbyPlayer requester = lobbyPlayers.get(clientId);
         if (requester == null || !requester.isHost()) {
@@ -87,8 +88,6 @@ public class LobbyManager {
         return selectedMapId;
     }
 
-    // ─── Chat ─────────────────────────────────────────────────────────────────
-
     public void processChatMessage(String clientId, String text) {
         LobbyPlayer player = lobbyPlayers.get(clientId);
         if (player != null && text != null && !text.isBlank()) {
@@ -98,8 +97,6 @@ public class LobbyManager {
             server.broadcast(gson.toJson(chatMsg));
         }
     }
-
-    // ─── Game Start Validation ────────────────────────────────────────────────
 
     public synchronized boolean canStartGame(String clientId) {
         LobbyPlayer requester = lobbyPlayers.get(clientId);
@@ -117,13 +114,9 @@ public class LobbyManager {
         System.out.println("[Lobby] Game started. New connections to lobby are blocked.");
     }
 
-    // ─── Accessors ────────────────────────────────────────────────────────────
-
     public ConcurrentHashMap<String, LobbyPlayer> getLobbyPlayers() {
         return lobbyPlayers;
     }
-
-    // ─── Internal ─────────────────────────────────────────────────────────────
 
     private void broadcastLobbyState() {
         List<LobbyPlayer> currentPlayers = new ArrayList<>(lobbyPlayers.values());

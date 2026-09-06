@@ -8,20 +8,6 @@ import javax.swing.SwingUtilities;
 import java.io.*;
 import java.net.Socket;
 
-/**
- * Manages the TCP connection to the game server plus a UDP heartbeat client.
- *
- * <p>Sending: UI actions are dispatched to the server on a short-lived thread,
- * so the EDT is never blocked by socket I/O.
- *
- * <p>Receiving: a dedicated daemon {@link ListenerTask} thread reads from the
- * TCP socket continuously. Each arriving message is parsed for its "type" field
- * and handed to the registered {@link ServerMessageHandler} via
- * {@code SwingUtilities.invokeLater} (EDT-safe delivery).
- *
- * <p>Heartbeat (B6): after {@link #connect} succeeds, a {@link UdpHeartbeatClient}
- * is started. The server uses the UDP pings to detect if this client is still alive.
- */
 public class NetworkManager {
 
     private Socket socket;
@@ -29,16 +15,11 @@ public class NetworkManager {
     private BufferedReader in;
     private boolean isConnected = false;
 
-    /** Dispatches received messages to the appropriate client-side controller. */
     private ServerMessageHandler messageHandler;
-
-    /** UDP heartbeat client — started after TCP connection succeeds. */
     private UdpHeartbeatClient udpHeartbeat;
 
-    /** The client's own TCP-assigned ID (set after JOIN_LOBBY acknowledgement). */
     private String myClientId = "unknown";
-
-    // ─── Configuration ────────────────────────────────────────────────────────
+    private String jwtToken = null; // نگهداری توکن دریافتی
 
     public void setMessageHandler(ServerMessageHandler handler) {
         this.messageHandler = handler;
@@ -48,7 +29,9 @@ public class NetworkManager {
         this.myClientId = clientId;
     }
 
-    // ─── Connection ───────────────────────────────────────────────────────────
+    public void setJwtToken(String token) {
+        this.jwtToken = token;
+    }
 
     public void connect(String host, int port) {
         try {
@@ -57,13 +40,11 @@ public class NetworkManager {
             in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             isConnected = true;
 
-            // Start TCP listener thread
             Thread listenerThread = new Thread(new ListenerTask());
             listenerThread.setDaemon(true);
             listenerThread.setName("network-listener");
             listenerThread.start();
 
-            // Start UDP heartbeat client (B6)
             udpHeartbeat = new UdpHeartbeatClient(host, myClientId);
             udpHeartbeat.start();
 
@@ -73,19 +54,25 @@ public class NetworkManager {
         }
     }
 
-    /**
-     * Sends a JSON message to the server on a short-lived thread so that
-     * EDT is never blocked by socket backpressure.
-     */
     public void sendRequest(String jsonMessage) {
         if (isConnected && out != null) {
-            new Thread(() -> out.println(jsonMessage)).start();
+            // تزریق توکن به ریشه JSON قبل از ارسال به سرور
+            if (jwtToken != null) {
+                try {
+                    JsonObject obj = JsonParser.parseString(jsonMessage).getAsJsonObject();
+                    obj.addProperty("token", jwtToken);
+                    jsonMessage = obj.toString();
+                } catch (Exception e) {
+                    System.err.println("[Client] Failed to attach token: " + e.getMessage());
+                }
+            }
+            final String finalMsg = jsonMessage;
+            new Thread(() -> out.println(finalMsg)).start();
         }
     }
 
     public boolean isConnected() { return isConnected; }
 
-    /** Returns true if the server has recently responded to UDP pings. */
     public boolean isServerAlive() {
         return udpHeartbeat == null || udpHeartbeat.isServerAlive();
     }
@@ -96,13 +83,6 @@ public class NetworkManager {
         try { if (socket != null) socket.close(); } catch (IOException ignored) {}
     }
 
-    // ─── Listener Thread ──────────────────────────────────────────────────────
-
-    /**
-     * Daemon thread that blocks on the TCP socket.
-     * Wakes up for each arriving line, extracts the "type" field, and
-     * delivers the message to {@link #messageHandler} on the EDT.
-     */
     private class ListenerTask implements Runnable {
         @Override
         public void run() {
@@ -111,6 +91,16 @@ public class NetworkManager {
                 while ((incomingJson = in.readLine()) != null) {
                     final String msg  = incomingJson;
                     final String type = extractMessageType(msg);
+
+                    // استخراج و ذخیره توکن از پیام تخصیص شناسه
+                    if ("PLAYER_ID_ASSIGNED".equals(type)) {
+                        try {
+                            JsonObject obj = JsonParser.parseString(msg).getAsJsonObject();
+                            if (obj.has("jwtToken")) {
+                                setJwtToken(obj.get("jwtToken").getAsString());
+                            }
+                        } catch(Exception ignored){}
+                    }
 
                     SwingUtilities.invokeLater(() -> {
                         if (messageHandler != null) {
@@ -132,8 +122,6 @@ public class NetworkManager {
             }
         }
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private String extractMessageType(String json) {
         try {

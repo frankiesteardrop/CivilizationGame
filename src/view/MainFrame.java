@@ -53,8 +53,6 @@ public class MainFrame extends JFrame {
 
     public AudioController getAudioController() { return audioController; }
 
-    // ─── Single-Player ────────────────────────────────────────────────────────
-
     public void startGame() {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
@@ -65,9 +63,7 @@ public class MainFrame extends JFrame {
         gamePanel.requestFocusInWindow();
     }
 
-    // ─── Multiplayer: Host ────────────────────────────────────────────────────
-
-    public void startServerMode(String username) {
+    public void startServerMode(String username, String password) {
         GameServer gameServer = new GameServer();
         Thread serverThread = new Thread(gameServer::start, "game-server");
         serverThread.setDaemon(true);
@@ -75,22 +71,19 @@ public class MainFrame extends JFrame {
 
         try { Thread.sleep(400); } catch (InterruptedException ignored) {}
 
-        connectToServer("localhost", username);
+        connectToServer("localhost", username, password);
     }
 
-    // ─── Multiplayer: Join ────────────────────────────────────────────────────
-
-    public void joinServerMode(String username, String serverIp) {
-        connectToServer(serverIp, username);
+    public void joinServerMode(String username, String password, String serverIp) {
+        connectToServer(serverIp, username, password);
     }
 
-    // ─── Shared Network Connection ────────────────────────────────────────────
-    private void connectToServer(String serverIp, String username) {
+    // ارسال درخواست به همراه پسورد
+    private void connectToServer(String serverIp, String username, String password) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
         NetworkManager networkManager = new NetworkManager();
-        // حذف جعل هویت کلاینت: networkManager.setMyClientId(username);
 
         LobbyController lobbyController = new LobbyController(networkManager);
         lobbyController.setMyUsername(username);
@@ -103,16 +96,11 @@ public class MainFrame extends JFrame {
 
         ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
 
-        // 🔴 FIX: متد مخرب dispatcher.setMyPlayerId(username); حذف شد
-        // حالا کلاینت باید منتظر دریافت رویداد PLAYER_ID_ASSIGNED بماند.
-
         dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
-
         dispatcher.setOnGameStateUpdate(update -> {
             System.out.println("[Client] Game state updated — turn: " + update.getCurrentTurn()
                     + " | active: " + update.getActivePlayerId());
         });
-
         dispatcher.setOnDisconnected(() -> {
             JOptionPane.showMessageDialog(this,
                     "Disconnected from the server.",
@@ -122,10 +110,10 @@ public class MainFrame extends JFrame {
 
         networkManager.setMessageHandler(dispatcher);
         networkManager.connect(serverIp, 8080);
-        networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username)));
-    }
 
-    // ─── Multiplayer Game View ────────────────────────────────────────────────
+        // ارسال پیام حاوی پسورد به سمت سرور
+        networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username, password)));
+    }
 
     public void startMultiplayerMode(NetworkManager networkManager,
                                      ClientMessageDispatcher dispatcher) {
@@ -153,8 +141,6 @@ public class MainFrame extends JFrame {
         if (hudPanel != null) hudPanel.onOurTurnStarted();
     }
 
-    // ─── Shared View Builder ──────────────────────────────────────────────────
-
     private void buildGameView() {
         gamePanel = new GamePanel(mainController);
         hudPanel  = new HUDPanel(mainController, gamePanel);
@@ -173,8 +159,6 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // ─── Load Game ────────────────────────────────────────────────────────────
-
     public void loadGameFromMenu(String slot) {
         GameMap loadedMap = SaveLoadController.loadGameMap(slot);
         if (loadedMap == null) {
@@ -189,8 +173,6 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainContainer, "GAME_UI");
         gamePanel.requestFocusInWindow();
     }
-
-    // ─── Navigation ───────────────────────────────────────────────────────────
 
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();

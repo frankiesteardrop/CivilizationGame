@@ -72,15 +72,16 @@ public class MainMenuPanel extends JPanel {
         }
 
         String  username = dialog.getUsername();
+        String  password = dialog.getPassword(); // 🔐 دریافت پسورد از دیالوگ
         String  ip       = dialog.getServerIp();
         boolean isHost   = dialog.isHostMode();
 
         if (username == null) return; // cancelled
 
         if (isHost) {
-            mainFrame.startServerMode(username);
+            mainFrame.startServerMode(username, password); // 🔴 ارسال یوزرنیم و پسورد به سرور لوکال
         } else {
-            mainFrame.joinServerMode(username, ip);
+            mainFrame.joinServerMode(username, password, ip); // 🔴 ارسال یوزرنیم و پسورد به سرور ریموت
         }
     }
 

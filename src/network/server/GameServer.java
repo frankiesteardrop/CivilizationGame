@@ -50,6 +50,16 @@ public class GameServer {
             }
 
             String type = obj.get("type").getAsString();
+
+            // 🛡️ دروازه‌بان امنیتی (JWT Validation Gatekeeper)
+            if (!"JOIN_LOBBY".equals(type)) {
+                if (!obj.has("token") || !JwtUtility.validateToken(obj.get("token").getAsString())) {
+                    System.err.println("🚨 [Security] Unauthorized access attempt blocked from: " + clientId);
+                    sendToClient(clientId, gson.toJson(new ErrorResponse("Unauthorized: Invalid or missing JWT Token!")));
+                    return;
+                }
+            }
+
             System.out.println("[Server] Routing '" + type + "' from " + clientId);
 
             if ("CHAT_SEND".equals(type)) {
@@ -74,7 +84,7 @@ public class GameServer {
         switch (type) {
             case "JOIN_LOBBY"  -> {
                 JoinLobbyRequest req = gson.fromJson(json, JoinLobbyRequest.class);
-                lobbyManager.addPlayer(clientId, req.getUsername());
+                lobbyManager.addPlayer(clientId, req.getUsername(), req.getPassword());
             }
             case "TOGGLE_READY" -> lobbyManager.toggleReady(clientId);
             case "SELECT_MAP"   -> {
@@ -106,7 +116,6 @@ public class GameServer {
             case "CRAFT_ITEM"       -> gameStateManager.handleCraftItemRequest(clientId, gson.fromJson(json, CraftItemRequest.class));
             case "ALLIANCE_RESPONSE" -> gameStateManager.handleAllianceResponse(clientId, gson.fromJson(json, AllianceResponseRequest.class));
 
-            // هندلرهای جدید گام دوم
             case "MOVE_REQUEST"     -> gameStateManager.handleMoveRequest(clientId, gson.fromJson(json, MoveRequest.class));
             case "BUILD_REQUEST"    -> gameStateManager.handleBuildRequest(clientId, gson.fromJson(json, BuildRequest.class));
             case "TRAIN_REQUEST"    -> gameStateManager.handleTrainRequest(clientId, gson.fromJson(json, TrainRequest.class));
