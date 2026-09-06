@@ -166,7 +166,6 @@ public class GameStateManager {
         }
     }
 
-    // 🔴 1. هندلر لغو پیشنهاد تجارت
     public synchronized void handleCancelTrade(String clientId, CancelTradeRequest req) {
         TradeOffer offerToCancel = null;
         String targetPlayerId = null;
@@ -187,7 +186,6 @@ public class GameStateManager {
             return;
         }
 
-        // بازگرداندن منابع قفل شده
         Inventory inv = getPlayerInventory(clientId);
         if (inv != null) inv.unlockResource(offerToCancel.getOfferType(), offerToCancel.getOfferAmount());
 
@@ -225,7 +223,6 @@ public class GameStateManager {
             }
         }
 
-        // 🔴 2. استخراج اطلاعات جامع نبرد (تاس و تلفات)
         CombatResult result = cc.executeAttack(attackers, sourceHex, targetHex, isSiegeAttack, isTargetAnimal, targetHasWall);
         if (result == null) return;
 
@@ -234,7 +231,6 @@ public class GameStateManager {
         }
 
         if (targetOwnerId != null && !targetOwnerId.equals(clientId)) {
-            // ساخت گزارش جنگ کامل و شفاف
             WatReport report = new WatReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
                     targetHex.getQ(), targetHex.getR(),
@@ -248,7 +244,6 @@ public class GameStateManager {
         broadcastCustomizedStates();
     }
 
-    // بقیه متدهای هندلرها (همانند قبل، جهت جلوگیری از طولانی شدن بیش از حد در این پاسخ کوتاه شده‌اند اما در فایل اصلی دست نخورده باقی می‌مانند)
     public synchronized void handleTradeOffer(String clientId, TradeOfferRequest req) {
         if (!isActivePlayer(clientId)) return;
         String targetId = req.getTargetPlayerId();
@@ -311,12 +306,28 @@ public class GameStateManager {
 
         if ("TELEPORT".equals(req.getItemName())) {
             Hex dest = masterMap.getHexAt(req.getDestQ(), req.getDestR());
-            if (dest == null || masterMap.hasUnitAt(dest.getQ(), dest.getR()) || !dest.isExplored(clientId) || dest.getTerrainType() == TerrainType.MOUNTAIN_RANGE) return;
+            if (dest == null) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid destination.")));
+                return;
+            }
+            if (masterMap.hasUnitAt(dest.getQ(), dest.getR())) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Destination is occupied.")));
+                return;
+            }
+            if (!dest.isExplored(clientId)) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot teleport to unexplored areas in your Fog of War.")));
+                return;
+            }
+            if (dest.getTerrainType() == TerrainType.MOUNTAIN_RANGE || dest.getTerrainType() == TerrainType.SEA) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Terrain is impassable.")));
+                return;
+            }
         }
 
         playerInv.consumeItem(req.getItemName());
         target.setUsedItemThisTurn(true);
         if ("TELEPORT".equals(req.getItemName())) target.moveTo(req.getDestQ(), req.getDestR(), 0);
+
         broadcastCustomizedStates();
     }
 
@@ -333,8 +344,12 @@ public class GameStateManager {
         }
     }
 
+    // 🔴 3. هندلر ساخت و ساز - اضافه شدن پیام‌های خطای دقیق و اختصاصی
     public synchronized void handleBuildRequest(String clientId, BuildRequest req) {
-        if (!isActivePlayer(clientId)) return;
+        if (!isActivePlayer(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
+            return;
+        }
         Unit u = masterMap.getUnits().stream()
                 .filter(x -> x.getQ() == req.getUnitQ() && x.getR() == req.getUnitR() && clientId.equals(x.getOwnerId()))
                 .findFirst().orElse(null);
@@ -350,6 +365,8 @@ public class GameStateManager {
                         broadcastCustomizedStates();
                         return;
                     }
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot station worker: Invalid terrain or not enough AP.")));
+                    return;
                 } else if ("EJECT".equals(req.getActionType()) && u instanceof Worker worker) {
                     UnitController uc = new UnitController();
                     if (uc.canEject(worker)) {
@@ -357,6 +374,8 @@ public class GameStateManager {
                         broadcastCustomizedStates();
                         return;
                     }
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot eject worker: No valid adjacent hex found.")));
+                    return;
                 } else if (u instanceof Builder builder) {
                     BuildController bc = new BuildController(masterMap);
                     switch (req.getActionType()) {
@@ -365,25 +384,55 @@ public class GameStateManager {
                             if (bc.canBuild(type, target, builder)) {
                                 bc.buildStructure(builder, type, target, null);
                                 broadcastCustomizedStates();
+                                return;
                             }
+
+                            // 🔴 تولید پیام خطای دقیق برای رفع باگ ۱۱
+                            String reason;
+                            if (builder.getCharges() <= 0) {
+                                reason = "Builder has no charges left!";
+                            } else if (builder.getCurrentAP() < type.getApCost()) {
+                                reason = "Not enough AP! Need " + type.getApCost() + ", have " + builder.getCurrentAP();
+                            } else if (type != BuildingType.TOWN_HALL && !target.isInsideBorder()) {
+                                reason = "Must build inside your territory!";
+                            } else if (target.getTerrainType() == TerrainType.MOUNTAIN_RANGE) {
+                                reason = "Cannot build on Mountain Range terrain!";
+                            } else if (!type.isValidTerrain(target, masterMap)) {
+                                reason = type.name() + " cannot be built on " + target.getTerrainType().name() + " terrain!";
+                            } else if (!type.hasRequiredTech(masterMap.getPlayerTownHall(clientId))) {
+                                reason = "Required technology not researched!";
+                            } else {
+                                reason = "Not enough resources to build " + type.name() + "!";
+                            }
+                            server.sendToClient(clientId, gson.toJson(new ErrorResponse(reason)));
+                            return;
                         }
                         case "ROAD" -> {
                             if (bc.canBuildRoad(target, builder)) {
                                 bc.buildRoad(builder, target, null);
                                 broadcastCustomizedStates();
+                                return;
                             }
+                            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot build road: Need 1 AP, 1 Charge, and valid territory.")));
+                            return;
                         }
                         case "WALL" -> {
                             if (bc.canBuildWall(target, req.getDir(), builder)) {
                                 bc.buildWall(builder, target, req.getDir(), null);
                                 broadcastCustomizedStates();
+                                return;
                             }
+                            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot build wall: Check AP, charges, resources (10 Wood, 20 Stone), and borders.")));
+                            return;
                         }
                         case "DESTROY" -> {
                             if (bc.canDestroy(target, req.getStructureType(), req.getDir(), builder)) {
                                 bc.destroyStructure(builder, target, req.getStructureType(), req.getDir(), null);
                                 broadcastCustomizedStates();
+                                return;
                             }
+                            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot destroy structure: Check AP, distance, or validity.")));
+                            return;
                         }
                     }
                 }
@@ -391,6 +440,7 @@ public class GameStateManager {
                 masterMap.clearActiveTownHall();
             }
         }
+        server.sendToClient(clientId, gson.toJson(new ErrorResponse("Invalid action request or target out of bounds.")));
     }
 
     public synchronized void handleTrainRequest(String clientId, TrainRequest req) {
