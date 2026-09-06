@@ -6,6 +6,7 @@ import controller.CombatController;
 import controller.UnitController;
 import controller.UpgradeController;
 import model.*;
+import model.CombatResult; // 🔴 FIX: Explicit Import to force compiler resolution
 import model.maps.MapDefinition;
 import model.maps.PreDesignedMaps;
 import network.messages.game.*;

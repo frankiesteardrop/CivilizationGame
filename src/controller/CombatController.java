@@ -1,6 +1,7 @@
 package controller;
 
 import model.*;
+import model.CombatResult; // 🔴 FIX: Explicit Import to force compiler resolution
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,7 +25,6 @@ public class CombatController {
         this.damageChain = swordsman;
     }
 
-    // 🔴 خروجی متد از int به CombatResult تغییر یافت
     public CombatResult executeAttack(List<Unit> attackers, Hex sourceHex, Hex targetHex,
                                       boolean isSiegeAttack, boolean isTargetAnimal,
                                       boolean targetHasWall) {
@@ -145,7 +145,6 @@ public class CombatController {
         map.removeDeadUnits();
         GameEventDispatcher.fireCombatTriggered(attackerRolls, defenderRolls, attackerTakesDmg, defenderTakesDmg);
 
-        // برگرداندن شیء جامع بجای عدد خشک و خالی
         return new CombatResult(defenderTakesDmg, attackerTakesDmg, attackerRolls, defenderRolls);
     }
 
