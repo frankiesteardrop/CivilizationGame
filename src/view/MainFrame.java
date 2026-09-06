@@ -78,7 +78,6 @@ public class MainFrame extends JFrame {
         connectToServer(serverIp, username, password);
     }
 
-    // ارسال درخواست به همراه پسورد
     private void connectToServer(String serverIp, String username, String password) {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
@@ -111,7 +110,6 @@ public class MainFrame extends JFrame {
         networkManager.setMessageHandler(dispatcher);
         networkManager.connect(serverIp, 8080);
 
-        // ارسال پیام حاوی پسورد به سمت سرور
         networkManager.sendRequest(gson.toJson(new JoinLobbyRequest(username, password)));
     }
 
@@ -120,7 +118,9 @@ public class MainFrame extends JFrame {
         GameEventDispatcher.clearAllListeners();
         cleanUpGameView();
 
+        // 🔴 FIX M-20: استفاده از متد فکتوری برای ساخت نقشه خالی در کلاینت بدون اتلاف CPU
         GameMap renderMap = GameMap.createClientStub(20);
+
         mainController = new MainController(renderMap);
         mainController.setNetworkManager(networkManager);
 

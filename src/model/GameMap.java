@@ -290,7 +290,6 @@ public class GameMap {
             spawnHex.setTerrainType(TerrainType.PLAINS);
         }
 
-        // 🔴 FIX: تضمین منابع برای نقطه‌ی اسپاون این پلیر
         ensureResourcesNearPoint(spawnHex.getQ(), spawnHex.getR());
 
         Empire emp = empires.computeIfAbsent(playerId, Empire::new);
@@ -331,7 +330,6 @@ public class GameMap {
         updateFogOfWar();
     }
 
-    // 🔴 FIX: متد جدید برای یافتن و تزریق منابع اطراف نقطه‌ی اسپاون چندنفره
     private void ensureResourcesNearPoint(int cQ, int cR) {
         boolean hasWood = hexes.getAll().stream()
                 .anyMatch(h -> getHexDistance(cQ, cR, h.getQ(), h.getR()) <= 2
@@ -408,27 +406,7 @@ public class GameMap {
         }
     }
 
-    public void checkPlayerElimination(String playerId) {
-        boolean hasActiveTH = false;
-        for (Hex h : hexes.getAll()) {
-            if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.TOWN_HALL
-                    && !h.getBuilding().isDestroyed() && playerId.equals(h.getBuilding().getOwnerId())) {
-                hasActiveTH = true;
-                break;
-            }
-        }
-
-        if (!hasActiveTH) {
-            units.removeIf(u -> playerId.equals(u.getOwnerId()));
-            for (Hex h : hexes.getAll()) {
-                if (h.getBuilding() != null && playerId.equals(h.getBuilding().getOwnerId())) {
-                    h.getBuilding().takeDamage(9999);
-                    h.setBuilding(null);
-                }
-            }
-            GameEventDispatcher.fireNotification("💀 Player " + playerId + " has been eliminated from the game!");
-        }
-    }
+    // 🔴 M-19 FIX: متد تکراری و دردسرساز checkPlayerElimination به طور کامل حذف شد.
 
     public void removeDeadUnits() {
         boolean hadDead = units.stream().anyMatch(u -> !u.isAlive());
