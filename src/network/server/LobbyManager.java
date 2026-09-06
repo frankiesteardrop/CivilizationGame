@@ -17,34 +17,40 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LobbyManager {
 
     private final GameServer server;
+    private final DatabaseManager databaseManager; // تزریق دیتابیس
     private final ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers;
     private final Gson gson;
     private boolean isGameStarted = false;
 
     private String selectedMapId = PreDesignedMaps.getDefaultMapId();
 
-    public LobbyManager(GameServer server) {
-        this.server       = server;
-        this.lobbyPlayers = new ConcurrentHashMap<>();
-        this.gson         = new Gson();
+    public LobbyManager(GameServer server, DatabaseManager databaseManager) {
+        this.server         = server;
+        this.databaseManager = databaseManager;
+        this.lobbyPlayers   = new ConcurrentHashMap<>();
+        this.gson           = new Gson();
     }
 
     public synchronized void addPlayer(String clientId, String username, String password) {
         if (isGameStarted) return;
 
-        // در اینجا به دلیل اینکه در حال حاضر دیتابیس (JDBC) راه‌اندازی نشده،
-        // در صورت عدم ارسال پسورد صرفاً ارور می‌دهیم. لاجیک اعتبارسنجی دیتابیس در گام بعدی (C-7) کامل می‌شود.
         if (password == null || password.isEmpty()) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("Password is required for authentication.")));
+            return;
+        }
+
+        // 🔐 بررسی و ثبت‌نام کاربر در پایگاه داده از طریق JDBC
+        boolean isAuthenticated = databaseManager.registerOrAuthenticate(clientId, username, password);
+        if (!isAuthenticated) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Authentication failed: Incorrect password or username conflict.")));
             return;
         }
 
         boolean isHost = lobbyPlayers.isEmpty();
         LobbyPlayer newPlayer = new LobbyPlayer(clientId, username, isHost);
         lobbyPlayers.put(clientId, newPlayer);
-        System.out.println("[Lobby] Player joined: " + username + " (host=" + isHost + ")");
+        System.out.println("[Lobby] Player authenticated & joined: " + username + " (host=" + isHost + ")");
 
-        // 🔐 تولید JWT و ارسال به کلاینت به همراه ID اختصاصی
         String generatedToken = JwtUtility.generateToken(username, clientId);
         server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(clientId, generatedToken)));
 
@@ -95,6 +101,9 @@ public class LobbyManager {
             ChatMessageBroadcast chatMsg = new ChatMessageBroadcast(
                     player.getUsername(), time, text);
             server.broadcast(gson.toJson(chatMsg));
+
+            // ذخیره پیام چت در دیتابیس
+            databaseManager.saveChatMessage("global_session", clientId, text);
         }
     }
 

@@ -17,7 +17,11 @@ public class GameServer {
     private static final int PORT = 8080;
 
     private final ConcurrentHashMap<String, ClientHandler> clients = new ConcurrentHashMap<>();
-    private final LobbyManager   lobbyManager   = new LobbyManager(this);
+
+    // مدیریت پایگاه داده
+    private final DatabaseManager databaseManager = new DatabaseManager("civilization_sharif.db");
+
+    private final LobbyManager   lobbyManager   = new LobbyManager(this, databaseManager);
     private final Gson            gson           = new Gson();
 
     private final UdpHeartbeatServer udpHeartbeat = new UdpHeartbeatServer();
@@ -38,6 +42,8 @@ public class GameServer {
             }
         } catch (IOException e) {
             System.err.println("❌ [Server] Failed to bind port: " + e.getMessage());
+        } finally {
+            databaseManager.close();
         }
     }
 
@@ -51,7 +57,6 @@ public class GameServer {
 
             String type = obj.get("type").getAsString();
 
-            // 🛡️ دروازه‌بان امنیتی (JWT Validation Gatekeeper)
             if (!"JOIN_LOBBY".equals(type)) {
                 if (!obj.has("token") || !JwtUtility.validateToken(obj.get("token").getAsString())) {
                     System.err.println("🚨 [Security] Unauthorized access attempt blocked from: " + clientId);
@@ -94,7 +99,8 @@ public class GameServer {
             case "START_GAME"   -> {
                 if (lobbyManager.canStartGame(clientId)) {
                     String mapId = lobbyManager.getSelectedMapId();
-                    this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers(), mapId);
+                    // پاس دادن دیتابیس به StateManager برای ذخیره سشن‌ها
+                    this.gameStateManager = new GameStateManager(this, lobbyManager.getLobbyPlayers(), mapId, databaseManager);
                     lobbyManager.notifyGameStarted();
                     gameStateManager.initializeGame();
                 } else {
