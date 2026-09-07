@@ -5,15 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/network/util/SharedGsonFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/CombatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/CombatController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MainController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/GameStateManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameStateManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatServer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/ContextMenuFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/ContextMenuFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/GameInputHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GameInputHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/HexRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

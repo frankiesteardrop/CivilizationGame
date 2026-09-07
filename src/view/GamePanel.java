@@ -141,6 +141,7 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             }
         });
     }
+
     public void cleanup() {
         if (animationTimer != null && animationTimer.isRunning()) {
             animationTimer.stop();
@@ -283,9 +284,11 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
+        String myPlayerId = mainController.getMyPlayerId();
+
         g2d.translate(shakeX, shakeY);
-        hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController());
-        unitRenderer.renderAll(g2d, this, mainController.getGameMap());
+        hexRenderer.renderAll(g2d, this, mainController.getGameMap(), mainController.getUnitController(), myPlayerId);
+        unitRenderer.renderAll(g2d, this, mainController.getGameMap(), myPlayerId);
         g2d.translate(-shakeX, -shakeY);
 
         drawAdvancedParticles(g2d);

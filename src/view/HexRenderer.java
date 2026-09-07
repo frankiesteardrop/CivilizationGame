@@ -113,7 +113,7 @@ public class HexRenderer {
             Point pt = panel.getHexPixelCoords(hovered.getQ(), hovered.getR());
             g2d.setColor(UIConfig.HEX_HOVER);
             drawHexAt(g2d, pt.x, pt.y, true);
-            drawHexInfoOverlay(g2d, panel, hovered);
+            drawHexInfoOverlay(g2d, panel, hovered, myPlayerId);
         }
     }
 
@@ -132,7 +132,6 @@ public class HexRenderer {
         }
         g2d.translate(-cx, -cy);
     }
-
 
     private void drawTerrainBase(Graphics2D g2d, Hex hex, int cx, int cy,
                                  int size, Season season, double zoom) {
@@ -805,7 +804,6 @@ public class HexRenderer {
         g2d.setStroke(new BasicStroke(1f));
     }
 
-
     private void drawResourceIcons(Graphics2D g2d, Hex hex, int cx, int cy,
                                    int size, double zoom) {
         if (hex.getBuilding() != null && !hex.getBuilding().isDestroyed() && zoom < 2.0) return;
@@ -932,7 +930,6 @@ public class HexRenderer {
         g2d.translate(-cx, -cy);
     }
 
-
     private void drawDisasterOverlays(Graphics2D g2d, GamePanel panel,
                                       Rectangle clip, int size, String myPlayerId) {
 
@@ -1029,9 +1026,8 @@ public class HexRenderer {
                 (int)(a.getBlue()  + (b.getBlue()  - a.getBlue())  * t));
     }
 
-
-    private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
-        if (hex == null || !hex.isExplored(panel.getMainController().getMyPlayerId())) return;
+    private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex, String myPlayerId) {
+        if (hex == null || !hex.isExplored(myPlayerId)) return;
 
         String terrainInfo = switch (hex.getTerrainType()) {
             case PLAINS         -> "Plains — 1 AP";
