@@ -49,6 +49,8 @@ public class FogOfWarFilter {
                         hex.addProperty("isVisible",      false);
                         hex.addProperty("isInsideBorder", false);
 
+                        hex.add("visibleTo", new JsonArray());
+
                         JsonArray emptyWalls = new JsonArray();
                         JsonArray emptyWallHps = new JsonArray();
                         for (int i = 0; i < 6; i++) {
@@ -57,6 +59,18 @@ public class FogOfWarFilter {
                         }
                         hex.add("walls", emptyWalls);
                         hex.add("wallHp", emptyWallHps);
+                    } else {
+                        if (hex.has("visibleTo")) {
+                            JsonArray filteredVisibleTo = new JsonArray();
+                            JsonArray originalVisibleTo = hex.getAsJsonArray("visibleTo");
+                            for (JsonElement viewer : originalVisibleTo) {
+                                String vId = viewer.getAsString();
+                                if (vId.equals(playerId) || (alliedPlayerIds != null && alliedPlayerIds.contains(vId))) {
+                                    filteredVisibleTo.add(vId);
+                                }
+                            }
+                            hex.add("visibleTo", filteredVisibleTo);
+                        }
                     }
                 }
             }

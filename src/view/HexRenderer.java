@@ -22,7 +22,7 @@ public class HexRenderer {
         cachedHexSize = size;
         double inner = size * 0.82;
         for (int i = 0; i < 6; i++) {
-            double angle = Math.PI / 6.0 + Math.PI / 3.0 * i; // pointy-top
+            double angle = Math.PI / 6.0 + Math.PI / 3.0 * i;
             hxBase[i] = (int) Math.round(Math.cos(angle) * size);
             hyBase[i] = (int) Math.round(Math.sin(angle) * size);
             hxInner[i] = (int) Math.round(Math.cos(angle) * inner);
@@ -37,7 +37,7 @@ public class HexRenderer {
         g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,    RenderingHints.VALUE_STROKE_PURE);
     }
 
-    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController) {
+    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, UnitController unitController, String myPlayerId) {
         setupQuality(g2d);
 
         double zoom  = panel.getZoomFactor();
@@ -54,30 +54,32 @@ public class HexRenderer {
         List<Hex> hexes = map.getHexes();
 
         for (Hex hex : hexes) {
-            if (!hex.isExplored() && !hex.isVisible()) continue;
+            if (!hex.isExplored(myPlayerId) && !hex.isVisible(myPlayerId)) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             drawTerrainBase(g2d, hex, pt.x, pt.y, size, season, zoom);
         }
 
         for (Hex hex : hexes) {
-            if (!hex.isVisible() || !hex.isInsideBorder()) continue;
+            if (!hex.isVisible(myPlayerId) || !hex.isInsideBorder()) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             drawTerritoryFill(g2d, hex, pt.x, pt.y, size);
         }
+
         for (Hex hex : hexes) {
-            if (!hex.isVisible() && !hex.isExplored()) continue;
+            if (!hex.isVisible(myPlayerId) && !hex.isExplored(myPlayerId)) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
 
             drawRivers(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
-            if (hex.isVisible() && hex.hasRoad()) drawRoad(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
+            if (hex.isVisible(myPlayerId) && hex.hasRoad()) drawRoad(g2d, hex, pt.x, pt.y, size, zoom, map, panel, myPlayerId);
             drawWalls(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
             if (hex.isInsideBorder()) drawTerritoryBorder(g2d, hex, pt.x, pt.y, size, zoom, map, panel);
         }
+
         for (Hex hex : hexes) {
-            if (!hex.isVisible()) continue;
+            if (!hex.isVisible(myPlayerId)) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             Building b = hex.getBuilding();
@@ -87,27 +89,27 @@ public class HexRenderer {
         }
 
         for (Hex hex : hexes) {
-            if (!hex.isVisible()) continue;
+            if (!hex.isVisible(myPlayerId)) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
             if (zoom >= 0.75) drawResourceIcons(g2d, hex, pt.x, pt.y, size, zoom);
         }
 
-        drawHighlights(g2d, panel, map, unitController, clip, size, zoom);
-        drawDisasterOverlays(g2d, panel, clip, size);
+        drawHighlights(g2d, panel, map, unitController, clip, size, zoom, myPlayerId);
+        drawDisasterOverlays(g2d, panel, clip, size, myPlayerId);
 
         for (Hex hex : hexes) {
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
-            if (hex.isExplored() && !hex.isVisible()) {
+            if (hex.isExplored(myPlayerId) && !hex.isVisible(myPlayerId)) {
                 drawAdvancedFog(g2d, pt.x, pt.y, UIConfig.FOG_EXPLORED_DARK, size);
-            } else if (!hex.isExplored()) {
+            } else if (!hex.isExplored(myPlayerId)) {
                 drawAdvancedFog(g2d, pt.x, pt.y, UIConfig.FOG_UNEXPLORED, size);
             }
         }
 
         Hex hovered = panel.getHoveredHex();
-        if (hovered != null && hovered.isVisible()) {
+        if (hovered != null && hovered.isVisible(myPlayerId)) {
             Point pt = panel.getHexPixelCoords(hovered.getQ(), hovered.getR());
             g2d.setColor(UIConfig.HEX_HOVER);
             drawHexAt(g2d, pt.x, pt.y, true);
@@ -490,11 +492,11 @@ public class HexRenderer {
     }
 
     private void drawRoad(Graphics2D g2d, Hex hex, int cx, int cy, int size,
-                          double zoom, GameMap map, GamePanel panel) {
+                          double zoom, GameMap map, GamePanel panel, String myPlayerId) {
         for (int d = 0; d < 6; d++) {
             int dq = HEX_DIR_VECTORS[d][0], dr = HEX_DIR_VECTORS[d][1];
             Hex neighbor = map.getHexAt(hex.getQ() + dq, hex.getR() + dr);
-            if (neighbor == null || !neighbor.hasRoad() || !neighbor.isExplored()) continue;
+            if (neighbor == null || !neighbor.hasRoad() || !neighbor.isExplored(myPlayerId)) continue;
 
             Point np = panel.getHexPixelCoords(neighbor.getQ(), neighbor.getR());
 
@@ -730,10 +732,8 @@ public class HexRenderer {
                 g2d.fillPolygon(px, py, 3);
             }
             case APOTHECARY -> {
-                // Alchemist's pot shape: round bottom with steam columns
                 g2d.fillOval(-s + ox, -(int)(s*0.3) + oy, s*2, (int)(s*1.3));
                 g2d.fillRect(-(int)(s*0.3) + ox, -(int)(s*0.8) + oy, (int)(s*0.6), (int)(s*0.5));
-                // Two chimney stacks
                 g2d.fillRect(-(int)(s*0.6) + ox, -(int)(s*1.1) + oy, (int)(s*0.2), (int)(s*0.4));
                 g2d.fillRect((int)(s*0.4) + ox, -(int)(s*1.1) + oy, (int)(s*0.2), (int)(s*0.4));
             }
@@ -879,7 +879,7 @@ public class HexRenderer {
 
     private void drawHighlights(Graphics2D g2d, GamePanel panel, GameMap map,
                                 UnitController unitController, Rectangle clip,
-                                int size, double zoom) {
+                                int size, double zoom, String myPlayerId) {
         Unit selected = panel.getSelectedUnit();
         if (selected == null) return;
 
@@ -901,7 +901,7 @@ public class HexRenderer {
         g2d.setStroke(new BasicStroke(1f));
 
         for (Hex hex : map.getHexes()) {
-            if (!hex.isExplored()) continue;
+            if (!hex.isExplored(myPlayerId)) continue;
             Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
             if (!clip.contains(pt)) continue;
 
@@ -909,7 +909,7 @@ public class HexRenderer {
                     hex.getQ(), hex.getR());
             if (dist == 0 || dist > 2) continue;
 
-            boolean canMove = unitController.canMove(selected, hex);
+            boolean canMove = unitController.canMove(selected, hex, map);
             boolean isMilitary = (selected.getAttackRange() > 0);
 
             if (canMove) {
@@ -934,13 +934,13 @@ public class HexRenderer {
 
 
     private void drawDisasterOverlays(Graphics2D g2d, GamePanel panel,
-                                      Rectangle clip, int size) {
+                                      Rectangle clip, int size, String myPlayerId) {
 
         List<Hex> floodHexes = panel.getFloodedHexes();
         float floodAlpha = panel.getFloodAlpha();
         if (!floodHexes.isEmpty() && floodAlpha > 0) {
             for (Hex hex : floodHexes) {
-                if (!hex.isVisible()) continue;
+                if (!hex.isVisible(myPlayerId)) continue;
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
                 if (!clip.contains(pt)) continue;
 
@@ -971,7 +971,7 @@ public class HexRenderer {
             g2d.setStroke(new BasicStroke((float)(2.5 * panel.getZoomFactor()), BasicStroke.CAP_ROUND, BasicStroke.JOIN_MITER));
 
             for (Hex hex : eqHexes) {
-                if (!hex.isVisible()) continue;
+                if (!hex.isVisible(myPlayerId)) continue;
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
                 if (!clip.contains(pt)) continue;
 
@@ -992,7 +992,7 @@ public class HexRenderer {
         float bearAlpha = panel.getBearAlpha();
         if (!bearHexes.isEmpty() && bearAlpha > 0) {
             for (Hex hex : bearHexes) {
-                if (!hex.isVisible()) continue;
+                if (!hex.isVisible(myPlayerId)) continue;
                 Point pt = panel.getHexPixelCoords(hex.getQ(), hex.getR());
                 if (!clip.contains(pt)) continue;
 
@@ -1031,7 +1031,7 @@ public class HexRenderer {
 
 
     private void drawHexInfoOverlay(Graphics2D g2d, GamePanel panel, Hex hex) {
-        if (hex == null || !hex.isExplored()) return;
+        if (hex == null || !hex.isExplored(panel.getMainController().getMyPlayerId())) return;
 
         String terrainInfo = switch (hex.getTerrainType()) {
             case PLAINS         -> "Plains — 1 AP";
@@ -1078,7 +1078,6 @@ public class HexRenderer {
         int x = 20;
         int y = panel.getHeight() - boxH - 20;
 
-        // Shadow
         g2d.setColor(new Color(0, 0, 0, 150));
         g2d.fillRoundRect(x + 4, y + 4, boxW, boxH, 12, 12);
 

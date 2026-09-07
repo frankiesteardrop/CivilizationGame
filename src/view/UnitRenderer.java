@@ -8,7 +8,7 @@ import java.awt.geom.*;
 
 public class UnitRenderer {
 
-    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map) {
+    public void renderAll(Graphics2D g2d, GamePanel panel, GameMap map, String myPlayerId) {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
 
@@ -23,12 +23,12 @@ public class UnitRenderer {
             if (stack.isEmpty()) continue;
 
             Hex hex = map.getHexAt(stack.get(0).getQ(), stack.get(0).getR());
-            if (hex == null || (!hex.isVisible() && !hex.isExplored())) continue;
-            if (!hex.isVisible()) continue;
+            if (hex == null || (!hex.isVisible(myPlayerId) && !hex.isExplored(myPlayerId))) continue;
+            if (!hex.isVisible(myPlayerId)) continue;
 
             int stackSize = stack.size();
             for (int i = 0; i < stackSize; i++) {
-                drawUnit(g2d, stack.get(i), panel, map, i, stackSize);
+                drawUnit(g2d, stack.get(i), panel, map, i, stackSize, myPlayerId);
             }
 
             if (stackSize > 1) {
@@ -39,14 +39,14 @@ public class UnitRenderer {
     }
 
     private void drawUnit(Graphics2D g2d, Unit u, GamePanel panel, GameMap map,
-                          int stackIndex, int stackSize) {
+                          int stackIndex, int stackSize, String myPlayerId) {
         boolean isStationed = (u instanceof Worker && ((Worker) u).isStationed());
 
         Hex unitHex = map.getHexAt(u.getQ(), u.getR());
-        if (unitHex == null || !unitHex.isVisible()) return;
+        if (unitHex == null || !unitHex.isVisible(myPlayerId)) return;
 
         boolean isFloating = (unitHex.getTerrainType() == TerrainType.SEA
-                && map.getTownHall().isSeafaringUnlocked());
+                && map.getPlayerTownHall(u.getOwnerId()).isSeafaringUnlocked());
 
         double zoom = panel.getZoomFactor();
         int    baseR = (int)(14 * zoom);
@@ -435,7 +435,7 @@ public class UnitRenderer {
 
     private boolean isMilitary(UnitType type) {
         return type == UnitType.SWORDSMAN || type == UnitType.ARCHER
-                || type == UnitType.CAVALRY || type == UnitType.CATAPULT; // B15
+                || type == UnitType.CAVALRY || type == UnitType.CATAPULT;
     }
 
     private String getMilitarySymbolShort(UnitType type) {

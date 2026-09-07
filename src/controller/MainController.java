@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import model.*;
 import network.client.NetworkManager;
 import network.messages.game.CaptureHexRequest;
+import network.util.SharedGsonFactory;
 
 import java.util.List;
 
@@ -70,33 +71,16 @@ public class MainController {
         }
     }
 
-    public void applyServerState(
-            String json) {
-
+    public void applyServerState(String json) {
         try {
-
-            com.google.gson.Gson customGson =
-                    new com.google.gson.Gson();
-
-            GameMap serverMap =
-                    customGson.fromJson(
-                            json,
-                            GameMap.class
-                    );
+            Gson customGson = SharedGsonFactory.createCustomGson();
+            GameMap serverMap = customGson.fromJson(json, GameMap.class);
 
             if (serverMap != null) {
-
-                this.gameMap.updateFromServerState(
-                        serverMap
-                );
+                this.gameMap.updateFromServerState(serverMap);
             }
-
         } catch (Exception e) {
-
-            System.err.println(
-                    "[MainController] Failed to apply server state: "
-                            + e.getMessage()
-            );
+            System.err.println("[MainController] Failed to apply server state: " + e.getMessage());
         }
     }
 

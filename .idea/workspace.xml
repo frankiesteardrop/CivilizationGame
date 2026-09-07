@@ -5,82 +5,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b2d6c65c-05f9-4cd0-9fc3-4f29e86e5bb1" name="Changes" comment="all the bugs are fixed rn.">
-      <change afterPath="$PROJECT_DIR$/src/network/messages/game/CaptureHexRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/network/messages/game/NpcTradeRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/network/messages/game/TribeActionRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/network/util/SharedGsonFactory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/CatapultDamageHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/CatapultDamageHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/controller/CombatController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/CombatController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/EconomyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/EconomyController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/LobbyController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/LobbyController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/controller/MainController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/MainController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/SaveLoadController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/SaveLoadController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/TradeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TradeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/TribeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TribeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/TurnController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/TurnController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/controller/UnitController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/controller/UnitController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Apothecary.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Apothecary.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Building.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Building.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Catapult.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Catapult.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/CombatResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/CombatResult.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Empire.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Empire.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameEventDispatcher.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/GameMap.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/GameMap.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Hex.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Hex.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Inventory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Inventory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/TownHall.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TownHall.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/TradeOffer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/TradeOffer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/Unit.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/Unit.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/UnitType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/UnitType.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/maps/MapDefinition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/maps/MapDefinition.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/model/maps/PreDesignedMaps.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/model/maps/PreDesignedMaps.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/client/ClientMessageDispatcher.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/client/NetworkManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/client/NetworkManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/client/ServerMessageHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/client/ServerMessageHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/ActionRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/ActionRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/Message.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/AllianceResponseRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/AllianceResponseRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/AttackRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/AttackRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/BuildRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/BuildRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/CraftItemRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/CraftItemRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/DiplomacyBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/DiplomacyBroadcast.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/DiplomacyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/DiplomacyRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/GameNotificationMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/GameNotificationMessage.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/GameStartBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/GameStartBroadcast.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/GameStateBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/GameStateBroadcast.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/ItemUseRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/ItemUseRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/MoveRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/MoveRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/game/TradeInboxBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/game/TradeInboxBroadcast.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/ChatSendRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/ChatSendRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/JoinLobbyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/JoinLobbyRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/LobbyPlayer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/LobbyPlayer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/LobbyUpdateBroadcast.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/LobbyUpdateBroadcast.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/PlayerIdAssignedMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/PlayerIdAssignedMessage.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/SelectMapRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/SelectMapRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/StartGameRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/StartGameRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/messages/lobby/ToggleReadyRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/messages/lobby/ToggleReadyRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/ClientHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/ClientHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/DatabaseManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/DatabaseManager.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/FogOfWarFilter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/GameServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameServer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/network/server/GameStateManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/GameStateManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/JwtUtility.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/JwtUtility.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/LobbyManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/LobbyManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/server/ServerTurnProcessor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/server/ServerTurnProcessor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatClient.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatServer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/network/udp/UdpHeartbeatServer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/view/ContextMenuFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/ContextMenuFactory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/GamePanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GamePanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/HUDPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HUDPanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/HexRenderer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/HexRenderer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/LobbyPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/LobbyPanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/MainFrame.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainFrame.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/MainMenuPanel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MainMenuPanel.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/MultiplayerSetupDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/MultiplayerSetupDialog.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/TradeInboxDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/TradeInboxDialog.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/TradingPostTradeDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/TradingPostTradeDialog.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/TribeInteractionDialog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/TribeInteractionDialog.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/view/UIConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/UIConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/view/GameInputHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/view/GameInputHandler.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -126,38 +59,38 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "Application.Main.executor": "Run",
-    "Maven.civilization-sharif [compile].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:exec].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:help].executor": "Run",
-    "Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:java].executor": "Run",
-    "RunOnceActivity.ChatTagsLlmMigration": "true",
-    "RunOnceActivity.ClientConfigCleanupMigration": "true",
-    "RunOnceActivity.CodyAccountHistoryMigration": "true",
-    "RunOnceActivity.CodyAccountsIdsRefresh": "true",
-    "RunOnceActivity.CodyAssignOrphanedChatsToActiveAccount": "true",
-    "RunOnceActivity.CodyConvertUrlToCodebaseName": "true",
-    "RunOnceActivity.CodyHistoryLlmMigration": "true",
-    "RunOnceActivity.CodyMigrateChatHistory-v2": "true",
-    "RunOnceActivity.CodyProjectSettingsMigration": "true",
-    "RunOnceActivity.DeprecatedChatLlmMigration": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.ToggleCodyToolWindowAfterMigration": "true",
-    "com.intellij.ide.FileNotInSourceRootChecker.no.check": "true",
-    "git-widget-placeholder": "phase3-developement",
-    "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/HP/Downloads/claude-code-jetbrains-plugin-0.1.14-beta.zip",
-    "onboarding.tips.debug.path": "C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [compile].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:exec].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:help].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.civilization-sharif [org.codehaus.mojo:exec-maven-plugin:3.1.0:java].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ChatTagsLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ClientConfigCleanupMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAccountHistoryMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAccountsIdsRefresh&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyAssignOrphanedChatsToActiveAccount&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyConvertUrlToCodebaseName&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyHistoryLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyMigrateChatHistory-v2&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.CodyProjectSettingsMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.DeprecatedChatLlmMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ToggleCodyToolWindowAfterMigration&quot;: &quot;true&quot;,
+    &quot;com.intellij.ide.FileNotInSourceRootChecker.no.check&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/HP/Downloads/claude-code-jetbrains-plugin-0.1.14-beta.zip&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;C:/Users/HP/IdeaProjects/CivilizationGame/src/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

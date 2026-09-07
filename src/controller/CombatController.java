@@ -61,7 +61,6 @@ public class CombatController {
             return null;
         }
 
-
         List<Unit> militaryCandidates =
                 attackers.stream()
                         .filter(Unit::isAlive)
@@ -71,7 +70,6 @@ public class CombatController {
         if (militaryCandidates.isEmpty()) {
             return null;
         }
-
 
         List<Unit> validAttackers =
                 militaryCandidates.stream()
@@ -87,19 +85,13 @@ public class CombatController {
             return null;
         }
 
-
         if (validAttackers.stream()
                 .anyMatch(u ->
                         u.getCurrentAP() < 1)) {
-
             return null;
         }
 
-        /*
-         * Existing close-combat composition limit.
-         */
         if (dist == 1) {
-
             long swords =
                     validAttackers.stream()
                             .filter(u ->
@@ -138,7 +130,6 @@ public class CombatController {
 
         for (Unit attacker :
                 validAttackers) {
-
             if (!attacker.consumeAP(1)) {
                 return null;
             }
@@ -179,30 +170,19 @@ public class CombatController {
                         )
                         .collect(Collectors.toList());
 
-        validDefenders.forEach(
-                u -> u.consumeAP(1)
-        );
+        boolean attackerOwnedByHumanPlayer = !validAttackers.isEmpty()
+                && validAttackers.get(0).getOwnerTribe() == null;
 
-        boolean isPlayerAttacking =
-                !validAttackers.isEmpty()
-                        && !validAttackers
-                        .get(0)
-                        .isEnemy();
-
-        if (isPlayerAttacking) {
-
+        if (attackerOwnedByHumanPlayer) {
             for (Unit def :
                     validDefenders) {
-
                 if (def.getOwnerTribe() != null) {
-
                     Tribe t =
                             def.getOwnerTribe();
 
                     if (!t.getState()
                             .getName()
                             .equals("Enemy")) {
-
                         t.setAllied(false);
                         t.addRelationship(-200);
 
@@ -215,7 +195,6 @@ public class CombatController {
         }
 
         if (isSiegeAttack) {
-
             int siegeDmg =
                     handleSiegeAttack(
                             validAttackers,
@@ -234,7 +213,6 @@ public class CombatController {
         }
 
         if (validDefenders.isEmpty()) {
-
             return new CombatResult(
                     0,
                     0,
@@ -306,27 +284,21 @@ public class CombatController {
                 );
 
         for (int i = 0; i < pairs; i++) {
-
             if (attackerRolls.get(i)
                     > defenderRolls.get(i)) {
-
                 defenderTakesDmg++;
-
             } else {
-
                 attackerTakesDmg++;
             }
         }
 
         if (attackerTakesDmg > 0) {
-
             List<Unit> aliveAttackers =
                     validAttackers.stream()
                             .filter(Unit::isAlive)
                             .collect(Collectors.toList());
 
             if (!aliveAttackers.isEmpty()) {
-
                 damageChain.handleDamage(
                         aliveAttackers,
                         attackerTakesDmg
@@ -335,29 +307,22 @@ public class CombatController {
         }
 
         if (defenderTakesDmg > 0) {
-
             if (isTargetAnimal) {
-
                 for (Unit bear :
                         validDefenders) {
-
                     if (defenderTakesDmg > 0
                             && bear.isAlive()) {
-
                         bear.kill();
                         defenderTakesDmg--;
                     }
                 }
-
             } else {
-
                 List<Unit> aliveDefenders =
                         validDefenders.stream()
                                 .filter(Unit::isAlive)
                                 .collect(Collectors.toList());
 
                 if (!aliveDefenders.isEmpty()) {
-
                     damageChain.handleDamage(
                             aliveDefenders,
                             defenderTakesDmg
@@ -385,18 +350,15 @@ public class CombatController {
     }
 
     private boolean isMilitaryUnit(Unit unit) {
-
         if (unit == null) {
             return false;
         }
 
         return switch (unit.getType()) {
-
             case SWORDSMAN,
                  ARCHER,
                  CAVALRY,
                  CATAPULT -> true;
-
             default -> false;
         };
     }
@@ -418,7 +380,6 @@ public class CombatController {
         }
 
         if (distance == 2) {
-
             return unit.getType()
                     == UnitType.ARCHER
                     || unit.getType()
@@ -448,7 +409,6 @@ public class CombatController {
                 );
 
         if (dir >= 0 && targetHasWall) {
-
             targetHex.damageWall(
                     (dir + 3) % 6,
                     siegeDmg
@@ -478,9 +438,7 @@ public class CombatController {
                 GameEventDispatcher.fireNotification(
                         "🧱 Wall destroyed!"
                 );
-
             } else {
-
                 GameEventDispatcher.fireNotification(
                         "🧱 Wall took "
                                 + siegeDmg
@@ -495,7 +453,6 @@ public class CombatController {
                     targetHex.getBuilding();
 
             if (b instanceof TribeCamp camp) {
-
                 if (!camp.getTribe()
                         .getState()
                         .getName()
@@ -521,14 +478,11 @@ public class CombatController {
             );
 
             if (b.isDestroyed()) {
-
                 if (b instanceof TribeCamp camp) {
-
                     targetHex.setInsideBorder(true);
                     targetHex.setExplored(true);
 
                     for (int i = 0; i < 6; i++) {
-
                         Hex neighbor =
                                 map.getNeighbor(
                                         targetHex,
@@ -565,7 +519,6 @@ public class CombatController {
                             );
 
                 } else {
-
                     targetHex.setBuilding(
                             null
                     );
@@ -585,12 +538,10 @@ public class CombatController {
             Hex target) {
 
         for (int i = 0; i < 6; i++) {
-
             if (map.getNeighbor(
                     source,
                     i
             ) == target) {
-
                 return i;
             }
         }

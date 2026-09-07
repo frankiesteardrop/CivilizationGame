@@ -431,8 +431,20 @@ public class ContextMenuFactory {
             boolean hasValidForDist  = attackers.stream().anyMatch(u -> isValidAttackerForDistance(u, dist));
             boolean canAttack        = !attackers.isEmpty() && hasReadyAttacker && hasValidForDist;
 
-            final boolean fAnimal    = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
-            final boolean fEnemyUnit = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.isEnemy());
+            final boolean fAnimal = map.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && u.getType() == UnitType.BEAR);
+
+            final boolean fEnemyUnit;
+            String myId = mc.getMyPlayerId();
+            if (nm != null && myId != null) {
+                fEnemyUnit = map.getUnits().stream().anyMatch(u ->
+                        u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                                && !myId.equals(u.getOwnerId()) && u.getType() != UnitType.BEAR);
+            } else {
+                fEnemyUnit = map.getUnits().stream().anyMatch(u ->
+                        u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR()
+                                && u.isEnemy());
+            }
+
             final boolean fSiege     = !(fAnimal || fEnemyUnit);
 
             String typeLabel     = fSiege ? "🏰 Siege" : "🎲 Dice";

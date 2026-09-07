@@ -68,7 +68,7 @@ public class UdpHeartbeatServer implements Runnable {
 
     public boolean isClientAlive(String clientId) {
         Long lastTime = lastPingTime.get(clientId);
-        if (lastTime == null) return false;
+        if (lastTime == null) return true;
         return (System.currentTimeMillis() - lastTime) < TIMEOUT_MS;
     }
 

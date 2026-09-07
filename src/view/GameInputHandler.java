@@ -42,9 +42,17 @@ public class GameInputHandler extends MouseAdapter {
                 panel.repaint();
             } else if (SwingUtilities.isRightMouseButton(e)) {
 
-                if (panel.getSelectedUnit() != null && panel.getSelectedUnit().isEnemy()) {
-                    GameEventDispatcher.fireNotification("⛔ You cannot command enemy units!");
-                    return;
+                Unit sel = panel.getSelectedUnit();
+                if (sel != null) {
+                    NetworkManager nm = mainController.getNetworkManager();
+                    String myId = mainController.getMyPlayerId();
+                    boolean isOpponent = (nm != null && myId != null && !myId.equals(sel.getOwnerId()) && sel.getType() != UnitType.BEAR);
+
+                    if (sel.isEnemy() || isOpponent) {
+                        GameEventDispatcher.fireNotification("⛔ You cannot command opponent or enemy units!");
+                        panel.setSelectedUnit(null);
+                        return;
+                    }
                 }
 
                 handleRightClick(e, clickedHex);

@@ -14,6 +14,7 @@ import model.maps.MapDefinition;
 import model.maps.PreDesignedMaps;
 import network.messages.game.*;
 import network.messages.lobby.LobbyPlayer;
+import network.util.SharedGsonFactory;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -47,7 +48,7 @@ public class GameStateManager {
 
         this.server = server;
         this.databaseManager = databaseManager;
-        this.gson = new Gson();
+        this.gson = SharedGsonFactory.createCustomGson();
         this.players = new ArrayList<>(lobbyPlayers.values());
         this.currentPlayerIndex = 0;
         this.selectedMapId = selectedMapId;
@@ -55,7 +56,6 @@ public class GameStateManager {
 
     public synchronized void initializeGame() {
         MapDefinition mapDef = PreDesignedMaps.getMap(selectedMapId);
-        System.out.println("[Server] Loading map: " + mapDef.getDisplayName());
 
         this.masterMap = new GameMap(
                 mapDef.getRadius(),
@@ -67,58 +67,85 @@ public class GameStateManager {
         List<int[]> spawnPoints = mapDef.getSpawnPoints();
 
         for (int i = 0; i < players.size(); i++) {
-            if (i >= spawnPoints.size()) break;
+            if (i >= spawnPoints.size()) {
+                break;
+            }
 
             String playerId = players.get(i).getId();
             int[] spawn = spawnPoints.get(i);
 
-            masterMap.placePlayerSpawn(playerId, spawn[0], spawn[1]);
-            playerNames.put(playerId, players.get(i).getUsername());
-            tradeInboxes.put(playerId, new ArrayList<>());
-            pendingWarReports.put(playerId, new ArrayList<>());
+            masterMap.placePlayerSpawn(
+                    playerId,
+                    spawn[0],
+                    spawn[1]
+            );
+
+            playerNames.put(
+                    playerId,
+                    players.get(i).getUsername()
+            );
+
+            tradeInboxes.put(
+                    playerId,
+                    new ArrayList<>()
+            );
+
+            pendingWarReports.put(
+                    playerId,
+                    new ArrayList<>()
+            );
         }
 
         for (LobbyPlayer p1 : players) {
-            ConcurrentHashMap<String, String> relations = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, String> relations =
+                    new ConcurrentHashMap<>();
+
             for (LobbyPlayer p2 : players) {
                 if (!p1.getId().equals(p2.getId())) {
-                    relations.put(p2.getId(), "Neutral");
+                    relations.put(
+                            p2.getId(),
+                            "Neutral"
+                    );
                 }
             }
-            diplomacyStates.put(p1.getId(), relations);
+
+            diplomacyStates.put(
+                    p1.getId(),
+                    relations
+            );
         }
 
         this.fogOfWarFilter = new FogOfWarFilter(gson);
-        this.serverTurnProcessor = new ServerTurnProcessor(masterMap);
+        this.serverTurnProcessor =
+                new ServerTurnProcessor(masterMap);
 
-        server.broadcast(gson.toJson(new GameStartBroadcast()));
-        server.broadcast(gson.toJson(new DiplomacyBroadcast(
-                "GAME_START", "server", "Server", "all", "All", "Game Initialized")));
+        server.broadcast(
+                gson.toJson(new GameStartBroadcast())
+        );
+
+        server.broadcast(
+                gson.toJson(new DiplomacyBroadcast(
+                        "GAME_START",
+                        "server",
+                        "Server",
+                        "all",
+                        "All",
+                        "Game Initialized"
+                ))
+        );
 
         broadcastCustomizedStates();
     }
 
-    private Gson createCustomGson() {
-        return new GsonBuilder()
-                .registerTypeHierarchyAdapter(model.state.tribe.TribeState.class, new TribeStateAdapter())
-                .registerTypeHierarchyAdapter(model.state.mission.MissionState.class, new MissionStateAdapter())
-                .registerTypeAdapter(Building.class, new BuildingAdapter())
-                .registerTypeAdapter(Unit.class, new UnitAdapter())
-                .registerTypeAdapter(ProductionCommand.class, new ProductionCommandAdapter())
-                .registerTypeAdapter(Random.class, new RandomAdapter())
-                .create();
-    }
-
     public synchronized boolean loadGameFromJson(String stateJson) {
         try {
-            Gson customGson = createCustomGson();
             JsonObject root = JsonParser.parseString(stateJson).getAsJsonObject();
             GameMap loadedMap;
 
             if (root.has("gameData") && !root.get("gameData").isJsonNull()) {
-                loadedMap = customGson.fromJson(root.get("gameData"), GameMap.class);
+                loadedMap = gson.fromJson(root.get("gameData"), GameMap.class);
             } else {
-                loadedMap = customGson.fromJson(stateJson, GameMap.class);
+                loadedMap = gson.fromJson(stateJson, GameMap.class);
             }
 
             if (loadedMap == null) return false;
@@ -159,35 +186,52 @@ public class GameStateManager {
 
             if (root.has("diplomacyStates")) {
                 Type type = new TypeToken<ConcurrentHashMap<String, ConcurrentHashMap<String, String>>>(){}.getType();
-                ConcurrentHashMap<String, ConcurrentHashMap<String, String>> loaded = customGson.fromJson(root.get("diplomacyStates"), type);
-                if (loaded != null) { this.diplomacyStates.clear(); this.diplomacyStates.putAll(loaded); }
+                ConcurrentHashMap<String, ConcurrentHashMap<String, String>> loaded = gson.fromJson(root.get("diplomacyStates"), type);
+                if (loaded != null) {
+                    this.diplomacyStates.clear();
+                    this.diplomacyStates.putAll(loaded);
+                }
             }
 
             if (root.has("pendingAllianceRequests")) {
                 Type type = new TypeToken<ConcurrentHashMap<String, List<String>>>(){}.getType();
-                ConcurrentHashMap<String, List<String>> loaded = customGson.fromJson(root.get("pendingAllianceRequests"), type);
-                if (loaded != null) { this.pendingAllianceRequests.clear(); this.pendingAllianceRequests.putAll(loaded); }
+                ConcurrentHashMap<String, List<String>> loaded = gson.fromJson(root.get("pendingAllianceRequests"), type);
+                if (loaded != null) {
+                    this.pendingAllianceRequests.clear();
+                    this.pendingAllianceRequests.putAll(loaded);
+                }
             }
 
             if (root.has("tradeInboxes")) {
                 Type type = new TypeToken<ConcurrentHashMap<String, List<TradeOffer>>>(){}.getType();
-                ConcurrentHashMap<String, List<TradeOffer>> loaded = customGson.fromJson(root.get("tradeInboxes"), type);
-                if (loaded != null) { this.tradeInboxes.clear(); this.tradeInboxes.putAll(loaded); }
+                ConcurrentHashMap<String, List<TradeOffer>> loaded = gson.fromJson(root.get("tradeInboxes"), type);
+                if (loaded != null) {
+                    this.tradeInboxes.clear();
+                    this.tradeInboxes.putAll(loaded);
+                }
             }
 
             if (root.has("pendingWarReports")) {
                 Type type = new TypeToken<ConcurrentHashMap<String, List<WarReport>>>(){}.getType();
-                ConcurrentHashMap<String, List<WarReport>> loaded = customGson.fromJson(root.get("pendingWarReports"), type);
-                if (loaded != null) { this.pendingWarReports.clear(); this.pendingWarReports.putAll(loaded); }
+                ConcurrentHashMap<String, List<WarReport>> loaded = gson.fromJson(root.get("pendingWarReports"), type);
+                if (loaded != null) {
+                    this.pendingWarReports.clear();
+                    this.pendingWarReports.putAll(loaded);
+                }
             }
 
             if (root.has("playerNames")) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> loaded = customGson.fromJson(root.get("playerNames"), type);
-                if (loaded != null) { this.playerNames.clear(); this.playerNames.putAll(loaded); }
+                Map<String, String> loaded = gson.fromJson(root.get("playerNames"), type);
+                if (loaded != null) {
+                    this.playerNames.clear();
+                    this.playerNames.putAll(loaded);
+                }
             } else {
                 this.playerNames.clear();
-                for (LobbyPlayer p : players) this.playerNames.put(p.getId(), p.getUsername());
+                for (LobbyPlayer p : players) {
+                    this.playerNames.put(p.getId(), p.getUsername());
+                }
             }
 
             this.fogOfWarFilter = new FogOfWarFilter(gson);
@@ -206,7 +250,6 @@ public class GameStateManager {
     }
 
     public synchronized void saveGameToJson(String slot) {
-        Gson customGson = createCustomGson();
         JsonObject wrapper = new JsonObject();
 
         wrapper.addProperty("saveVersion", "3.0");
@@ -218,12 +261,13 @@ public class GameStateManager {
         wrapper.addProperty("gameSummary", "Multiplayer Match");
 
         wrapper.addProperty("currentPlayerIndex", currentPlayerIndex);
-        wrapper.add("diplomacyStates", customGson.toJsonTree(diplomacyStates));
-        wrapper.add("pendingAllianceRequests", customGson.toJsonTree(pendingAllianceRequests));
-        wrapper.add("tradeInboxes", customGson.toJsonTree(tradeInboxes));
-        wrapper.add("pendingWarReports", customGson.toJsonTree(pendingWarReports));
-        wrapper.add("playerNames", customGson.toJsonTree(playerNames));
-        wrapper.add("gameData", customGson.toJsonTree(masterMap));
+        wrapper.add("diplomacyStates", gson.toJsonTree(diplomacyStates));
+        wrapper.add("pendingAllianceRequests", gson.toJsonTree(pendingAllianceRequests));
+        wrapper.add("tradeInboxes", gson.toJsonTree(tradeInboxes));
+        wrapper.add("pendingWarReports", gson.toJsonTree(pendingWarReports));
+        wrapper.add("playerNames", gson.toJsonTree(playerNames));
+
+        wrapper.add("gameData", gson.toJsonTree(masterMap));
 
         databaseManager.saveGameSession(slot, wrapper.toString());
     }
@@ -313,7 +357,9 @@ public class GameStateManager {
     private void removePlayerFromTurnOrder(String playerId) {
         int removedIndex = -1;
         for (int i = 0; i < players.size(); i++) {
-            if (players.get(i).getId().equals(playerId)) { removedIndex = i; break; }
+            if (players.get(i).getId().equals(playerId)) {
+                removedIndex = i; break;
+            }
         }
         if (removedIndex == -1) return;
         players.remove(removedIndex);
@@ -331,18 +377,24 @@ public class GameStateManager {
         for (Map.Entry<String, List<TradeOffer>> entry : tradeInboxes.entrySet()) {
             String targetId = entry.getKey();
             List<TradeOffer> inbox = entry.getValue();
-            Iterator<TradeOffer> iterator = inbox.iterator();
 
+            Iterator<TradeOffer> iterator = inbox.iterator();
             while (iterator.hasNext()) {
                 TradeOffer offer = iterator.next();
+
                 if (offer.getOffererId().equals(playerId)) {
                     iterator.remove();
-                    if (leavingPlayerInv != null) leavingPlayerInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+                    if (leavingPlayerInv != null) {
+                        leavingPlayerInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+                    }
                     sendTradeInboxUpdate(targetId);
-                } else if (targetId.equals(playerId)) {
+                }
+                else if (targetId.equals(playerId)) {
                     iterator.remove();
                     Inventory offererInv = getPlayerInventory(offer.getOffererId());
-                    if (offererInv != null) offererInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+                    if (offererInv != null) {
+                        offererInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+                    }
                     server.sendToClient(offer.getOffererId(), gson.toJson(new GameNotificationMessage("🚫 Trade canceled automatically because the target player left the game.")));
                 }
             }
@@ -467,9 +519,9 @@ public class GameStateManager {
         CombatController cc = new CombatController(masterMap);
 
         boolean isTargetAnimal = masterMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getType() == UnitType.BEAR && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR());
-        boolean hasEnemyUnit   = masterMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && !clientId.equals(u.getOwnerId()));
-        boolean isSiegeAttack  = !hasEnemyUnit && !isTargetAnimal;
-        boolean targetHasWall  = false;
+        boolean hasEnemyUnit = masterMap.getUnits().stream().anyMatch(u -> u.isAlive() && u.getQ() == targetHex.getQ() && u.getR() == targetHex.getR() && !clientId.equals(u.getOwnerId()));
+        boolean isSiegeAttack = !hasEnemyUnit && !isTargetAnimal;
+        boolean targetHasWall = false;
 
         for (int i = 0; i < 6; i++) {
             if (masterMap.getNeighbor(sourceHex, i) == targetHex) {
@@ -489,8 +541,8 @@ public class GameStateManager {
         }
 
         if (targetOwnerId != null && !targetOwnerId.equals(clientId)) {
-            long aliveAfter  = masterMap.getUnits().stream().filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
-            int  unitsLost   = (int)(aliveBefore - aliveAfter);
+            long aliveAfter = masterMap.getUnits().stream().filter(u -> u.isAlive() && targetOwnerId.equals(u.getOwnerId())).count();
+            int unitsLost = (int) (aliveBefore - aliveAfter);
 
             WarReport report = new WarReport(
                     clientId, playerNames.getOrDefault(clientId, clientId),
@@ -609,6 +661,7 @@ public class GameStateManager {
             String ownerId = unit.getOwnerId();
             if (ownerId != null && !clientId.equals(ownerId)) return true;
         }
+
         Building building = targetHex.getBuilding();
         if (building != null && !building.isDestroyed()) {
             String ownerId = building.getOwnerId();
@@ -635,8 +688,8 @@ public class GameStateManager {
         if (attackerId.equals(targetOwnerId)) return "You cannot attack your own units or structures.";
 
         String diplomaticStatus = getDiplomaticStatus(attackerId, targetOwnerId);
-        if ("Enemy".equals(diplomaticStatus))   return null;
-        if ("Allied".equals(diplomaticStatus))  return "You cannot attack an allied player.";
+        if ("Enemy".equals(diplomaticStatus)) return null;
+        if ("Allied".equals(diplomaticStatus)) return "You cannot attack an allied player.";
         if ("Neutral".equals(diplomaticStatus)) return "You cannot attack this player because your diplomatic status is Neutral. Declare war first.";
 
         return "You cannot attack this player because the current diplomatic status does not allow PvP combat.";
@@ -663,14 +716,14 @@ public class GameStateManager {
 
         boolean success = false;
         switch (req.getAction()) {
-            case "ACCEPT_MISSION"  -> { tc.acceptMission(camp);  success = true; }
-            case "CANCEL_MISSION"  -> { tc.cancelMission(camp);  success = true; }
+            case "ACCEPT_MISSION" -> { tc.acceptMission(camp); success = true; }
+            case "CANCEL_MISSION" -> { tc.cancelMission(camp); success = true; }
             case "DELIVER_MISSION" -> success = tc.deliverMission(camp);
-            case "FORM_ALLIANCE"   -> success = tc.formAlliance(camp);
-            case "SEND_GIFT"       -> success = tc.sendGift(camp, req.getResourceType(), req.getAmount());
-            case "DECLARE_WAR"     -> { tc.declareWar(camp); success = true; }
-            case "REQUEST_PEACE"   -> success = tc.requestPeace(camp);
-            case "TRADE"           -> success = tc.tradeWithTribe(camp, req.getResourceType(), req.getAmount(), req.getGetResourceType());
+            case "FORM_ALLIANCE" -> success = tc.formAlliance(camp);
+            case "SEND_GIFT" -> success = tc.sendGift(camp, req.getResourceType(), req.getAmount());
+            case "DECLARE_WAR" -> { tc.declareWar(camp); success = true; }
+            case "REQUEST_PEACE" -> success = tc.requestPeace(camp);
+            case "TRADE" -> success = tc.tradeWithTribe(camp, req.getResourceType(), req.getAmount(), req.getGetResourceType());
         }
 
         masterMap.clearActiveTownHall();
@@ -753,6 +806,11 @@ public class GameStateManager {
     }
 
     public synchronized void handleTradeResponse(String clientId, TradeResponseRequest req) {
+        if (!isActivePlayer(clientId)) {
+            server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn! You can only interact with your Trade Inbox during your turn.")));
+            return;
+        }
+
         TradeOffer offer = null;
         String inboxOwnerId = null;
 
@@ -777,14 +835,10 @@ public class GameStateManager {
             return;
         }
 
-        Inventory targetInv  = getPlayerInventory(clientId);
+        Inventory targetInv = getPlayerInventory(clientId);
         Inventory offererInv = getPlayerInventory(offer.getOffererId());
 
         if (req.isAccepted()) {
-            if (!isActivePlayer(clientId)) {
-                server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn! You can only ACCEPT trades during your turn.")));
-                return;
-            }
             if (targetInv == null) {
                 server.sendToClient(clientId, gson.toJson(new ErrorResponse("You need a Town Hall to accept trades.")));
                 return;
@@ -801,7 +855,9 @@ public class GameStateManager {
             targetInv.addResource(offer.getOfferType(), offer.getOfferAmount());
             offererInv.addResource(offer.getRequestType(), offer.getRequestAmount());
         } else {
-            if (offererInv != null) offererInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+            if (offererInv != null) {
+                offererInv.unlockResource(offer.getOfferType(), offer.getOfferAmount());
+            }
         }
 
         removeTradeOffer(offer, inboxOwnerId);
@@ -842,6 +898,7 @@ public class GameStateManager {
             }
 
             pendingAllianceRequests.computeIfAbsent(targetId, k -> new ArrayList<>()).add(clientId);
+
             server.sendToClient(targetId, gson.toJson(new DiplomacyBroadcast("ALLIANCE_REQUESTED", clientId, playerNames.get(clientId), targetId, playerNames.get(targetId), playerNames.get(clientId) + " requested an alliance.")));
             server.sendToClient(clientId, gson.toJson(new GameNotificationMessage("Alliance request sent to " + playerNames.get(targetId) + ".")));
 
@@ -923,8 +980,8 @@ public class GameStateManager {
                 server.sendToClient(clientId, gson.toJson(new ErrorResponse("Destination is occupied.")));
                 return;
             }
-            if (!dest.isExplored(clientId)) {
-                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot teleport to unexplored areas in your Fog of War.")));
+            if (!dest.isVisible(clientId)) {
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot teleport into the Fog of War. Only currently visible hexes are valid.")));
                 return;
             }
             if (dest.getTerrainType() == TerrainType.MOUNTAIN_RANGE || dest.getTerrainType() == TerrainType.SEA) {
@@ -935,8 +992,23 @@ public class GameStateManager {
 
         playerInv.consumeItem(req.getItemName());
         target.setUsedItemThisTurn(true);
-        if ("TELEPORT".equals(req.getItemName())) {
-            target.moveTo(req.getDestQ(), req.getDestR(), 0);
+
+        switch (req.getItemName()) {
+            case "TELEPORT" -> {
+                target.moveTo(req.getDestQ(), req.getDestR(), 0);
+                masterMap.updateFogOfWar();
+            }
+            case "MOBILITY" -> target.addTemporaryAP(2);
+            case "COMBAT" -> {
+                target.setTemporaryCombatDiceBonus(1);
+                target.setTemporarySiegeBonus(5);
+            }
+            default -> {
+                playerInv.addItem(req.getItemName(), 1);
+                target.setUsedItemThisTurn(false);
+                server.sendToClient(clientId, gson.toJson(new ErrorResponse("Unknown item type: " + req.getItemName())));
+                return;
+            }
         }
         broadcastCustomizedStates();
     }
@@ -986,7 +1058,20 @@ public class GameStateManager {
         if (u != null && target != null) {
             masterMap.setActiveTownHall(masterMap.getPlayerTownHall(clientId));
             try {
-                if ("STATION".equals(req.getActionType()) && u instanceof Worker worker) {
+                if ("EXPAND".equals(req.getActionType())) {
+                    if (u instanceof BorderExpander expander) {
+                        UnitController uc = new UnitController();
+                        if (uc.handleExpandBorder(expander, masterMap)) {
+                            broadcastCustomizedStates();
+                        } else {
+                            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot expand border: check AP, contiguous border, and explored hex.")));
+                        }
+                        return;
+                    } else {
+                        server.sendToClient(clientId, gson.toJson(new ErrorResponse("No valid BorderExpander found at specified position.")));
+                        return;
+                    }
+                } else if ("STATION".equals(req.getActionType()) && u instanceof Worker worker) {
                     UnitController uc = new UnitController();
                     if (uc.canStation(worker, target, masterMap)) {
                         uc.handleStation(worker, target, masterMap, null);
@@ -1066,15 +1151,38 @@ public class GameStateManager {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("It is not your turn!")));
             return;
         }
+
         masterMap.setActiveTownHall(masterMap.getPlayerTownHall(clientId));
         UpgradeController uc = new UpgradeController(masterMap);
-        if (uc.canTrainUnit(req.getUnitType())) {
-            uc.trainUnit(req.getUnitType(), null);
-            broadcastCustomizedStates();
-        } else {
-            server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot train unit: check resources, unit caps, or queue status.")));
+        String unitType = req.getUnitType();
+
+        try {
+            if ("UPGRADE_TH".equals(unitType)) {
+                if (uc.canAffordWarehouseUpgrade()) {
+                    uc.handleWarehouseUpgrade(null);
+                    broadcastCustomizedStates();
+                } else {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot upgrade Town Hall: check resources and production queue.")));
+                }
+            } else if (unitType != null && unitType.startsWith("TECH:")) {
+                String techId = unitType.substring(5);
+                if (uc.canUnlockTech(techId)) {
+                    uc.unlockTech(techId, null);
+                    broadcastCustomizedStates();
+                } else {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot unlock tech: check prerequisites, level, and resources.")));
+                }
+            } else {
+                if (uc.canTrainUnit(unitType)) {
+                    uc.trainUnit(unitType, null);
+                    broadcastCustomizedStates();
+                } else {
+                    server.sendToClient(clientId, gson.toJson(new ErrorResponse("Cannot train unit: check resources, unit caps, or queue status.")));
+                }
+            }
+        } finally {
+            masterMap.clearActiveTownHall();
         }
-        masterMap.clearActiveTownHall();
     }
 
     public synchronized void handleCancelProduction(String clientId) {
@@ -1123,25 +1231,25 @@ public class GameStateManager {
             return;
         }
 
-        if (!inv.hasEnough(ResourceType.FOOD,  itemType.getFoodCost())
+        if (!inv.hasEnough(ResourceType.FOOD, itemType.getFoodCost())
                 || !inv.hasEnough(ResourceType.STONE, itemType.getStoneCost())
-                || !inv.hasEnough(ResourceType.IRON,  itemType.getIronCost())
-                || !inv.hasEnough(ResourceType.WOOD,  itemType.getWoodCost())) {
+                || !inv.hasEnough(ResourceType.IRON, itemType.getIronCost())
+                || !inv.hasEnough(ResourceType.WOOD, itemType.getWoodCost())) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("Not enough resources to craft this item.")));
             return;
         }
 
-        inv.consumeResource(ResourceType.FOOD,  itemType.getFoodCost());
+        inv.consumeResource(ResourceType.FOOD, itemType.getFoodCost());
         inv.consumeResource(ResourceType.STONE, itemType.getStoneCost());
-        inv.consumeResource(ResourceType.IRON,  itemType.getIronCost());
-        inv.consumeResource(ResourceType.WOOD,  itemType.getWoodCost());
+        inv.consumeResource(ResourceType.IRON, itemType.getIronCost());
+        inv.consumeResource(ResourceType.WOOD, itemType.getWoodCost());
         apothecary.queueItem(itemName);
         broadcastCustomizedStates();
     }
 
     public synchronized void broadcastCustomizedStates() {
         if (players.isEmpty()) return;
-        String activePlayerId   = players.get(currentPlayerIndex).getId();
+        String activePlayerId = players.get(currentPlayerIndex).getId();
         String activePlayerName = playerNames.getOrDefault(activePlayerId, "Unknown");
 
         for (LobbyPlayer player : players) {
@@ -1153,15 +1261,16 @@ public class GameStateManager {
             ConcurrentHashMap<String, String> relations = diplomacyStates.get(clientId);
             if (relations != null) {
                 for (Map.Entry<String, String> entry : relations.entrySet()) {
-                    String otherId   = entry.getKey();
-                    String status    = entry.getValue();
+                    String otherId = entry.getKey();
+                    String status = entry.getValue();
                     String otherName = playerNames.getOrDefault(otherId, "Unknown");
                     specificDiplomacy.put(otherId, new String[]{otherName, status});
                 }
             }
 
             GameStateBroadcast update = new GameStateBroadcast(
-                    activePlayerId, activePlayerName, masterMap.getCurrentTurn(), filteredMapJson, specificDiplomacy);
+                    activePlayerId, activePlayerName, masterMap.getCurrentTurn(), filteredMapJson, specificDiplomacy
+            );
             server.sendToClient(clientId, gson.toJson(update));
         }
     }
@@ -1184,6 +1293,7 @@ public class GameStateManager {
         Set<String> allies = new HashSet<>();
         ConcurrentHashMap<String, String> relations = diplomacyStates.get(playerId);
         if (relations == null) return allies;
+
         for (Map.Entry<String, String> entry : relations.entrySet()) {
             if ("Allied".equals(entry.getValue())) allies.add(entry.getKey());
         }
@@ -1197,7 +1307,9 @@ public class GameStateManager {
 
     private void removeTradeOffer(TradeOffer offer, String inboxOwnerId) {
         List<TradeOffer> inbox = tradeInboxes.get(inboxOwnerId);
-        if (inbox != null) inbox.removeIf(o -> o.getId().equals(offer.getId()));
+        if (inbox != null) {
+            inbox.removeIf(o -> o.getId().equals(offer.getId()));
+        }
     }
 
     private boolean isActivePlayer(String clientId) {
@@ -1206,6 +1318,9 @@ public class GameStateManager {
     }
 
     private Inventory getPlayerInventory(String ownerId) {
+        Empire emp = masterMap.getEmpire(ownerId);
+        if (emp != null) return emp.getInventory();
+
         for (Hex h : masterMap.getHexes()) {
             if (h.getBuilding() != null && h.getBuilding().getType() == BuildingType.TOWN_HALL
                     && ownerId.equals(h.getBuilding().getOwnerId())) {
@@ -1232,176 +1347,5 @@ public class GameStateManager {
         if (reports == null || reports.isEmpty()) return;
         server.sendToClient(playerId, gson.toJson(new WarReportBroadcast(new ArrayList<>(reports))));
         reports.clear();
-    }
-
-    private static class TribeStateAdapter implements JsonSerializer<model.state.tribe.TribeState>, JsonDeserializer<model.state.tribe.TribeState> {
-        @Override
-        public JsonElement serialize(model.state.tribe.TribeState src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("STATE_NAME", src.getName());
-            return obj;
-        }
-        @Override
-        public model.state.tribe.TribeState deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            if (json == null || json.isJsonNull()) return new model.state.tribe.NeutralState();
-            JsonObject obj = json.getAsJsonObject();
-            if (!obj.has("STATE_NAME")) return new model.state.tribe.NeutralState();
-            return switch (obj.get("STATE_NAME").getAsString()) {
-                case "Allied"     -> new model.state.tribe.AlliedState();
-                case "Friendly"   -> new model.state.tribe.FriendlyState();
-                case "Displeased" -> new model.state.tribe.DispleasedState();
-                case "Enemy"      -> new model.state.tribe.EnemyState();
-                default           -> new model.state.tribe.NeutralState();
-            };
-        }
-    }
-
-    private static class MissionStateAdapter implements JsonSerializer<model.state.mission.MissionState>, JsonDeserializer<model.state.mission.MissionState> {
-        @Override
-        public JsonElement serialize(model.state.mission.MissionState src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("STATE_NAME", src.getDisplayName());
-            return obj;
-        }
-        @Override
-        public model.state.mission.MissionState deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            if (json == null || json.isJsonNull()) return new model.state.mission.AvailableState();
-            JsonObject obj = json.getAsJsonObject();
-            if (!obj.has("STATE_NAME")) return new model.state.mission.AvailableState();
-            return switch (obj.get("STATE_NAME").getAsString()) {
-                case "Active"           -> new model.state.mission.ActiveMissionState();
-                case "Ready to Deliver" -> new model.state.mission.ReadyMissionState();
-                case "Completed"        -> new model.state.mission.CompletedFailedState("Completed");
-                case "Failed"           -> new model.state.mission.CompletedFailedState("Failed");
-                case "Cancelled"        -> new model.state.mission.CompletedFailedState("Cancelled");
-                default                 -> new model.state.mission.AvailableState();
-            };
-        }
-    }
-
-    private static class BuildingAdapter implements JsonSerializer<Building>, JsonDeserializer<Building> {
-        @Override
-        public JsonElement serialize(Building src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject obj = context.serialize(src, src.getClass()).getAsJsonObject();
-            obj.addProperty("CLASS_TYPE", src.getType().name());
-            return obj;
-        }
-        @Override
-        public Building deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            JsonObject obj = json.getAsJsonObject();
-            BuildingType type = BuildingType.valueOf(obj.get("CLASS_TYPE").getAsString());
-            Class<? extends Building> clazz = switch (type) {
-                case TOWN_HALL    -> TownHall.class;
-                case LUMBER_MILL  -> LumberMill.class;
-                case STONE_MINE   -> StoneMine.class;
-                case IRON_MINE    -> IronMine.class;
-                case FARM         -> Farm.class;
-                case STABLE       -> Stable.class;
-                case SETTLEMENT   -> Settlement.class;
-                case DOCK         -> Dock.class;
-                case MONUMENT     -> Monument.class;
-                case BAZAAR       -> Bazaar.class;
-                case TRADING_POST -> TradingPost.class;
-                case TRIBE_CAMP   -> TribeCamp.class;
-                case OUTPOST      -> Outpost.class;
-                case APOTHECARY   -> Apothecary.class;
-            };
-            return context.deserialize(json, clazz);
-        }
-    }
-
-    private static class UnitAdapter implements JsonSerializer<Unit>, JsonDeserializer<Unit> {
-        @Override
-        public JsonElement serialize(Unit src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject obj = context.serialize(src, src.getClass()).getAsJsonObject();
-            obj.addProperty("CLASS_TYPE", src.getType().name());
-            return obj;
-        }
-        @Override
-        public Unit deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            JsonObject obj = json.getAsJsonObject();
-            UnitType type = UnitType.valueOf(obj.get("CLASS_TYPE").getAsString());
-            Class<? extends Unit> clazz = switch (type) {
-                case WORKER          -> Worker.class;
-                case BUILDER         -> Builder.class;
-                case EXPLORER        -> Explorer.class;
-                case BORDER_EXPANDER -> BorderExpander.class;
-                case SWORDSMAN       -> Swordsman.class;
-                case ARCHER          -> Archer.class;
-                case CAVALRY         -> Cavalry.class;
-                case BEAR            -> Bear.class;
-                case CATAPULT        -> Catapult.class;
-            };
-            return context.deserialize(json, clazz);
-        }
-    }
-
-    private static class RandomAdapter implements JsonSerializer<Random>, JsonDeserializer<Random> {
-        @Override
-        public JsonElement serialize(Random src, Type typeOfSrc, JsonSerializationContext context) {
-            try {
-                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(baos);
-                oos.writeObject(src);
-                oos.close();
-                JsonObject obj = new JsonObject();
-                obj.addProperty("base64State", java.util.Base64.getEncoder().encodeToString(baos.toByteArray()));
-                return obj;
-            } catch (java.io.IOException e) {
-                return new JsonObject();
-            }
-        }
-        @Override
-        public Random deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            try {
-                byte[] data = java.util.Base64.getDecoder().decode(json.getAsJsonObject().get("base64State").getAsString());
-                java.io.ObjectInputStream ois = new java.io.ObjectInputStream(new java.io.ByteArrayInputStream(data));
-                Random r = (Random) ois.readObject();
-                ois.close();
-                return r;
-            } catch (Exception e) {
-                throw new JsonParseException("Failed to deserialize random state: corrupted base64 data");
-            }
-        }
-    }
-
-    private static class ProductionCommandAdapter implements JsonSerializer<ProductionCommand>, JsonDeserializer<ProductionCommand> {
-        @Override
-        public JsonElement serialize(ProductionCommand src, Type typeOfSrc, JsonSerializationContext context) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("commandType",     src.getCommandType());
-            obj.addProperty("name",            src.getName());
-            obj.addProperty("turnsRemaining",  src.getTurnsRemaining());
-            obj.addProperty("isPopulationTask",src.isPopulationTask());
-            obj.addProperty("isCanceled",      src.isCanceled());
-
-            if (src instanceof ProductionCommand.TechCommand tc) {
-                obj.addProperty("techId", tc.getTechId());
-            } else if (src instanceof ProductionCommand.UnitCommand uc) {
-                obj.addProperty("unitType", uc.getUnitType().name());
-            }
-            return obj;
-        }
-        @Override
-        public ProductionCommand deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            JsonObject obj     = json.getAsJsonObject();
-            String cmdType     = obj.get("commandType").getAsString();
-            String name        = obj.get("name").getAsString();
-            int    turns       = obj.get("turnsRemaining").getAsInt();
-
-            ProductionCommand cmd = null;
-            if ("TECH".equals(cmdType)) {
-                cmd = new ProductionCommand.TechCommand(name, turns, obj.get("techId").getAsString());
-            } else if ("UNIT".equals(cmdType)) {
-                cmd = new ProductionCommand.UnitCommand(name, turns, UnitType.valueOf(obj.get("unitType").getAsString()));
-            } else if ("UPGRADE_TH".equals(cmdType)) {
-                cmd = new ProductionCommand.UpgradeTHCommand(name, turns);
-            }
-
-            if (cmd != null && obj.has("isCanceled") && obj.get("isCanceled").getAsBoolean()) {
-                cmd.cancel();
-            }
-            return cmd;
-        }
     }
 }
