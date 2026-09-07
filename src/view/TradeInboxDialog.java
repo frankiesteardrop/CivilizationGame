@@ -10,7 +10,7 @@ import java.util.List;
 
 public class TradeInboxDialog extends JDialog {
 
-    private final TradeController tradeController; // 🔴 MVC Fix: Only talk to the Controller
+    private final TradeController tradeController;
 
     public TradeInboxDialog(JFrame parent, TradeController tradeController, List<TradeOffer> pendingOffers) {
         super(parent, "Trade Inbox", true);

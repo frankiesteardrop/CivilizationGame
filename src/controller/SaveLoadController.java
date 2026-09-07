@@ -25,7 +25,6 @@ public class SaveLoadController {
     public boolean saveGame(String slot) {
         NetworkManager nm = mainController.getNetworkManager();
         if (nm != null) {
-            // Send save request as a generic network action (handled by GameStateManager later)
             nm.sendRequest(String.format("{\"type\":\"SAVE_GAME\", \"slot\":\"%s\"}", slot));
             GameEventDispatcher.fireNotification("⏳ Save request sent to server...");
             return true;
@@ -38,7 +37,6 @@ public class SaveLoadController {
     }
 
     public static SaveMetadata readSlotMetadata(String slot) {
-        // Stateless fallback: UI directly relies on the server's authoritative state
         SaveMetadata meta = new SaveMetadata();
         meta.slotName = slot;
         meta.isEmpty = false;

@@ -4,7 +4,7 @@ import network.messages.Message;
 
 public class BuildRequest extends Message {
     private final int unitQ, unitR;
-    private final String actionType; // "BUILD", "ROAD", "WALL", "DESTROY", "STATION", "EJECT"
+    private final String actionType;
     private final String structureType;
     private final int hexQ, hexR;
     private final int dir;

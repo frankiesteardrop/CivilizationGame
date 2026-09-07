@@ -4,11 +4,6 @@ import java.io.*;
 import java.net.Socket;
 import java.util.UUID;
 
-/**
- * مدیریت اتصال یک کلاینت در thread اختصاصی.
- * هر پیام JSON دریافتی فوری به GameServer.routeMessage() ارسال می‌شود؛
- * این کلاس هیچ منطق بازی یا لابی ندارد (Single Responsibility).
- */
 public class ClientHandler implements Runnable {
 
     private final Socket socket;
@@ -16,11 +11,12 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private BufferedReader in;
     private final String clientId;
+    private volatile boolean isRunning = true;
 
     public ClientHandler(Socket socket, GameServer server) {
         this.socket   = socket;
         this.server   = server;
-        this.clientId = UUID.randomUUID().toString(); // شناسه منحصربه‌فرد این اتصال
+        this.clientId = UUID.randomUUID().toString();
     }
 
     @Override
@@ -32,22 +28,31 @@ public class ClientHandler implements Runnable {
             server.addClient(clientId, this);
 
             String incomingJson;
-            while ((incomingJson = in.readLine()) != null) {
-                // هر پیام JSON دریافتی به router مرکزی سرور تحویل داده می‌شود
+            while (isRunning && (incomingJson = in.readLine()) != null) {
                 server.routeMessage(clientId, incomingJson);
             }
         } catch (IOException e) {
             System.out.println("[Server] Connection dropped for " + clientId);
         } finally {
+            close();
             server.removeClient(clientId);
-            try { socket.close(); } catch (IOException ignored) {}
         }
     }
 
     public void sendMessage(String jsonMessage) {
-        if (out != null) {
+        if (out != null && isRunning) {
             out.println(jsonMessage);
+            if (out.checkError()) {
+                System.out.println("🚨 [Server] Write failed, forcing disconnect for " + clientId);
+                close();
+                server.removeClient(clientId);
+            }
         }
+    }
+
+    public void close() {
+        isRunning = false;
+        try { if (socket != null && !socket.isClosed()) socket.close(); } catch (IOException ignored) {}
     }
 
     public String getClientId() { return clientId; }

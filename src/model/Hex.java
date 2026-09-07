@@ -48,8 +48,6 @@ public class Hex {
     public TerrainType getTerrainType() { return terrainType; }
     public void setTerrainType(TerrainType type) { this.terrainType = type; }
 
-    // ─── Player-specific visibility (Multiplayer - B26) ─────────────────────
-
     public boolean isExplored(String playerId) { return exploredBy.contains(playerId); }
     public boolean isVisible(String playerId) { return visibleTo.contains(playerId); }
 
@@ -65,15 +63,12 @@ public class Hex {
 
     public void clearVisibility() { visibleTo.clear(); }
 
-    // ─── Backward compatibility & Client-side UI wrappers ───────────────────
-
     public boolean isExplored() { return !exploredBy.isEmpty(); }
     public void setExplored(boolean explored) { setExplored(null, explored); }
 
     public boolean isVisible() { return !visibleTo.isEmpty(); }
     public void setVisible(boolean visible) { setVisible(null, visible); }
 
-    // ─── Rest of the Code ───────────────────────────────────────────────────
 
     public boolean isInsideBorder() { return isInsideBorder; }
     public void setInsideBorder(boolean insideBorder) { this.isInsideBorder = insideBorder; }

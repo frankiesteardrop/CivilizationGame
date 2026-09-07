@@ -18,7 +18,6 @@ public class LobbyController {
     private LobbyPanel lobbyPanel;
     private final Gson gson;
 
-    /** The username this client sent when joining the lobby. Needed to determine host status. */
     private String myUsername = "";
 
     public LobbyController(NetworkManager networkManager) {
@@ -38,8 +37,6 @@ public class LobbyController {
         return myUsername;
     }
 
-    // ─── Send to server ───────────────────────────────────────────────────────
-
     public void toggleReady() {
         networkManager.sendRequest(gson.toJson(new ToggleReadyRequest()));
     }
@@ -54,22 +51,13 @@ public class LobbyController {
         networkManager.sendRequest(gson.toJson(new StartGameRequest()));
     }
 
-    /**
-     * Sends a map selection request to the server.
-     * The server only accepts this if the sender is the host.
-     *
-     * @param mapId the ID of the chosen pre-designed map
-     */
     public void selectMap(String mapId) {
         networkManager.sendRequest(gson.toJson(new SelectMapRequest(mapId)));
     }
 
-    // ─── Receive from server (called on EDT) ──────────────────────────────────
-
     public void handleLobbyUpdate(LobbyUpdateBroadcast update) {
         SwingUtilities.invokeLater(() -> {
             if (lobbyPanel != null) {
-                // Determine if we are the host by matching our username
                 boolean iAmHost = update.getPlayers().stream()
                         .anyMatch(p -> p.isHost() && p.getUsername().equals(myUsername));
                 lobbyPanel.updateLobbyState(update, iAmHost);
@@ -80,7 +68,6 @@ public class LobbyController {
     public void handleChatMessage(ChatMessageBroadcast msg) {
         SwingUtilities.invokeLater(() -> {
             if (lobbyPanel != null) {
-                // Format: [HH:mm] Player1: message
                 String formatted = String.format("[%s] %s: %s\n",
                         msg.getTimestamp(), msg.getSenderName(), msg.getText());
                 lobbyPanel.appendChatMessage(formatted);

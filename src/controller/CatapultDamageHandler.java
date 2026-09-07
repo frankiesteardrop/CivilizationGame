@@ -5,11 +5,7 @@ import model.UnitType;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Handles dice-combat damage for Catapult units.
- * Catapults are vulnerable in melee — each hit deals 1 HP damage.
- * Placed after CavalryDamageHandler in the chain.
- */
+
 public class CatapultDamageHandler extends DamageHandler {
 
     @Override

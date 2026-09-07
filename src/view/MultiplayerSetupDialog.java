@@ -17,7 +17,7 @@ public class MultiplayerSetupDialog extends JDialog {
     private static final Color TEXT_DIM     = new Color(130, 140, 158);
 
     private JTextField usernameField;
-    private JPasswordField passwordField; // فیلد پسورد
+    private JPasswordField passwordField;
     private JTextField ipField;
 
     private final JTabbedPane tabs;
@@ -30,14 +30,13 @@ public class MultiplayerSetupDialog extends JDialog {
     public MultiplayerSetupDialog(Frame parent) {
         super(parent, "Multiplayer Setup", true);
         setUndecorated(true);
-        setSize(440, 420); // تغییر ابعاد برای جا دادن فیلد جدید
+        setSize(440, 420);
         setLocationRelativeTo(parent);
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(BG_DARK);
         root.setBorder(BorderFactory.createLineBorder(ACCENT_GOLD, 2));
 
-        // ── Header
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(new Color(22, 27, 38));
         header.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -47,7 +46,6 @@ public class MultiplayerSetupDialog extends JDialog {
         header.add(title, BorderLayout.CENTER);
         root.add(header, BorderLayout.NORTH);
 
-        // ── Auth field (Username + Password)
         JPanel authPanel = new JPanel(new GridLayout(2, 1, 0, 10));
         authPanel.setBackground(BG_DARK);
         authPanel.setBorder(new EmptyBorder(12, 20, 4, 20));
@@ -77,7 +75,6 @@ public class MultiplayerSetupDialog extends JDialog {
         authPanel.add(usernamePanel);
         authPanel.add(passwordPanel);
 
-        // ── Tabs
         tabs = new JTabbedPane();
         tabs.setBackground(BG_DARK);
         tabs.setForeground(TEXT_MAIN);

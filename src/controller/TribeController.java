@@ -1,10 +1,13 @@
 package controller;
 
+import com.google.gson.Gson;
 import model.*;
 import model.mission.Mission;
 import model.state.mission.ActiveMissionState;
 import model.state.mission.CompletedFailedState;
 import model.trade.TradeStrategy;
+import network.client.NetworkManager;
+import network.messages.game.TribeActionRequest;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -12,12 +15,19 @@ import java.util.stream.Collectors;
 public class TribeController implements UnitListener {
 
     private final GameMap map;
+    private NetworkManager networkManager;
+    private final Gson gson = new Gson();
+
     private static final int MIN_INTER_CAMP_DISTANCE = 4;
     private static final int MIN_FROM_TH_DISTANCE    = 6;
 
     public TribeController(GameMap map) {
         this.map = map;
         GameEventDispatcher.addListener(this);
+    }
+
+    public void setNetworkManager(NetworkManager nm) {
+        this.networkManager = nm;
     }
 
     public void spawnInitialTribes() {
@@ -299,21 +309,26 @@ public class TribeController implements UnitListener {
     }
 
     public void acceptMission(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "ACCEPT_MISSION", ResourceType.NONE, 0, ResourceType.NONE)));
+            return;
+        }
         Mission m = camp.getTribe().getMission();
         if (m != null && m.getState().canAccept()) {
             m.setState(new ActiveMissionState());
-            GameEventDispatcher.fireNotification(
-                    "Mission accepted for " + camp.getTribe().getType().getDisplayName());
+            GameEventDispatcher.fireNotification("Mission accepted for " + camp.getTribe().getType().getDisplayName());
             m.getState().checkConditions(m, camp, map);
         }
     }
 
     public void cancelMission(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "CANCEL_MISSION", ResourceType.NONE, 0, ResourceType.NONE)));
+            return;
+        }
         Tribe tribe = camp.getTribe();
         Mission m = tribe.getMission();
-        if (m != null
-                && (m.getState().getDisplayName().equals("Active")
-                ||  m.getState().getDisplayName().equals("Ready to Deliver"))) {
+        if (m != null && (m.getState().getDisplayName().equals("Active") || m.getState().getDisplayName().equals("Ready to Deliver"))) {
             m.setState(new CompletedFailedState("Cancelled"));
             tribe.addRelationship(-5);
             GameEventDispatcher.fireNotification("🚫 Mission cancelled. Relations dropped by 5.");
@@ -330,13 +345,22 @@ public class TribeController implements UnitListener {
     }
 
     public boolean deliverMission(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "DELIVER_MISSION", ResourceType.NONE, 0, ResourceType.NONE)));
+            return true; // Assume success pending server response
+        }
         Mission m = camp.getTribe().getMission();
         if (m == null || !m.getState().canDeliver()) return false;
         if (!canHoldMissionReward(camp.getTribe())) return false;
         return m.getState().deliver(m, camp, map);
     }
 
-    public boolean formAlliance(Tribe targetTribe) {
+    public boolean formAlliance(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "FORM_ALLIANCE", ResourceType.NONE, 0, ResourceType.NONE)));
+            return true;
+        }
+        Tribe targetTribe = camp.getTribe();
         if (!targetTribe.canFormAlliance()) return false;
         if (targetTribe.getMissionCooldown() > 0) return false;
 
@@ -346,10 +370,9 @@ public class TribeController implements UnitListener {
         boolean hasWarrior = false;
 
         for (Hex h : map.getHexes()) {
-            if (h.getBuilding() instanceof TribeCamp camp && !camp.isDestroyed()) {
-                Tribe t = camp.getTribe();
+            if (h.getBuilding() instanceof TribeCamp c && !c.isDestroyed()) {
+                Tribe t = c.getTribe();
                 if (!t.isAllied() || t == targetTribe) continue;
-
                 hasAnyOtherAlliance = true;
                 if (t.getType() == TribeType.FARMER)   hasFarmer   = true;
                 if (t.getType() == TribeType.MOUNTAIN) hasMountain = true;
@@ -363,41 +386,38 @@ public class TribeController implements UnitListener {
         if (targetTribe.getType() == TribeType.MOUNTAIN && hasFarmer)  return false;
 
         targetTribe.setAllied(true);
-        GameEventDispatcher.fireNotification(
-                "🤝 Alliance formed with " + targetTribe.getType().getDisplayName() + " Tribe!");
+        GameEventDispatcher.fireNotification("🤝 Alliance formed with " + targetTribe.getType().getDisplayName() + " Tribe!");
         return true;
     }
 
-    public boolean sendGift(Tribe tribe, ResourceType resourceType, int amount) {
-        if (!tribe.canReceiveGift()) return false;
-        if (amount <= 0) return false;
+    public boolean sendGift(TribeCamp camp, ResourceType resourceType, int amount) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "SEND_GIFT", resourceType, amount, ResourceType.NONE)));
+            return true;
+        }
+        Tribe tribe = camp.getTribe();
+        if (!tribe.canReceiveGift() || amount <= 0) return false;
 
         int unitSize = (resourceType == ResourceType.IRON) ? 5 : 10;
         if (amount < unitSize) return false;
 
         if (!map.getTownHall().getInventory().hasEnough(resourceType, amount)) return false;
 
-        int relationGain;
-        if (resourceType == ResourceType.IRON) {
-            relationGain = (amount / 5) * 3;
-        } else if (resourceType == ResourceType.STONE) {
-            relationGain = (amount / 10) * 3;
-        } else {
-            relationGain = (amount / 10) * 2;
-        }
-
+        int relationGain = (resourceType == ResourceType.IRON) ? (amount / 5) * 3 : (resourceType == ResourceType.STONE) ? (amount / 10) * 3 : (amount / 10) * 2;
         if (relationGain <= 0) return false;
 
         map.getTownHall().getInventory().consumeResource(resourceType, amount);
         tribe.addRelationship(relationGain);
-
-        GameEventDispatcher.fireNotification(String.format(
-                "🎁 Gift sent: %d %s → +%d relation with %s",
-                amount, resourceType.name(), relationGain, tribe.getType().getDisplayName()));
+        GameEventDispatcher.fireNotification(String.format("🎁 Gift sent: %d %s → +%d relation with %s", amount, resourceType.name(), relationGain, tribe.getType().getDisplayName()));
         return true;
     }
 
-    public void declareWar(Tribe tribe) {
+    public void declareWar(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "DECLARE_WAR", ResourceType.NONE, 0, ResourceType.NONE)));
+            return;
+        }
+        Tribe tribe = camp.getTribe();
         boolean wasAllied   = tribe.isAllied() || tribe.getRelationship() >= 70;
         boolean wasFriendly = tribe.getRelationship() >= 20 && !wasAllied;
 
@@ -411,16 +431,18 @@ public class TribeController implements UnitListener {
             map.getTownHall().addHappiness(-5);
             GameEventDispatcher.fireNotification("⚠️ Friendly tribe attacked! -5 Happiness.");
         }
-        GameEventDispatcher.fireNotification(
-                "⚔️ War declared with " + tribe.getType().getDisplayName() + "!");
+        GameEventDispatcher.fireNotification("⚔️ War declared with " + tribe.getType().getDisplayName() + "!");
     }
 
-    public boolean requestPeace(Tribe tribe) {
+    public boolean requestPeace(TribeCamp camp) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "REQUEST_PEACE", ResourceType.NONE, 0, ResourceType.NONE)));
+            return true;
+        }
+        Tribe tribe = camp.getTribe();
         if (!tribe.canRequestPeace()) return false;
         Inventory inv = map.getTownHall().getInventory();
-        if (!inv.hasEnough(ResourceType.FOOD, 30)
-                || !inv.hasEnough(ResourceType.WOOD, 30)
-                || !inv.hasEnough(ResourceType.IRON, 30)) {
+        if (!inv.hasEnough(ResourceType.FOOD, 30) || !inv.hasEnough(ResourceType.WOOD, 30) || !inv.hasEnough(ResourceType.IRON, 30)) {
             GameEventDispatcher.fireNotification("❌ Peace requires 30 Food + 30 Wood + 30 Iron!");
             return false;
         }
@@ -429,15 +451,17 @@ public class TribeController implements UnitListener {
         inv.consumeResource(ResourceType.IRON, 30);
 
         tribe.addRelationship(90);
-        if (tribe.getRelationship() > -10) {
-            tribe.addRelationship(-(tribe.getRelationship() + 10));
-        }
-        GameEventDispatcher.fireNotification(
-                "🕊️ Peace with " + tribe.getType().getDisplayName() + ". Status: Displeased.");
+        if (tribe.getRelationship() > -10) tribe.addRelationship(-(tribe.getRelationship() + 10));
+
+        GameEventDispatcher.fireNotification("🕊️ Peace with " + tribe.getType().getDisplayName() + ". Status: Displeased.");
         return true;
     }
 
     public boolean tradeWithTribe(TribeCamp camp, ResourceType give, int amount, ResourceType get) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new TribeActionRequest(map.getHexOfBuilding(camp).getQ(), map.getHexOfBuilding(camp).getR(), "TRADE", give, amount, get)));
+            return true;
+        }
         if (camp == null || camp.isDestroyed()) return false;
         Tribe tribe = camp.getTribe();
 

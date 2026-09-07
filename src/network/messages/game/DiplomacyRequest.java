@@ -4,7 +4,7 @@ import network.messages.Message;
 
 public class DiplomacyRequest extends Message {
     private final String targetPlayerId;
-    private final String action; // مقادیر معتبر: "DECLARE_WAR", "REQUEST_ALLIANCE", "BREAK_ALLIANCE"
+    private final String action;
 
     public DiplomacyRequest(String targetPlayerId, String action) {
         super("DIPLOMACY_ACTION");

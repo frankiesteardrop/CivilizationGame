@@ -1006,8 +1006,6 @@ public class HexRenderer {
         }
     }
 
-    // ─── Utility ─────────────────────────────────────────────────────────────
-
     private void drawHexAt(Graphics2D g2d, int cx, int cy, boolean fill) {
         g2d.translate(cx, cy);
         if (fill) g2d.fillPolygon(hxBase, hyBase, 6);

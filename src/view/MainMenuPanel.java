@@ -24,13 +24,11 @@ public class MainMenuPanel extends JPanel {
         gbc.gridy = 0;
         add(titleLabel, gbc);
 
-        // ── Single Player ──────────────────────────────────────────────────────
         JButton startButton = buildMenuButton("▶  New Game", new Color(39, 158, 85));
         startButton.addActionListener(e -> mainFrame.startGame());
         gbc.gridy = 1;
         add(startButton, gbc);
 
-        // ── Multiplayer ────────────────────────────────────────────────────────
         JButton hostButton = buildMenuButton("🖥️  Host Multiplayer Game", new Color(52, 110, 195));
         hostButton.setToolTipText("Start a server on this machine and host a multiplayer lobby.");
         hostButton.addActionListener(e -> openMultiplayerDialog(true));
@@ -43,7 +41,6 @@ public class MainMenuPanel extends JPanel {
         gbc.gridy = 3;
         add(joinButton, gbc);
 
-        // ── Load / Settings / Exit ─────────────────────────────────────────────
         JButton loadButton = buildMenuButton("📂  Load Game", new Color(60, 65, 80));
         loadButton.addActionListener(e -> openLoadGameDialog());
         gbc.gridy = 4;
@@ -60,32 +57,27 @@ public class MainMenuPanel extends JPanel {
         add(exitButton, gbc);
     }
 
-    // ─── Multiplayer Setup ────────────────────────────────────────────────────
-
     private void openMultiplayerDialog(boolean preferHost) {
         MultiplayerSetupDialog dialog = new MultiplayerSetupDialog(mainFrame);
         if (preferHost) {
-            // Select the Host tab by default
             dialog.setVisible(true);
         } else {
             dialog.setVisible(true);
         }
 
         String  username = dialog.getUsername();
-        String  password = dialog.getPassword(); // 🔐 دریافت پسورد از دیالوگ
+        String  password = dialog.getPassword();
         String  ip       = dialog.getServerIp();
         boolean isHost   = dialog.isHostMode();
 
-        if (username == null) return; // cancelled
+        if (username == null) return;
 
         if (isHost) {
-            mainFrame.startServerMode(username, password); // 🔴 ارسال یوزرنیم و پسورد به سرور لوکال
+            mainFrame.startServerMode(username, password);
         } else {
-            mainFrame.joinServerMode(username, password, ip); // 🔴 ارسال یوزرنیم و پسورد به سرور ریموت
+            mainFrame.joinServerMode(username, password, ip);
         }
     }
-
-    // ─── Load Dialog ──────────────────────────────────────────────────────────
 
     private void openLoadGameDialog() {
         boolean hasAnySave = false;
@@ -109,8 +101,6 @@ public class MainMenuPanel extends JPanel {
             mainFrame.loadGameFromMenu(chosen);
         }
     }
-
-    // ─── UI Helper ────────────────────────────────────────────────────────────
 
     private JButton buildMenuButton(String text, Color bg) {
         JButton btn = new JButton(text);

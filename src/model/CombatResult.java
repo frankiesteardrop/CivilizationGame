@@ -7,13 +7,11 @@ public final class CombatResult {
 
     private final int siegeDamage;
     private final int defenderUnitsDestroyed;
-    // 🔴 FIX: متغیر جدید برای ثبت تلفات مهاجم (تا در WarReport نمایش داده شود)
     private final int attackerUnitsDestroyed;
 
     private final List<Integer> attackerDice;
     private final List<Integer> defenderDice;
 
-    // 🔴 FIX: پارامتر attackerUnitsDestroyed به کانستراکتور اضافه شد
     public CombatResult(int siegeDamage,
                         int defenderUnitsDestroyed,
                         int attackerUnitsDestroyed,
@@ -30,7 +28,6 @@ public final class CombatResult {
     public int getSiegeDamage() { return siegeDamage; }
     public int getDefenderUnitsDestroyed() { return defenderUnitsDestroyed; }
 
-    // 🔴 FIX: Getter جدید
     public int getAttackerUnitsDestroyed() { return attackerUnitsDestroyed; }
 
     public List<Integer> getAttackerDice() { return attackerDice; }

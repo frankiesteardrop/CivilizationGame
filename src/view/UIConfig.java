@@ -116,10 +116,8 @@ public class UIConfig {
     public static final Color RESOURCE_WHEAT        = new Color(220, 185,  65);
     public static final Color RESOURCE_CATTLE       = new Color(185, 138,  78);
 
-    // B15: Catapult unit colors
     public static final Color UNIT_CATAPULT        = new Color(165, 100, 35);
     public static final Color UNIT_CATAPULT_BORDER = new Color(105, 60, 15);
 
-    // B11: Apothecary building color
     public static final Color BUILDING_APOTHECARY  = new Color(138, 43, 138);
 }

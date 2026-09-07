@@ -6,6 +6,7 @@ import model.trade.BazaarTradeStrategy;
 import model.trade.TradeStrategy;
 import model.trade.TradingPostTradeStrategy;
 import network.client.NetworkManager;
+import network.messages.game.NpcTradeRequest;
 import network.messages.game.TradeResponseRequest;
 import network.messages.game.CancelTradeRequest;
 
@@ -34,22 +35,18 @@ public class TradeController implements TurnListener {
         this.networkManager = networkManager;
     }
 
-    // ─── Multiplayer (P2P) Logic ──────────────────────────────────────────────
-
     public void respondToTradeOffer(String tradeId, boolean accepted) {
         if (networkManager != null && networkManager.isConnected()) {
             networkManager.sendRequest(gson.toJson(new TradeResponseRequest(tradeId, accepted)));
         }
     }
 
-    // 🔴 מתد جدید برای کنسل کردن پیشنهاد ترید از سوی فرستنده (لایه MVC کامل شد)
     public void cancelTradeOffer(String tradeId) {
         if (networkManager != null && networkManager.isConnected()) {
             networkManager.sendRequest(gson.toJson(new CancelTradeRequest(tradeId)));
         }
     }
 
-    // ─── Single-Player & NPC Trade Logic ──────────────────────────────────────
 
     public Inventory getPlayerInventory() {
         if (map == null) return null;
@@ -129,31 +126,34 @@ public class TradeController implements TurnListener {
         return new TradePreview(true, null, received);
     }
 
-    public TradePreview previewTribeTrade(Tribe tribe, ResourceType give, int amountToGive, ResourceType get) {
+    public TradePreview previewTribeTrade(Tribe tribe, ResourceType give, int amount, ResourceType get) {
         if (map == null) return new TradePreview(false, "Map not loaded", 0);
-        if (give == get) return new TradePreview(false, "Cannot trade same resource!", 0);
+        if (give == get)  return new TradePreview(false, "Cannot trade a resource for itself!", 0);
+        if (amount <= 0)  return new TradePreview(false, "Amount must be greater than zero!", 0);
 
         Inventory inv = map.getTownHall().getInventory();
-        if (!inv.hasEnough(give, amountToGive)) {
+        if (inv == null || !inv.hasEnough(give, amount))
             return new TradePreview(false, "Not enough " + give.name() + "!", 0);
-        }
 
-        int received = tribe.getType().getTradeStrategy().calculateReceivedAmount(amountToGive, get, tribe.hasTradeBonus());
+        double rate = (tribe.getType() == TribeType.COMMERCIAL) ? 0.80 : 0.75;
+        int received = (int)(amount * rate);
 
-        if (received <= 0) {
-            return new TradePreview(false, "Amount too small for an exchange!", 0);
-        }
+        if (received <= 0)
+            return new TradePreview(false, "Amount too small for any return!", 0);
 
         int currentGet = inv.getResourceAmount(get);
-        int capGet = inv.getCapacity(get);
-        if (currentGet + received > capGet) {
-            return new TradePreview(false, "Storage full! Cannot hold " + received + " " + get.name(), 0);
-        }
+        int capGet     = inv.getCapacity(get);
+        if (currentGet + received > capGet)
+            return new TradePreview(false, "Storage full! Need space for " + received + " " + get.name(), 0);
 
         return new TradePreview(true, null, received);
     }
 
     public boolean tradeWithBazaar(Bazaar bazaar, ResourceType give, ResourceType get) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new NpcTradeRequest(map.getHexOfBuilding(bazaar).getQ(), map.getHexOfBuilding(bazaar).getR(), "BAZAAR", give, 0, get)));
+            return true;
+        }
         if (bazaar.hasTraded()) return false;
         int currentLevel = bazaar.getLevel();
         int amountToGive = getBazaarTradeAmount(currentLevel);
@@ -162,6 +162,10 @@ public class TradeController implements TurnListener {
     }
 
     public boolean tradeWithTradingPost(TradingPost post, Hex postHex, ResourceType give, int amount, ResourceType get) {
+        if (networkManager != null && networkManager.isConnected()) {
+            networkManager.sendRequest(gson.toJson(new NpcTradeRequest(postHex.getQ(), postHex.getR(), "TRADING_POST", give, amount, get)));
+            return true;
+        }
         if (post.hasTraded() || postHex == null || !postHex.isInsideBorder()) return false;
         TradeStrategy strategy = new TradingPostTradeStrategy();
         return executeTrade(give, amount, get, strategy, () -> post.setTraded(true));

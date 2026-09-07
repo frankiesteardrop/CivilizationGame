@@ -25,7 +25,6 @@ public class Empire {
         this.productionQueue = new LinkedList<>();
         this.happiness = 0;
 
-        // اعمال منابع اولیه در لحظه ساخت امپراتوری
         inventory.applyStartingResources();
     }
 

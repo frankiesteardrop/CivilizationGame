@@ -15,6 +15,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MainFrame extends JFrame {
 
@@ -28,6 +30,8 @@ public class MainFrame extends JFrame {
 
     private final AudioController audioController;
     private final Gson gson = new Gson();
+
+    private GameServer localServerInstance = null;
 
     public MainFrame() {
         setTitle("Civilization Sharif");
@@ -63,12 +67,23 @@ public class MainFrame extends JFrame {
     }
 
     public void startServerMode(String username, String password) {
-        GameServer gameServer = new GameServer();
-        Thread serverThread = new Thread(gameServer::start, "game-server");
+        localServerInstance = new GameServer();
+        CountDownLatch serverReadySignal = new CountDownLatch(1);
+
+        Thread serverThread = new Thread(() -> localServerInstance.start(serverReadySignal), "game-server");
         serverThread.setDaemon(true);
         serverThread.start();
 
-        try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+        try {
+            boolean ready = serverReadySignal.await(5, TimeUnit.SECONDS);
+            if (!ready) {
+                JOptionPane.showMessageDialog(this, "Failed to start local server. Port might be in use.", "Server Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
 
         connectToServer("localhost", username, password);
     }
@@ -95,10 +110,6 @@ public class MainFrame extends JFrame {
         ClientMessageDispatcher dispatcher = new ClientMessageDispatcher(lobbyController);
 
         dispatcher.setOnGameStarted(() -> startMultiplayerMode(networkManager, dispatcher));
-        dispatcher.setOnGameStateUpdate(update -> {
-            System.out.println("[Client] Game state updated — turn: " + update.getCurrentTurn()
-                    + " | active: " + update.getActivePlayerId());
-        });
         dispatcher.setOnDisconnected(() -> {
             JOptionPane.showMessageDialog(this,
                     "Disconnected from the server.",
@@ -148,6 +159,12 @@ public class MainFrame extends JFrame {
     }
 
     private void cleanUpGameView() {
+        if (gamePanel != null) {
+            gamePanel.cleanup();
+        }
+        if (hudPanel != null) {
+            hudPanel.cleanup();
+        }
         if (gameWrapper != null) {
             mainContainer.remove(gameWrapper);
             gameWrapper = null;
@@ -156,7 +173,6 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // 🔴 FIX: متد لود اصلاح شد تا مستقیماً به سرور متصل شده و درخواست لود بفرستد
     public void loadGameFromMenu(String slot) {
         MultiplayerSetupDialog dialog = new MultiplayerSetupDialog(this);
         dialog.setVisible(true);
@@ -168,11 +184,14 @@ public class MainFrame extends JFrame {
         if (username == null) return;
 
         if (isHost) {
-            GameServer gameServer = new GameServer();
-            Thread serverThread = new Thread(gameServer::start, "game-server");
+            localServerInstance = new GameServer();
+            CountDownLatch serverReadySignal = new CountDownLatch(1);
+            Thread serverThread = new Thread(() -> localServerInstance.start(serverReadySignal), "game-server");
             serverThread.setDaemon(true);
             serverThread.start();
-            try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+            try {
+                serverReadySignal.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ignored) {}
             connectToLoadGame("localhost", username, password, slot);
         } else {
             connectToLoadGame(dialog.getServerIp(), username, password, slot);
@@ -200,7 +219,6 @@ public class MainFrame extends JFrame {
             returnToMainMenu();
         });
 
-        // 🔴 FIX: به محض دریافت ID، درخواست لود را به سرور می‌فرستیم
         dispatcher.setOnMyPlayerIdReceived(myId -> {
             String loadReq = String.format("{\"type\":\"LOAD_GAME\", \"slot\":\"%s\"}", slot);
             networkManager.sendRequest(loadReq);
@@ -213,7 +231,18 @@ public class MainFrame extends JFrame {
 
     public void returnToMainMenu() {
         GameEventDispatcher.clearAllListeners();
+
         cleanUpGameView();
+
+        if (mainController != null && mainController.getNetworkManager() != null) {
+            mainController.getNetworkManager().disconnect();
+        }
+
+        if (localServerInstance != null) {
+            localServerInstance.stop();
+            localServerInstance = null;
+        }
+
         cardLayout.show(mainContainer, "MENU");
     }
 
@@ -224,6 +253,7 @@ public class MainFrame extends JFrame {
                 JOptionPane.QUESTION_MESSAGE);
         if (confirm == JOptionPane.YES_OPTION) {
             audioController.stopMusic();
+            if (localServerInstance != null) localServerInstance.stop();
             System.exit(0);
         }
     }

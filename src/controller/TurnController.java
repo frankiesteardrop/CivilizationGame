@@ -61,7 +61,7 @@ public class TurnController {
             if (unit.isAlive() && !unit.isEnemy() && unit.getType() != UnitType.BEAR) {
 
                 unit.resetAP();
-                unit.resetItemBuffs(); // پاک کردن باف آیتم‌ها در پایان نوبت
+                unit.resetItemBuffs();
 
                 if (effectiveHappiness <= -5) {
                     UnitType t = unit.getType();

@@ -2,20 +2,9 @@ package network.messages.game;
 
 import network.messages.Message;
 
-/**
- * Broadcast from the server to all (or specific) clients when a diplomatic
- * event occurs: war declaration, alliance request, alliance formed, alliance broken.
- *
- * <p>Global events (war declaration, alliance formed/broken) are sent to ALL clients.
- * Private events (alliance request) are sent only to the target client.
- */
 public class DiplomacyBroadcast extends Message {
 
-    /**
-     * Type of diplomatic event. Known values:
-     * "WAR_DECLARED", "ALLIANCE_REQUESTED", "ALLIANCE_FORMED", "ALLIANCE_BROKEN",
-     * "ALLIANCE_REJECTED"
-     */
+
     private final String eventType;
 
     private final String initiatorId;
@@ -23,7 +12,6 @@ public class DiplomacyBroadcast extends Message {
     private final String targetId;
     private final String targetName;
 
-    /** Human-readable announcement text suitable for display in the game notification area. */
     private final String announcementText;
 
     public DiplomacyBroadcast(String eventType,

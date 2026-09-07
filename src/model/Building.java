@@ -3,10 +3,8 @@ package model;
 import java.util.UUID;
 
 public abstract class Building {
-    /** Unique identifier — required by spec for all server-managed entities. (B21) */
     protected String id;
 
-    /** Unix epoch ms when this building was created — required by spec. (B21) */
     protected long createdAt;
     protected int baseWorkerCapacity;
     protected int stationedWorkers;
@@ -19,7 +17,6 @@ public abstract class Building {
 
     protected int floodHaltTurns;
 
-    // فیلد مالکیت اضافه شده برای رفع ارورهای شبکه و تشخیص بازیکن در PvP
     protected String ownerId;
 
     public Building(int baseWorkerCapacity) {
@@ -33,7 +30,7 @@ public abstract class Building {
         this.hp = 100;
         this.defense = 0;
         this.floodHaltTurns = 0;
-        this.ownerId = null; // در ابتدا نال است، سرور هنگام ساخت این مقدار را ست می‌کند
+        this.ownerId = null;
     }
 
     public abstract BuildingType getType();

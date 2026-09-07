@@ -5,7 +5,7 @@ import network.messages.Message;
 public class PlayerIdAssignedMessage extends Message {
 
     private final String assignedId;
-    private final String jwtToken; // فیلد جدید برای انتقال توکن از سرور
+    private final String jwtToken;
 
     public PlayerIdAssignedMessage(String assignedId, String jwtToken) {
         super("PLAYER_ID_ASSIGNED");

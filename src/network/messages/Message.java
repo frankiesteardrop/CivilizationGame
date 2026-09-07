@@ -7,7 +7,6 @@ public abstract class Message {
     protected final long createdAt;
     protected final String type;
 
-    // فیلد توکن که باید همراه تمامی درخواست‌ها ارسال شود
     protected String token;
 
     public Message(String type) {

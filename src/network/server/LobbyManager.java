@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LobbyManager {
 
     private final GameServer server;
-    private final DatabaseManager databaseManager; // تزریق دیتابیس
+    private final DatabaseManager databaseManager;
     private final ConcurrentHashMap<String, LobbyPlayer> lobbyPlayers;
     private final Gson gson;
     private boolean isGameStarted = false;
@@ -39,7 +39,6 @@ public class LobbyManager {
             return;
         }
 
-        // 🔐 بررسی و ثبت‌نام کاربر در پایگاه داده از طریق JDBC
         boolean isAuthenticated = databaseManager.registerOrAuthenticate(clientId, username, password);
         if (!isAuthenticated) {
             server.sendToClient(clientId, gson.toJson(new ErrorResponse("Authentication failed: Incorrect password or username conflict.")));
@@ -47,12 +46,14 @@ public class LobbyManager {
         }
 
         boolean isHost = lobbyPlayers.isEmpty();
-        LobbyPlayer newPlayer = new LobbyPlayer(clientId, username, isHost);
+        LobbyPlayer newPlayer = new LobbyPlayer(username, username, isHost);
+
         lobbyPlayers.put(clientId, newPlayer);
+
         System.out.println("[Lobby] Player authenticated & joined: " + username + " (host=" + isHost + ")");
 
         String generatedToken = JwtUtility.generateToken(username, clientId);
-        server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(clientId, generatedToken)));
+        server.sendToClient(clientId, gson.toJson(new PlayerIdAssignedMessage(username, generatedToken)));
 
         broadcastLobbyState();
     }
@@ -102,7 +103,6 @@ public class LobbyManager {
                     player.getUsername(), time, text);
             server.broadcast(gson.toJson(chatMsg));
 
-            // ذخیره پیام چت در دیتابیس
             databaseManager.saveChatMessage("global_session", clientId, text);
         }
     }

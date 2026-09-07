@@ -17,10 +17,6 @@ public class ServerTurnProcessor {
         this.tribeController   = new TribeController(gameMap);
     }
 
-    /**
-     * Executes end-of-turn processing for a SINGLE player.
-     * (AP reset, item buff clear, individual queue advance)
-     */
     public void processPlayerTurnEnd(GameMap gameMap, String clientId) {
         TownHall playerTH = gameMap.getPlayerTownHall(clientId);
 
@@ -38,7 +34,7 @@ public class ServerTurnProcessor {
             if (!unit.isAlive() || !clientId.equals(unit.getOwnerId())) continue;
 
             unit.resetAP();
-            unit.resetItemBuffs(); // clear teleport/mobility/combat item buffs
+            unit.resetItemBuffs();
 
             if (effectiveHappiness <= -5) {
                 UnitType t = unit.getType();
@@ -54,15 +50,24 @@ public class ServerTurnProcessor {
             }
         }
 
+        for (Hex hex : gameMap.getHexes()) {
+            if (!(hex.getBuilding() instanceof Apothecary apothecary)) continue;
+            if (apothecary.isDestroyed()) continue;
+            if (!clientId.equals(apothecary.getOwnerId())) continue;
+
+            String completedItem = apothecary.advanceCraftingQueue();
+            if (completedItem == null) continue;
+
+            Empire ownerEmpire = gameMap.getEmpire(clientId);
+            if (ownerEmpire != null) {
+                ownerEmpire.getInventory().addItem(completedItem, 1);
+            }
+        }
+
         gameMap.removeDeadUnits();
     }
 
-    /**
-     * Executes end-of-round processing for ALL players globally.
-     * (Disasters, Tribes, Bear AI, global item crafting)
-     */
     public void processGlobalRoundEnd(GameMap gameMap) {
-        // Step 1: decrement flood-halt timers
         for (Hex hex : gameMap.getHexes()) {
             if (hex.getBuilding() != null) {
                 hex.getBuilding().decrementFloodHalt();
@@ -71,32 +76,11 @@ public class ServerTurnProcessor {
 
         gameMap.removeDeadUnits();
 
-        // Step 2: natural disasters & bear AI
         DisasterController disasterController = new DisasterController(gameMap);
         disasterController.processBearAI();
         disasterController.checkAndTriggerDisasters();
 
-        // Step 3: tribe AI
         tribeController.processTribesTurn();
-
-        // Step 4: Apothecary crafting queues
-        for (Hex hex : gameMap.getHexes()) {
-            if (!(hex.getBuilding() instanceof Apothecary apothecary)) continue;
-            if (apothecary.isDestroyed()) continue;
-
-            String completedItem = apothecary.advanceCraftingQueue();
-            if (completedItem == null) continue;
-
-            String ownerId = apothecary.getOwnerId();
-            if (ownerId == null) continue;
-
-            TownHall ownerTH = gameMap.getPlayerTownHall(ownerId);
-            if (ownerTH != null) {
-                ownerTH.getInventory().addItem(completedItem, 1);
-                GameEventDispatcher.fireNotification("⚗️ Apothecary finished crafting: "
-                        + completedItem + "! Added to your inventory.");
-            }
-        }
 
         for (Unit unit : gameMap.getUnits()) {
             if (!unit.isAlive()) continue;

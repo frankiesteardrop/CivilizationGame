@@ -16,7 +16,7 @@ public class NetworkManager {
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private boolean isConnected = false;
+    private volatile boolean isConnected = false;
 
     private ServerMessageHandler messageHandler;
     private UdpHeartbeatClient udpHeartbeat;
@@ -24,7 +24,6 @@ public class NetworkManager {
     private String myClientId = "unknown";
     private String jwtToken = null;
 
-    // 🔴 حفظ اصلاحیه‌ی M-12 (صف برای جلوگیری از Reordering)
     private final BlockingQueue<String> sendQueue = new LinkedBlockingQueue<>();
     private Thread senderThread;
 
@@ -52,13 +51,16 @@ public class NetworkManager {
             listenerThread.setName("network-listener");
             listenerThread.start();
 
-            // 🔴 اجرای Sender اختصاصی برای صف
             senderThread = new Thread(() -> {
                 try {
                     while (isConnected || !sendQueue.isEmpty()) {
                         String msg = sendQueue.poll(500, TimeUnit.MILLISECONDS);
-                        if (msg != null && out != null) {
+                        if (msg != null && out != null && !out.checkError()) {
                             out.println(msg);
+                            if (out.checkError()) {
+                                disconnect();
+                                break;
+                            }
                         }
                     }
                 } catch (InterruptedException e) {
@@ -88,17 +90,13 @@ public class NetworkManager {
                 System.err.println("[Client] Failed to attach token: " + e.getMessage());
             }
         }
-        // ارسال پیام به صف (بدون ساخت ترد جدید)
         sendQueue.offer(jsonMessage);
     }
 
     public boolean isConnected() { return isConnected; }
 
-    public boolean isServerAlive() {
-        return udpHeartbeat == null || udpHeartbeat.isServerAlive();
-    }
-
     public void disconnect() {
+        if (!isConnected) return;
         isConnected = false;
         if (senderThread != null) senderThread.interrupt();
         if (udpHeartbeat != null) udpHeartbeat.stop();
@@ -110,40 +108,30 @@ public class NetworkManager {
         public void run() {
             try {
                 String incomingJson;
-                while ((incomingJson = in.readLine()) != null) {
+                while (isConnected && (incomingJson = in.readLine()) != null) {
                     final String msg  = incomingJson;
                     final String type = extractMessageType(msg);
 
                     if ("PLAYER_ID_ASSIGNED".equals(type)) {
                         try {
                             JsonObject obj = JsonParser.parseString(msg).getAsJsonObject();
-                            if (obj.has("jwtToken")) {
-                                setJwtToken(obj.get("jwtToken").getAsString());
-                            }
-                            // 🔴 FIX M-16: همگام‌سازی UDP با UUID قطعی سرور
-                            if (obj.has("clientId")) {
-                                String realUUID = obj.get("clientId").getAsString();
+                            if (obj.has("jwtToken")) setJwtToken(obj.get("jwtToken").getAsString());
+                            if (obj.has("assignedId")) {
+                                String realUUID = obj.get("assignedId").getAsString();
                                 setMyClientId(realUUID);
-                                if (udpHeartbeat != null) {
-                                    udpHeartbeat.updateClientId(realUUID);
-                                }
+                                if (udpHeartbeat != null) udpHeartbeat.updateClientId(realUUID);
                             }
                         } catch(Exception ignored){}
                     }
 
                     SwingUtilities.invokeLater(() -> {
-                        if (messageHandler != null) {
-                            messageHandler.onMessage(type, msg);
-                        } else {
-                            System.out.println("[Client] No handler registered. Dropped: " + type);
-                        }
+                        if (messageHandler != null) messageHandler.onMessage(type, msg);
                     });
                 }
             } catch (IOException e) {
-                isConnected = false;
-                if (senderThread != null) senderThread.interrupt();
-                if (udpHeartbeat != null) udpHeartbeat.stop();
-                System.out.println("⚠️ [Client] Disconnected from server.");
+                System.out.println("⚠️ [Client] Disconnected from server (IO Error).");
+            } finally {
+                disconnect();
                 SwingUtilities.invokeLater(() -> {
                     if (messageHandler != null) {
                         messageHandler.onMessage("DISCONNECTED", "{}");
@@ -158,7 +146,7 @@ public class NetworkManager {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             if (obj.has("type")) return obj.get("type").getAsString();
         } catch (Exception e) {
-            System.err.println("[Client] Failed to parse message type. Raw: " + json);
+            System.err.println("[Client] Failed to parse message type.");
         }
         return "UNKNOWN";
     }

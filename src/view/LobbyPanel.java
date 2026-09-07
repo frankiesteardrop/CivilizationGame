@@ -13,10 +13,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
-/**
- * Lobby UI: player list with Ready status, real-time chat, and (for the host)
- * a map selection dropdown.
- */
+
 public class LobbyPanel extends JPanel {
 
     private final LobbyController controller;
@@ -26,7 +23,6 @@ public class LobbyPanel extends JPanel {
     private final JButton     readyButton;
     private final JButton     startButton;
 
-    // ─── Map Selection (B10) — visible to all, actionable by host only ────────
     private final JComboBox<String> mapComboBox;
     private final JLabel            mapSelectionLabel;
     private boolean amHost = false;
@@ -39,7 +35,6 @@ public class LobbyPanel extends JPanel {
         setBackground(new Color(25, 28, 35));
         setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // ── Player list ───────────────────────────────────────────────────────
         playerListPanel = new JPanel();
         playerListPanel.setLayout(new BoxLayout(playerListPanel, BoxLayout.Y_AXIS));
         playerListPanel.setBackground(new Color(35, 39, 48));
@@ -50,7 +45,6 @@ public class LobbyPanel extends JPanel {
                 BorderFactory.createLineBorder(new Color(52, 152, 219), 1), "Players"));
         playerScroll.getViewport().setBackground(new Color(35, 39, 48));
 
-        // ── Map selection (B10) ───────────────────────────────────────────────
         List<MapDefinition> allMaps = PreDesignedMaps.getAllMaps();
         String[] mapNames = allMaps.stream()
                 .map(MapDefinition::getDisplayName)
@@ -82,7 +76,6 @@ public class LobbyPanel extends JPanel {
         mapPanel.add(mapSelectionLabel);
         mapPanel.add(mapComboBox);
 
-        // ── Chat ──────────────────────────────────────────────────────────────
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatArea.setBackground(new Color(15, 17, 24));
@@ -114,7 +107,6 @@ public class LobbyPanel extends JPanel {
         chatPanel.add(chatScroll, BorderLayout.CENTER);
         chatPanel.add(chatInput, BorderLayout.SOUTH);
 
-        // ── Buttons ───────────────────────────────────────────────────────────
         readyButton = new JButton("✅ Toggle Ready");
         readyButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
         readyButton.setBackground(new Color(46, 204, 113));
@@ -143,25 +135,15 @@ public class LobbyPanel extends JPanel {
         southPanel.add(mapPanel, BorderLayout.NORTH);
         southPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // ── Layout ────────────────────────────────────────────────────────────
         add(playerScroll, BorderLayout.WEST);
         add(chatPanel,    BorderLayout.CENTER);
         add(southPanel,   BorderLayout.SOUTH);
     }
 
-    // ─── Update Methods ───────────────────────────────────────────────────────
 
-    /**
-     * Updates the player list, ready indicators, map selection, and button states
-     * based on the latest lobby broadcast from the server.
-     *
-     * @param update  the full lobby state from the server
-     * @param iAmHost true if this client is currently the host
-     */
     public void updateLobbyState(LobbyUpdateBroadcast update, boolean iAmHost) {
         this.amHost = iAmHost;
 
-        // ── Player list ───────────────────────────────────────────────────────
         playerListPanel.removeAll();
         boolean allReady = !update.getPlayers().isEmpty();
 
@@ -180,19 +162,16 @@ public class LobbyPanel extends JPanel {
         playerListPanel.revalidate();
         playerListPanel.repaint();
 
-        // ── Map selection ─────────────────────────────────────────────────────
         mapComboBox.setEnabled(iAmHost);
         mapComboBox.setToolTipText(iAmHost
                 ? "Select the map for this game session."
                 : "Only the host can change the map.");
 
-        // Sync the combobox to the server-selected map without triggering the listener
         String serverMapId = update.getSelectedMapId();
         if (serverMapId != null) {
             List<MapDefinition> allMaps = PreDesignedMaps.getAllMaps();
             for (int i = 0; i < allMaps.size(); i++) {
                 if (allMaps.get(i).getId().equals(serverMapId)) {
-                    // Temporarily remove listener to avoid feedback loop
                     java.awt.event.ActionListener[] listeners = mapComboBox.getActionListeners();
                     for (java.awt.event.ActionListener l : listeners) mapComboBox.removeActionListener(l);
                     mapComboBox.setSelectedIndex(i);
@@ -202,8 +181,6 @@ public class LobbyPanel extends JPanel {
             }
         }
 
-        // ── Buttons ───────────────────────────────────────────────────────────
-        // Start is only enabled for the host when all players are ready
         startButton.setEnabled(iAmHost && allReady && update.getPlayers().size() >= 2);
         startButton.setVisible(iAmHost);
     }

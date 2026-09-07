@@ -2,8 +2,8 @@ package network.messages;
 
 public class ActionRequest extends Message {
     private final String playerId;
-    private final String actionType; // e.g., "MOVE", "BUILD", "ATTACK"
-    private final String payload;    // JSON string containing specific action details
+    private final String actionType;
+    private final String payload;
 
     public ActionRequest(String playerId, String actionType, String payload) {
         super("ACTION_REQUEST");

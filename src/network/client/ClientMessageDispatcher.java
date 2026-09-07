@@ -10,7 +10,6 @@ import network.messages.lobby.PlayerIdAssignedMessage;
 import view.HUDPanel;
 import view.GamePanel;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -103,15 +102,21 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
 
                     if (hudPanel != null) {
                         String activeId   = broadcast.getActivePlayerId();
+                        String activeName = broadcast.getActivePlayerName();
                         boolean isMyTurn  = activeId != null && activeId.equals(myPlayerId);
-                        hudPanel.setActiveTurnInfo(activeId, isMyTurn);
+
+                        hudPanel.setActiveTurnInfo(activeName, isMyTurn);
 
                         if (mainController != null) {
                             mainController.setMyTurn(isMyTurn);
                         }
-
                         if (isMyTurn) {
                             hudPanel.onOurTurnStarted();
+                        }
+
+                        Map<String, String[]> diplomacyMap = broadcast.getDiplomacyStatuses();
+                        if (diplomacyMap != null) {
+                            hudPanel.updateDiplomacyStatus(diplomacyMap);
                         }
                     }
                 });
@@ -139,7 +144,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
             case "DIPLOMACY_EVENT" -> {
                 DiplomacyBroadcast event = gson.fromJson(rawJson, DiplomacyBroadcast.class);
 
-                // --- هندل کردن درخواست اتحاد در سمت کلاینت ---
                 if ("ALLIANCE_REQUESTED".equals(event.getEventType()) && myPlayerId.equals(event.getTargetId())) {
                     javax.swing.SwingUtilities.invokeLater(() -> {
                         int choice = javax.swing.JOptionPane.showConfirmDialog(
@@ -154,7 +158,7 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                             mainController.getNetworkManager().sendRequest(gson.toJson(new AllianceResponseRequest(event.getInitiatorId(), accepted)));
                         }
                     });
-                    return; // چون یک پاپ‌آپ است، نیازی به لاگ نرمال نداریم
+                    return;
                 }
 
                 if (!"GAME_START".equals(event.getEventType())) {
@@ -162,9 +166,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
                 }
 
                 if (onDiplomacyEvent != null) onDiplomacyEvent.accept(event);
-                if (hudPanel != null) {
-                    updateHudDiplomacy(event);
-                }
             }
 
             case "GAME_NOTIFICATION" -> {
@@ -175,7 +176,7 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
             case "ERROR_RESPONSE" -> {
                 ErrorResponse err = gson.fromJson(rawJson, ErrorResponse.class);
                 System.err.println("[Client] Server error: " + err.getErrorMessage());
-                model.GameEventDispatcher.fireNotification("⚠️ " + err.getErrorMessage());
+                model.GameEventDispatcher.fireNotification(err.getErrorMessage());
             }
 
             case "DISCONNECTED" -> {
@@ -185,45 +186,6 @@ public class ClientMessageDispatcher implements ServerMessageHandler {
 
             default ->
                     System.out.println("[Client] Unhandled message type: " + messageType);
-        }
-    }
-
-    private void updateHudDiplomacy(DiplomacyBroadcast event) {
-        if (hudPanel == null || myPlayerId == null) return;
-
-        if (!"GAME_START".equals(event.getEventType())) {
-            String initiatorId   = event.getInitiatorId();
-            String initiatorName = event.getInitiatorName();
-            String targetId      = event.getTargetId();
-            String targetName    = event.getTargetName();
-
-            Map<String, String[]> statusMap = new LinkedHashMap<>();
-            String otherPlayerId;
-            String otherPlayerName;
-
-            if (myPlayerId.equals(initiatorId)) {
-                otherPlayerId   = targetId;
-                otherPlayerName = targetName;
-            } else if (myPlayerId.equals(targetId)) {
-                otherPlayerId   = initiatorId;
-                otherPlayerName = initiatorName;
-            } else {
-                otherPlayerId   = initiatorId;
-                otherPlayerName = initiatorName;
-            }
-
-            String newStatus = switch (event.getEventType()) {
-                case "WAR_DECLARED"    -> "Enemy";
-                case "ALLIANCE_FORMED" -> "Allied";
-                case "ALLIANCE_BROKEN" -> "Neutral";
-                default                -> "Neutral";
-            };
-
-            statusMap.put(otherPlayerId, new String[]{ otherPlayerName, newStatus });
-            hudPanel.updateDiplomacyStatus(statusMap);
-        } else {
-            Map<String, String[]> initMap = new LinkedHashMap<>();
-            hudPanel.updateDiplomacyStatus(initMap);
         }
     }
 }

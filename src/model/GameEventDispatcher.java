@@ -3,18 +3,7 @@ package model;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList; // B22: thread-safe list
 
-/**
- * Central event bus for the game engine.
- *
- * <p>All listener lists use {@link CopyOnWriteArrayList} (B22) so that
- * the server's multiple threads can call fire*() methods concurrently without
- * causing {@link java.util.ConcurrentModificationException} or data races.
- * CopyOnWriteArrayList is ideal here because:
- * <ul>
- *   <li>Reads (iteration during fire*()) are lock-free and very fast.</li>
- *   <li>Writes (add/remove listeners) are rare and can tolerate copy overhead.</li>
- * </ul>
- */
+
 public class GameEventDispatcher {
 
     private static final List<ResourceListener>     resourceListeners    =
@@ -37,8 +26,6 @@ public class GameEventDispatcher {
             new CopyOnWriteArrayList<>();
 
     private GameEventDispatcher() {}
-
-    // ─── Registration ─────────────────────────────────────────────────────────
 
     public static void addListener(Object listener) {
         if (listener instanceof ResourceListener l
@@ -84,9 +71,6 @@ public class GameEventDispatcher {
         combatListeners.clear();
         disasterListeners.clear();
     }
-
-    // ─── Fire methods ─────────────────────────────────────────────────────────
-    // CopyOnWriteArrayList iteration is always safe — no locking needed here.
 
     public static void fireResourceChanged(ResourceType type, int newAmount) {
         for (ResourceListener l : resourceListeners) l.onResourceChanged(type, newAmount);

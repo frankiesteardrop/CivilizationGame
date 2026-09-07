@@ -2,7 +2,7 @@ package view;
 
 import com.google.gson.Gson;
 import controller.MainController;
-import controller.TradeController; // اضافه شد
+import controller.TradeController;
 import model.*;
 import network.client.NetworkManager;
 import network.messages.game.EndTurnRequest;
@@ -57,6 +57,8 @@ public class HUDPanel extends JPanel
 
     private List<TradeOffer> pendingOffers = new ArrayList<>();
 
+    private final Timer updateTimer;
+
     public HUDPanel(MainController mainController, GamePanel gamePanel) {
         this.mainController = mainController;
         this.gamePanel      = gamePanel;
@@ -68,7 +70,6 @@ public class HUDPanel extends JPanel
                 BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(41, 128, 185)),
                 new EmptyBorder(4, 6, 4, 6)));
 
-        // ─── 1. West Panel
         JPanel westPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         westPanel.setOpaque(false);
 
@@ -89,7 +90,6 @@ public class HUDPanel extends JPanel
         westPanel.add(diplomacyPanel);
         add(westPanel, BorderLayout.WEST);
 
-        // ─── 2. Center Panel
         infoContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 0));
         infoContainer.setOpaque(false);
 
@@ -121,8 +121,6 @@ public class HUDPanel extends JPanel
         centerWrapper.setOpaque(false);
         centerWrapper.add(infoContainer, BorderLayout.CENTER);
         add(centerWrapper, BorderLayout.CENTER);
-
-        // ─── 3. East Panel
         JPanel eastPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         eastPanel.setOpaque(false);
 
@@ -137,7 +135,6 @@ public class HUDPanel extends JPanel
                 return;
             }
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            // 🔴 MVC Fix: Inject TradeController instead of NetworkManager
             TradeController tradeController = new TradeController(mainController.getNetworkManager());
             new TradeInboxDialog(parentFrame, tradeController, pendingOffers).setVisible(true);
         });
@@ -157,8 +154,18 @@ public class HUDPanel extends JPanel
         chatDrawer.setVisible(false);
 
         GameEventDispatcher.addListener(this);
-        new Timer(500, e -> updateHUD()).start();
+
+        updateTimer = new Timer(500, e -> updateHUD());
+        updateTimer.start();
+
         updateHUD();
+    }
+
+    public void cleanup() {
+        if (updateTimer != null && updateTimer.isRunning()) {
+            updateTimer.stop();
+        }
+        GameEventDispatcher.removeListener(this);
     }
 
     private void updateHUD() {
@@ -166,8 +173,18 @@ public class HUDPanel extends JPanel
             resetEndTurnButton();
         }
 
-        GameMap   map = mainController.getGameMap();
-        Inventory inv = map.getTownHall().getInventory();
+        GameMap map = mainController.getGameMap();
+        TownHall playerTH = map.getPlayerTownHall(mainController.getMyPlayerId());
+        if (playerTH == null) {
+            foodCard.updateValue("0");
+            woodCard.updateValue("0");
+            stoneCard.updateValue("0");
+            ironCard.updateValue("0");
+            queueCard.updateValue("<span style='color:#e74c3c;'>Destroyed</span>");
+            return;
+        }
+
+        Inventory inv = playerTH.getInventory();
 
         int netFood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.FOOD);
         int netWood  = mainController.getEconomyController().calculateNetProduction(map, ResourceType.WOOD);
@@ -186,7 +203,7 @@ public class HUDPanel extends JPanel
         ironCard.updateValue(fmtConcise(inv, ResourceType.IRON, netIron));
         ironCard.setToolTipText(fmtTooltip(inv, ResourceType.IRON, netIron));
 
-        ProductionCommand task = map.getTownHall().getProductionQueue().peek();
+        ProductionCommand task = playerTH.getProductionQueue().peek();
         if (task != null) {
             String frozen = (isStarving && task.isPopulationTask()) ? " <span style='color:#e74c3c;'>❄️</span>" : "";
             queueCard.updateValue(task.getTurnsRemaining() + "T" + frozen);

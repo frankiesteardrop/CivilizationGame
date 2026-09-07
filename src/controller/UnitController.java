@@ -53,7 +53,7 @@ public class UnitController {
 
     public void executeMoveNetwork(Unit unit, Hex targetHex, GameMap map, NetworkManager nm) {
         if (nm != null) {
-            nm.sendRequest(new Gson().toJson(new MoveRequest(unit.getQ(), unit.getR(), targetHex.getQ(), targetHex.getR())));
+            nm.sendRequest(new Gson().toJson(new MoveRequest(unit.getId(), unit.getQ(), unit.getR(), targetHex.getQ(), targetHex.getR())));
             return;
         }
         executeMove(unit, targetHex, map);

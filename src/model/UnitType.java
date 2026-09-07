@@ -7,8 +7,8 @@ public enum UnitType {
     BORDER_EXPANDER(5, 2, 2, 1, 0, 0),
     SWORDSMAN(2, 2, 2, 1, 1, 10),
     ARCHER(2, 2, 3, 1, 2, 6),
-    CAVALRY(4, 3, 4, 2, 1, 9),    // B16: fixed from 8 → 9
-    CATAPULT(2, 2, 2, 2, 2, 20),  // B15: new siege unit, range=2, dmg=20
+    CAVALRY(4, 3, 4, 2, 1, 9),
+    CATAPULT(2, 2, 2, 2, 2, 20),
     BEAR(2, 0, 1, 120, 1, 35);
 
     private final int maxAP;

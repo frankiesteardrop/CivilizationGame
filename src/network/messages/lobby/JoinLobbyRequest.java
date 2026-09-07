@@ -5,7 +5,7 @@ import network.messages.Message;
 public class JoinLobbyRequest extends Message {
 
     private final String username;
-    private final String password; // فیلد جدید برای احراز هویت
+    private final String password;
 
     public JoinLobbyRequest(String username, String password) {
         super("JOIN_LOBBY");

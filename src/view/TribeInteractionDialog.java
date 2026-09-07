@@ -26,8 +26,8 @@ public class TribeInteractionDialog extends JDialog {
     private static final Color TEXT_DIM     = new Color(127, 140, 141);
     private static final Color BTN_DISABLED = new Color(60, 65, 75);
 
-    private final TribeCamp         camp;
-    private final Tribe             tribe;
+    private final TribeCamp       camp;
+    private final Tribe           tribe;
     private final TribeController tribeController;
     private final MainController  mainController;
     private final Runnable        onClose;
@@ -53,11 +53,9 @@ public class TribeInteractionDialog extends JDialog {
         JPanel root = new JPanel(new BorderLayout(0, 0));
         root.setBackground(BG_DARK);
         root.setBorder(BorderFactory.createLineBorder(ACCENT_BLUE, 2));
-
-        root.add(buildHeader(),           BorderLayout.NORTH);
+        root.add(buildHeader(),            BorderLayout.NORTH);
         root.add(buildScrollableActions(), BorderLayout.CENTER);
-        root.add(buildFooter(),           BorderLayout.SOUTH);
-
+        root.add(buildFooter(),            BorderLayout.SOUTH);
         setContentPane(root);
     }
 
@@ -71,7 +69,7 @@ public class TribeInteractionDialog extends JDialog {
         title.setForeground(TEXT_MAIN);
 
         Color statusColor = getStatusColor(tribe.getState().getName());
-        JLabel statusLbl = new JLabel(tribe.getDetailedStatus());
+        JLabel statusLbl  = new JLabel(tribe.getDetailedStatus());
         statusLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
         statusLbl.setForeground(statusColor);
 
@@ -122,117 +120,60 @@ public class TribeInteractionDialog extends JDialog {
         actionsPanel.setBackground(BG_DARK);
         actionsPanel.setBorder(new EmptyBorder(12, 16, 12, 16));
 
-        actionsPanel.add(buildActionButton(
-                "🎁  Send Gift",
-                "Send resources to improve relations",
-                tribe.canReceiveGift(),
-                tribe.canReceiveGift() ? null : "Cannot gift to an enemy tribe",
-                ACCENT_GREEN,
-                this::showGiftDialog));
-
+        actionsPanel.add(buildActionButton("🎁  Send Gift", "Send resources to improve relations",
+                tribe.canReceiveGift(), tribe.canReceiveGift() ? null : "Cannot gift to an enemy tribe",
+                ACCENT_GREEN, this::showGiftDialog));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        // ─── [MVC FIX]: Logic moved to TribeType. View just requests boolean.
         boolean canTrade = tribe.canTrade() && !camp.hasTraded() && tribe.getType().isTradeAllowed();
         String tradeDisabledReason = !tribe.getType().isTradeAllowed()
                 ? tribe.getType().getTradeDisabledReason()
                 : (!tribe.canTrade() ? tribe.getType().getTradeDisabledReason() : "Already traded this turn");
 
-        actionsPanel.add(buildActionButton(
-                "💱  Trade Resources",
-                "Exchange resources at " + getTribeTradeRateLabel(),
-                canTrade,
-                tradeDisabledReason,
-                ACCENT_BLUE,
-                this::showTradeDialog));
-
+        actionsPanel.add(buildActionButton("💱  Trade Resources", "Exchange resources at " + getTribeTradeRateLabel(),
+                canTrade, tradeDisabledReason, ACCENT_BLUE, this::showTradeDialog));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        actionsPanel.add(buildActionButton(
-                "📜  Mission Board",
-                "View or Accept tribe missions",
-                true,
-                null,
-                ACCENT_GOLD,
-                this::showMissionInfo));
-
+        actionsPanel.add(buildActionButton("📜  Mission Board", "View or Accept tribe missions",
+                true, null, ACCENT_GOLD, this::showMissionInfo));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         boolean isMissionReady = tribe.getMission() != null && tribe.getMission().getState().canDeliver();
-        boolean hasCapacity = tribeController.canHoldMissionReward(tribe);
-        boolean canDeliver = isMissionReady && hasCapacity;
+        boolean hasCapacity    = tribeController.canHoldMissionReward(tribe);
+        boolean canDeliver     = isMissionReady && hasCapacity;
+        String deliverDisabledReason = !isMissionReady ? "No ready mission to deliver"
+                : !hasCapacity ? "Storage is full! Not enough capacity for rewards." : null;
 
-        String deliverDisabledReason;
-        if (!isMissionReady) {
-            deliverDisabledReason = "No ready mission to deliver";
-        } else if (!hasCapacity) {
-            deliverDisabledReason = "Storage is full! Not enough capacity for rewards.";
-        } else {
-            deliverDisabledReason = null;
-        }
-
-        actionsPanel.add(buildActionButton(
-                "✅  Deliver Mission",
-                "Deliver completed mission for rewards",
-                canDeliver,
-                deliverDisabledReason,
-                ACCENT_GREEN,
-                () -> {
+        actionsPanel.add(buildActionButton("✅  Deliver Mission", "Deliver completed mission for rewards",
+                canDeliver, deliverDisabledReason, ACCENT_GREEN, () -> {
                     if (tribeController.deliverMission(camp)) {
-                        JOptionPane.showMessageDialog(this,
-                                "Mission Delivered! Reward Applied.",
-                                "Mission Complete ✅", JOptionPane.INFORMATION_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Mission Delivered! Reward Applied.", "Mission Complete ✅", JOptionPane.INFORMATION_MESSAGE);
                     } else {
-                        JOptionPane.showMessageDialog(this,
-                                "Delivery failed. Resources missing or storage full?",
-                                "Error", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Delivery failed. Resources missing or storage full?", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                     rebuildAndRefresh();
                 }));
-
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         boolean canAllianceState = tribe.canFormAlliance();
         String  allianceReason   = getAllianceDisabledReason();
-        actionsPanel.add(buildActionButton(
-                "🤝  Request Alliance",
-                "Form a permanent alliance for ongoing bonuses",
+        actionsPanel.add(buildActionButton("🤝  Request Alliance", "Form a permanent alliance for ongoing bonuses",
                 canAllianceState && allianceReason == null,
-                allianceReason != null ? allianceReason
-                        : (canAllianceState ? null : "Requires Allied status (≥70 relation)"),
-                ACCENT_PURP,
-                this::tryFormAlliance));
-
+                allianceReason != null ? allianceReason : (canAllianceState ? null : "Requires Allied status (≥70 relation)"),
+                ACCENT_PURP, this::tryFormAlliance));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
         boolean canWar = tribe.getState().canDeclareWar();
-        actionsPanel.add(buildActionButton(
-                "⚔️  Declare War",
-                "Start a war — causes happiness penalty!",
-                canWar,
-                "Already at war with this tribe",
-                ACCENT_RED,
-                this::confirmDeclareWar));
-
+        actionsPanel.add(buildActionButton("⚔️  Declare War", "Start a war — causes happiness penalty!",
+                canWar, "Already at war with this tribe", ACCENT_RED, this::confirmDeclareWar));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        actionsPanel.add(buildActionButton(
-                "🕊️  Request Peace",
-                "End war (costs 30 Food + 30 Wood + 30 Iron)",
-                tribe.canRequestPeace(),
-                "Only available when at war",
-                new Color(100, 180, 255),
-                this::tryRequestPeace));
-
+        actionsPanel.add(buildActionButton("🕊️  Request Peace", "End war (costs 30 Food + 30 Wood + 30 Iron)",
+                tribe.canRequestPeace(), "Only available when at war", new Color(100, 180, 255), this::tryRequestPeace));
         actionsPanel.add(Box.createRigidArea(new Dimension(0, 8)));
 
-        actionsPanel.add(buildActionButton(
-                "⭐  View Tribe Rewards",
-                "See what bonuses become available at Friendly and Allied status",
-                true,
-                null,
-                ACCENT_TEAL,
-                this::showRewardsDialog));
+        actionsPanel.add(buildActionButton("⭐  View Tribe Rewards", "See what bonuses become available at Friendly and Allied status",
+                true, null, ACCENT_TEAL, this::showRewardsDialog));
 
         JScrollPane scroll = new JScrollPane(actionsPanel);
         scroll.setBorder(null);
@@ -272,17 +213,14 @@ public class TribeInteractionDialog extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(6, 4, 6, 4);
 
-        JLabel rateInfo = makeLabel(
-                "Rate: 10 Food/Wood → +2 | 10 Stone → +3 | 5 Iron → +3",
-                TEXT_DIM, Font.PLAIN, 11);
+        JLabel rateInfo = makeLabel("Rate: 10 Food/Wood → +2 | 10 Stone → +3 | 5 Iron → +3", TEXT_DIM, Font.PLAIN, 11);
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 3;
         content.add(rateInfo, gbc);
 
         gbc.gridy = 1; gbc.gridwidth = 1;
         content.add(makeLabel("Resource:", TEXT_DIM, Font.PLAIN, 12), gbc);
 
-        ResourceType[] resTypes  = {ResourceType.FOOD, ResourceType.WOOD,
-                ResourceType.STONE, ResourceType.IRON};
+        ResourceType[] resTypes  = {ResourceType.FOOD, ResourceType.WOOD, ResourceType.STONE, ResourceType.IRON};
         String[]       resLabels = {"🍔 Food", "🪵 Wood", "🪨 Stone", "⚙️ Iron"};
         JComboBox<String> resBox = new JComboBox<>(resLabels);
         resBox.setBackground(BG_CARD);
@@ -322,7 +260,7 @@ public class TribeInteractionDialog extends JDialog {
                 preview.setText("⚠️ Minimum: " + unitSize + " " + rt.name() + " for any gain");
                 preview.setForeground(ACCENT_RED);
             } else {
-                int cur = tribe.getRelationship();
+                int cur   = tribe.getRelationship();
                 int after = Math.min(100, cur + gain);
                 preview.setText("Relation gain: +" + gain + "  (" + cur + " → " + after + ")");
                 preview.setForeground(ACCENT_GREEN);
@@ -340,7 +278,7 @@ public class TribeInteractionDialog extends JDialog {
         confirmBtn.addActionListener(e -> {
             ResourceType rt  = resTypes[resBox.getSelectedIndex()];
             int          amt = (int) amountSpinner.getValue();
-            if (tribeController.sendGift(tribe, rt, amt)) {
+            if (tribeController.sendGift(camp, rt, amt)) {
                 giftDlg.dispose();
                 rebuildAndRefresh();
             } else {
@@ -366,8 +304,7 @@ public class TribeInteractionDialog extends JDialog {
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 3;
         content.add(rateInfo, gbc);
 
-        ResourceType[] allRes   = {ResourceType.FOOD, ResourceType.WOOD,
-                ResourceType.STONE, ResourceType.IRON};
+        ResourceType[] allRes   = {ResourceType.FOOD, ResourceType.WOOD, ResourceType.STONE, ResourceType.IRON};
         String[]       resEmoji = {"🍔 Food", "🪵 Wood", "🪨 Stone", "⚙️ Iron"};
 
         gbc.gridy = 1; gbc.gridwidth = 1;
@@ -404,8 +341,8 @@ public class TribeInteractionDialog extends JDialog {
         JButton confirmBtn = buildSubButton("✅ Confirm Trade", true);
 
         Runnable updatePreview = () -> {
-            int amt = (int) amountSpinner.getValue();
-            ResourceType getRes = allRes[getBox.getSelectedIndex()];
+            int amt              = (int) amountSpinner.getValue();
+            ResourceType getRes  = allRes[getBox.getSelectedIndex()];
             ResourceType giveRes = allRes[giveBox.getSelectedIndex()];
 
             TradeController.TradePreview previewResult = mainController.getTradeController()
@@ -544,7 +481,6 @@ public class TribeInteractionDialog extends JDialog {
 
         String friendlyReward = tribe.getType().getFriendlyRewardDescription();
         String alliedReward   = tribe.getType().getAlliedRewardDescription();
-
         String allianceRequirement =
                 "• Requires: ≥70 relation\n"
                         + "• Requires: No failed mission in last 5 turns\n"
@@ -587,7 +523,7 @@ public class TribeInteractionDialog extends JDialog {
     }
 
     private void tryFormAlliance() {
-        if (tribeController.formAlliance(tribe)) {
+        if (tribeController.formAlliance(camp)) {
             JOptionPane.showMessageDialog(this,
                     "Alliance formed with " + tribe.getType().getDisplayName()
                             + " Tribe!\nPermanent bonus is now active.",
@@ -610,13 +546,13 @@ public class TribeInteractionDialog extends JDialog {
                         + "This cannot be undone easily.\n" + penalty,
                 "Confirm War Declaration", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (choice == JOptionPane.YES_OPTION) {
-            tribeController.declareWar(tribe);
+            tribeController.declareWar(camp);
             rebuildAndRefresh();
         }
     }
 
     private void tryRequestPeace() {
-        if (tribeController.requestPeace(tribe)) {
+        if (tribeController.requestPeace(camp)) {
             JOptionPane.showMessageDialog(this,
                     "Peace achieved! Status changed to Displeased.",
                     "Peace Agreed 🕊️", JOptionPane.INFORMATION_MESSAGE);
@@ -638,12 +574,11 @@ public class TribeInteractionDialog extends JDialog {
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(enabled ? accentColor : new Color(70, 75, 85), 1),
                 new EmptyBorder(10, 14, 10, 14)));
-        btn.setCursor(enabled
-                ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+        btn.setCursor(enabled ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
         btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
         btn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel lbl  = makeLabel(label,       enabled ? TEXT_MAIN : TEXT_DIM, Font.BOLD,  14);
+        JLabel lbl  = makeLabel(label, enabled ? TEXT_MAIN : TEXT_DIM, Font.BOLD, 14);
         JLabel desc = makeLabel(
                 enabled ? description : (disabledReason != null ? "🔒 " + disabledReason : description),
                 enabled ? TEXT_DIM : new Color(100, 105, 115), Font.PLAIN, 11);
@@ -671,8 +606,7 @@ public class TribeInteractionDialog extends JDialog {
         btn.setFocusPainted(false);
         btn.setBorder(new EmptyBorder(8, 18, 8, 18));
         btn.setEnabled(enabled);
-        btn.setCursor(enabled
-                ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
+        btn.setCursor(enabled ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
         return btn;
     }
 
@@ -714,8 +648,7 @@ public class TribeInteractionDialog extends JDialog {
         dispose();
         if (!camp.isDestroyed()) {
             JFrame parent = (JFrame) getOwner();
-            TribeInteractionDialog fresh = new TribeInteractionDialog(
-                    parent, camp, mainController, onClose);
+            TribeInteractionDialog fresh = new TribeInteractionDialog(parent, camp, mainController, onClose);
             fresh.setVisible(true);
         }
         if (onClose != null) onClose.run();

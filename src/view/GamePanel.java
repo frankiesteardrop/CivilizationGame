@@ -141,6 +141,12 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             }
         });
     }
+    public void cleanup() {
+        if (animationTimer != null && animationTimer.isRunning()) {
+            animationTimer.stop();
+        }
+        GameEventDispatcher.removeListener(this);
+    }
 
     public void openPauseMenu() {
         JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
@@ -149,7 +155,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
         dialog.setVisible(true);
         repaint();
     }
-
 
     private void updateAdvancedParticles(Season season) {
         if (season != lastParticleSeason) {
@@ -182,7 +187,7 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             } else if (season == Season.AUTUMN) {
                 if (particleRandom.nextFloat() > 0.15f) {
                     float spY = (15.0f + particleRandom.nextFloat() * 10.0f) * z;
-                    float spX = -3.0f - particleRandom.nextFloat() * 2.0f; // باد شدید به چپ
+                    float spX = -3.0f - particleRandom.nextFloat() * 2.0f;
                     particles.add(new AdvancedParticle(1, startX, startY, z, spX, spY, 2.0f * z,
                             0.3f + particleRandom.nextFloat() * 0.3f, 0, new Color(150, 180, 210)));
                 } else {
@@ -219,17 +224,14 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
             g2d.setColor(new Color(p.color.getRed(), p.color.getGreen(), p.color.getBlue(), (int)(p.alpha * 255)));
 
             if (p.type == 0 || p.type == 3) {
-                // برف و شکوفه (دایره‌ای نرم)
                 int sz = Math.max(2, (int) p.size);
                 g2d.fillOval((int) p.x, (int) p.y, sz, sz);
             } else if (p.type == 1) {
-                // باران (خطوط مورب)
                 g2d.setStroke(new BasicStroke(p.size / 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 int x2 = (int)(p.x - p.speedX * 1.2f);
                 int y2 = (int)(p.y - p.speedY * 1.2f);
                 g2d.drawLine((int)p.x, (int)p.y, x2, y2);
             } else if (p.type == 2) {
-                // برگ پاییزی (چندضلعی کوچک)
                 int sz = Math.max(3, (int) p.size);
                 g2d.fillRect((int) p.x, (int) p.y, sz, sz - 1);
             }
@@ -238,7 +240,6 @@ public class GamePanel extends JPanel implements UnitListener, TurnListener, Bui
     }
 
     private void drawCinematicOverlays(Graphics2D g2d) {
-        // افکت تپش خطر خرس (Red Vignette)
         if (bearAlpha > 0) {
             int w = getWidth();
             int h = getHeight();

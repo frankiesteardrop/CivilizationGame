@@ -24,7 +24,6 @@ public abstract class Unit {
     protected Tribe ownerTribe;
     protected String ownerId;
 
-    // فیلدهای کنترلی آیتم‌های مصرفی (گام ۵)
     protected boolean hasUsedItemThisTurn;
     protected int temporaryCombatDiceBonus;
     protected int temporarySiegeBonus;
@@ -86,7 +85,6 @@ public abstract class Unit {
         GameEventDispatcher.fireUnitStateChanged(this);
     }
 
-    // متدهای مدیریت آیتم‌ها
     public boolean hasUsedItemThisTurn() { return hasUsedItemThisTurn; }
     public void setUsedItemThisTurn(boolean used) { this.hasUsedItemThisTurn = used; }
 
@@ -119,7 +117,6 @@ public abstract class Unit {
     public int getMaxHp() { return maxHp; }
     public int getAttackRange() { return attackRange; }
 
-    // اعمال باف آیتم مبارزه روی آسیب به سازه
     public int getSiegeDamage() { return siegeDamage + temporarySiegeBonus; }
 
     public boolean isAlive() { return isAlive; }

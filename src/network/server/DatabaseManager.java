@@ -1,7 +1,12 @@
 package network.server;
 
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import java.security.SecureRandom;
+import java.security.spec.KeySpec;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -51,6 +56,14 @@ public class DatabaseManager {
         }
     }
 
+    // 🔴 FIX M-24: متد هش‌کننده امن و استاندارد PBKDF2
+    private String hashPassword(String password, byte[] salt) throws Exception {
+        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 128);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        byte[] hash = factory.generateSecret(spec).getEncoded();
+        return Base64.getEncoder().encodeToString(hash);
+    }
+
     public synchronized boolean registerOrAuthenticate(String clientId, String username, String password) {
         String queryCheck = "SELECT password_hash FROM players WHERE username = ?";
         try (PreparedStatement pstmtCheck = connection.prepareStatement(queryCheck)) {
@@ -58,17 +71,34 @@ public class DatabaseManager {
             ResultSet rs = pstmtCheck.executeQuery();
 
             if (rs.next()) {
-                String storedHash = rs.getString("password_hash");
-                return storedHash.equals(String.valueOf(password.hashCode()));
+                String storedData = rs.getString("password_hash");
+                String[] parts = storedData.split("\\$");
+                if (parts.length != 2) return false;
+
+                byte[] salt = Base64.getDecoder().decode(parts[0]);
+                String expectedHash = parts[1];
+                try {
+                    String providedHash = hashPassword(password, salt);
+                    return expectedHash.equals(providedHash);
+                } catch (Exception e) {
+                    return false;
+                }
             } else {
                 String queryInsert = "INSERT INTO players (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement pstmtInsert = connection.prepareStatement(queryInsert)) {
+                    byte[] salt = new byte[16];
+                    new SecureRandom().nextBytes(salt);
+                    String hash = hashPassword(password, salt);
+                    String dbStorable = Base64.getEncoder().encodeToString(salt) + "$" + hash;
+
                     pstmtInsert.setString(1, clientId);
                     pstmtInsert.setString(2, username);
-                    pstmtInsert.setString(3, String.valueOf(password.hashCode()));
+                    pstmtInsert.setString(3, dbStorable);
                     pstmtInsert.setLong(4, System.currentTimeMillis());
                     pstmtInsert.executeUpdate();
                     return true;
+                } catch (Exception e) {
+                    return false;
                 }
             }
         } catch (SQLException e) {

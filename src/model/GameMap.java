@@ -406,8 +406,6 @@ public class GameMap {
         }
     }
 
-    // 🔴 M-19 FIX: متد تکراری و دردسرساز checkPlayerElimination به طور کامل حذف شد.
-
     public void removeDeadUnits() {
         boolean hadDead = units.stream().anyMatch(u -> !u.isAlive());
         units.removeIf(u -> !u.isAlive());
@@ -659,6 +657,8 @@ public class GameMap {
         this.activeTownHall = null;
     }
 
+// ... سایر کدهای GameMap دست نخورده باقی می‌ماند ...
+
     public TownHall getPlayerTownHall(String playerId) {
         if (playerId == null) return townHall;
         for (Hex h : hexes.getAll()) {
@@ -672,7 +672,11 @@ public class GameMap {
     }
 
     public Inventory getPlayerInventory(String playerId) {
-        return getPlayerTownHall(playerId).getInventory();
+        Empire emp = empires.get(playerId);
+        if (emp != null) {
+            return emp.getInventory();
+        }
+        return townHall.getInventory();
     }
 
     public java.util.List<TownHall> getAllPlayerTownHalls() {

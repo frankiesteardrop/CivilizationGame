@@ -17,7 +17,6 @@ public class TownHall extends Building {
         this.maxHp = 200;
         this.hp    = 200;
 
-        // Fallback for single-player or setup before empire injection
         this.empire = new Empire(null);
     }
 
@@ -30,12 +29,9 @@ public class TownHall extends Building {
     public int getQ() { return q; }
     public int getR() { return r; }
 
-    // ─── Delegations to Empire (Facade Pattern) ───────────────────────────────
-
+    // 🔴 تمام متدهای مربوط به منابع، صرفاً یک واسط (Facade) به امپراتوری هستند
     public Inventory getInventory() { return empire.getInventory(); }
-
     public void produceSafeguardResources() { empire.produceSafeguardResources(); }
-
     public int getLevel() { return empire.getLevel(); }
 
     public void upgradeLevel() {

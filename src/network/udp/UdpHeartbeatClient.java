@@ -13,7 +13,6 @@ public class UdpHeartbeatClient {
     private final String serverHost;
     private final int    serverUdpPort;
 
-    // 🔴 FIX: حذف کلمه‌ی final برای امکان آپدیت شدن شناسه
     private String clientId;
 
     private volatile boolean serverAlive = true;
@@ -25,7 +24,6 @@ public class UdpHeartbeatClient {
         this.clientId      = clientId;
     }
 
-    // 🔴 FIX M-16: متد جدید برای آپدیت شناسه پس از تخصیص UUID از سوی سرور
     public void updateClientId(String newClientId) {
         this.clientId = newClientId;
         System.out.println("🔄 [UDP] Heartbeat Client ID updated to: " + newClientId);

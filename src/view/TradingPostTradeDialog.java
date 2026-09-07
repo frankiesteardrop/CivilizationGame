@@ -77,7 +77,6 @@ public class TradingPostTradeDialog extends JDialog {
         gbc.gridy = 5;
         content.add(confirmBtn, gbc);
 
-        // اعتبارسنجی زنده کاملاً وابسته به Controller (MVC Fix)
         Runnable updatePreview = () -> {
             ResourceType give = types[giveBox.getSelectedIndex()];
             ResourceType get = types[getBox.getSelectedIndex()];

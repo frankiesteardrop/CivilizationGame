@@ -1,11 +1,6 @@
 package network.messages.lobby;
 
-/**
- * Represents a player in the pre-game lobby.
- *
- * <p>Fields {@code id} and {@code createdAt} satisfy the spec requirement for
- * all server-managed entities to have a unique identifier and a creation timestamp.
- */
+
 public class LobbyPlayer {
 
     private final String  id;
@@ -13,7 +8,6 @@ public class LobbyPlayer {
     private boolean       isReady;
     private boolean       isHost;
 
-    /** Unix epoch milliseconds when this lobby entry was created. (B21) */
     private final long createdAt;
 
     public LobbyPlayer(String id, String username, boolean isHost) {
@@ -21,7 +15,7 @@ public class LobbyPlayer {
         this.username  = username;
         this.isHost    = isHost;
         this.isReady   = false;
-        this.createdAt = System.currentTimeMillis(); // (B21)
+        this.createdAt = System.currentTimeMillis();
     }
 
     public String  getId()       { return id; }
@@ -30,5 +24,5 @@ public class LobbyPlayer {
     public void    setReady(boolean ready) { isReady = ready; }
     public boolean isHost()      { return isHost; }
     public void    setHost(boolean host)   { isHost = host; }
-    public long    getCreatedAt() { return createdAt; } // (B21)
+    public long    getCreatedAt() { return createdAt; }
 }
